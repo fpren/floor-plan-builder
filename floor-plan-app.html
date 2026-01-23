@@ -896,21 +896,42 @@ const Render = {
         });
         doorGroup.add(doorRect);
 
-        // Swing arc (dashed/perforated)
-        const arcDir = door.swingDir === 'left' ? -1 : 1;
+        // Door geometry - hinge point and swing direction
+        const swingOut = door.swing === 'out' ? -1 : 1;  // in = toward positive y, out = toward negative y
+        const hingeLeft = door.swingDir === 'left';      // hinge on left or right side
+
+        // Hinge position (at corner of door opening)
+        const hingeX = hingeLeft ? 0 : door.width;
+        const hingeY = swingOut * ws.thickness / 2;
+
+        // Door leaf length (slightly less than full width for visual clarity)
+        const leafLength = door.width * 0.9;
+
+        // Door leaf end point at 45 degrees from hinge
+        const leafAngle = hingeLeft ? 45 : 135;  // degrees
+        const leafRad = leafAngle * Math.PI / 180;
+        const leafEndX = hingeX + leafLength * Math.cos(leafRad);
+        const leafEndY = hingeY + swingOut * leafLength * Math.sin(leafRad);
+
+        // Swing arc (dashed/perforated) - from hinge, showing door swing path
         const swingArc = new Konva.Arc({
-            x: 0, y: arcDir * ws.thickness / 2, innerRadius: 0, outerRadius: door.width * 0.9,
-            angle: 90, rotation: arcDir > 0 ? -90 : 0,
-            stroke: '#555', strokeWidth: 1, dash: [4, 4]
+            x: hingeX,
+            y: hingeY,
+            innerRadius: leafLength - 1,
+            outerRadius: leafLength,
+            angle: 90,
+            rotation: hingeLeft ? (swingOut > 0 ? 0 : -90) : (swingOut > 0 ? 90 : 180),
+            stroke: '#888',
+            strokeWidth: 1,
+            dash: [4, 3]
         });
         doorGroup.add(swingArc);
 
         // Door leaf (solid line representing the actual door panel)
-        // Shown at 45 degrees to indicate open position
         const doorLeaf = new Konva.Line({
-            points: [0, arcDir * ws.thickness / 2, door.width * 0.9 * 0.707, arcDir * (ws.thickness / 2 + door.width * 0.9 * 0.707)],
+            points: [hingeX, hingeY, leafEndX, leafEndY],
             stroke: isSelected ? '#06b6d4' : '#fff',
-            strokeWidth: 2,
+            strokeWidth: 3,
             lineCap: 'round'
         });
         doorGroup.add(doorLeaf);
@@ -952,17 +973,24 @@ const Render = {
                 const newPos = self.getPositionOnSegment(ws, door.distanceFromStart);
                 const newRightPos = self.getPositionOnSegment(ws, door.distanceFromStart + door.width);
 
+                // Recalculate door geometry
+                const newHingeX = hingeLeft ? 0 : door.width;
+                const newLeafLength = door.width * 0.9;
+                const newLeafEndX = newHingeX + newLeafLength * Math.cos(leafRad);
+                const newLeafEndY = hingeY + swingOut * newLeafLength * Math.sin(leafRad);
+
                 // Update door group position and rect width
                 doorGroup.x(newPos.x);
                 doorGroup.y(newPos.y);
                 doorRect.width(door.width);
-                swingArc.outerRadius(door.width * 0.9);
 
-                // Update door leaf (solid line at 45 degrees)
-                doorLeaf.points([
-                    0, arcDir * ws.thickness / 2,
-                    door.width * 0.9 * 0.707, arcDir * (ws.thickness / 2 + door.width * 0.9 * 0.707)
-                ]);
+                // Update swing arc
+                swingArc.x(newHingeX);
+                swingArc.innerRadius(newLeafLength - 1);
+                swingArc.outerRadius(newLeafLength);
+
+                // Update door leaf
+                doorLeaf.points([newHingeX, hingeY, newLeafEndX, newLeafEndY]);
 
                 // Update handle positions
                 leftHandle.x(newPos.x);
