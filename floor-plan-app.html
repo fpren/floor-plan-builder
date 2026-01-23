@@ -80,6 +80,7 @@
         .attach-item { font-size: 9px; color: var(--text-dim); padding: 2px 0; border-bottom: 1px dashed var(--border); }
         .attach-item:last-child { border: none; }
         .reattach-btn { margin-top: 8px; width: 100%; padding: 6px; background: var(--accent-orange); border: none; border-radius: 4px; color: #000; font-size: 10px; font-weight: 600; cursor: pointer; }
+        .delete-btn { margin-top: 6px; width: 100%; padding: 6px; background: var(--accent-red); border: none; border-radius: 4px; color: #fff; font-size: 10px; font-weight: 600; cursor: pointer; }
 
         .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
         .modal.show { display: flex; }
@@ -1668,12 +1669,14 @@ const App = {
                         <div class="inspector-row">Segment ID: <span style="font-size:8px">${ws.id.substr(0,12)}...</span></div>
                     </div>
                     <button class="reattach-btn" onclick="App.startReattach('${obj.id}', '${type}')">Reattach to Different Wall</button>
+                    <button class="delete-btn" onclick="App.deleteObject('${obj.id}', '${type}')">🗑 Delete ${type}</button>
                 `;
             } else if (type === 'closet') {
                 html += `<div class="inspector-section">
                     <div class="inspector-section-title">Parent</div>
                     <div class="inspector-row">Room: <span>${obj.parentRoom || 'N/A'}</span></div>
-                </div>`;
+                </div>
+                <button class="delete-btn" onclick="App.deleteObject('${obj.id}', '${type}')">🗑 Delete closet</button>`;
             }
         }
 
@@ -1686,6 +1689,46 @@ const App = {
         $('#toolHint').textContent = 'Tap a wall to reattach';
         $('#toolHint').classList.add('show');
         alert('Tap a wall segment to reattach this object');
+    },
+
+    deleteObject(objId, objType) {
+        if (!confirm(`Delete this ${objType}?`)) return;
+
+        let collection, index;
+        if (objType === 'door') {
+            collection = this.doc.doors;
+        } else if (objType === 'window') {
+            collection = this.doc.windows;
+        } else if (objType === 'cased') {
+            collection = this.doc.casedOpenings;
+        } else if (objType === 'closet') {
+            collection = this.doc.closets;
+        } else if (objType === 'mep') {
+            collection = this.doc.mep;
+        }
+
+        if (collection) {
+            index = collection.findIndex(o => o.id === objId);
+            if (index !== -1) {
+                const obj = collection[index];
+                // Remove from wall's attachedObjects
+                if (obj.parentWallSegmentId) {
+                    const ws = this.doc.wallSegments.find(s => s.id === obj.parentWallSegmentId);
+                    if (ws) {
+                        ws.attachedObjects = ws.attachedObjects.filter(a => a.id !== objId);
+                    }
+                }
+                // Remove from collection
+                collection.splice(index, 1);
+
+                // Clear selection
+                Render.deselect();
+                this.render();
+                this.updateTree();
+                this.updateInspector();
+                this.updateQABadge();
+            }
+        }
     },
 
     updateObjectWidth(objId, objType, newWidthFeet) {
@@ -1948,6 +1991,16 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
+// Keyboard shortcut for delete
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && Render.selection.type && Render.selection.id) {
+        // Don't delete if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        App.deleteObject(Render.selection.id, Render.selection.type);
+    }
+});
 </script>
 </body>
 </html>
