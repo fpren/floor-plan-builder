@@ -1033,7 +1033,7 @@ const Render = {
                 const pointer = self.stage.getPointerPosition();
                 const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
                 const oldEnd = door.distanceFromStart + door.width;
-                const minWidth = 2 * FOOT;  // Doors min 2ft
+                const minWidth = 0.5 * FOOT;  // Doors min 6 inches
 
                 if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
                     door.width = oldEnd - newOffset;
@@ -1050,7 +1050,7 @@ const Render = {
                 const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
                 const newWidth = newEnd - door.distanceFromStart;
                 const maxOffset = getSegmentLength(ws);
-                const minWidth = 2 * FOOT;
+                const minWidth = 0.5 * FOOT;  // Doors min 6 inches
 
                 if (newWidth >= minWidth && newEnd <= maxOffset) {
                     door.width = newWidth;
