@@ -1074,16 +1074,40 @@ const Render = {
 
         const winGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
+        // Window opening (gap in wall) - match room fill color
         const winRect = new Konva.Rect({
-            x: 0, y: -ws.thickness / 2, width: win.width, height: ws.thickness,
-            fill: '#1a1a1a', stroke: isSelected ? '#06b6d4' : '#87ceeb', strokeWidth: 2
+            x: 0, y: -3,
+            width: win.width, height: 6,
+            fill: '#252525',
+            stroke: 'transparent'
         });
         winGroup.add(winRect);
 
-        // Mullion
+        // Window frame lines (top and bottom sill)
+        const frameColor = isSelected ? '#06b6d4' : '#87ceeb';
+        winGroup.add(new Konva.Line({
+            points: [0, -2, win.width, -2],
+            stroke: frameColor, strokeWidth: 2
+        }));
+        winGroup.add(new Konva.Line({
+            points: [0, 2, win.width, 2],
+            stroke: frameColor, strokeWidth: 2
+        }));
+
+        // Window jambs (ends)
+        winGroup.add(new Konva.Line({
+            points: [0, -2, 0, 2],
+            stroke: frameColor, strokeWidth: 1
+        }));
+        winGroup.add(new Konva.Line({
+            points: [win.width, -2, win.width, 2],
+            stroke: frameColor, strokeWidth: 1
+        }));
+
+        // Mullion (center divider)
         const mullion = new Konva.Line({
-            points: [win.width / 2, -ws.thickness / 2, win.width / 2, ws.thickness / 2],
-            stroke: '#87ceeb', strokeWidth: 1
+            points: [win.width / 2, -2, win.width / 2, 2],
+            stroke: frameColor, strokeWidth: 1
         });
         winGroup.add(mullion);
 
