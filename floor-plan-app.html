@@ -907,11 +907,9 @@ const Render = {
         // Door leaf length (slightly less than full width for visual clarity)
         const leafLength = door.width * 0.9;
 
-        // Door leaf end point at 45 degrees from hinge
-        const leafAngle = hingeLeft ? 45 : 135;  // degrees
-        const leafRad = leafAngle * Math.PI / 180;
-        const leafEndX = hingeX + leafLength * Math.cos(leafRad);
-        const leafEndY = hingeY + swingOut * leafLength * Math.sin(leafRad);
+        // Door leaf end point at 90 degrees (perpendicular to wall, fully open)
+        const leafEndX = hingeX;  // Straight perpendicular, no x movement
+        const leafEndY = hingeY + swingOut * leafLength;
 
         // Swing arc (dashed/perforated) - from hinge, showing door swing path
         const swingArc = new Konva.Arc({
@@ -976,8 +974,8 @@ const Render = {
                 // Recalculate door geometry
                 const newHingeX = hingeLeft ? 0 : door.width;
                 const newLeafLength = door.width * 0.9;
-                const newLeafEndX = newHingeX + newLeafLength * Math.cos(leafRad);
-                const newLeafEndY = hingeY + swingOut * newLeafLength * Math.sin(leafRad);
+                const newLeafEndX = newHingeX;  // 90 degrees - straight perpendicular
+                const newLeafEndY = hingeY + swingOut * newLeafLength;
 
                 // Update door group position and rect width
                 doorGroup.x(newPos.x);
