@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAD Blueprint Floor Plan</title>
+    <!-- Konva.js for canvas drawing -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ========== GLOBAL STYLES & DARK THEME ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-darker: #16213e;
+            --bg-panel: #0f0f23;
+            --accent-blue: #4a90d9;
+            --accent-cyan: #00d4ff;
+            --grid-color: #2a3f5f;
+            --text-primary: #e0e0e0;
+            --text-secondary: #888;
+            --border-color: #333;
+            --wall-color: #666;
+            --dimension-red: #ff4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== TOP TOOLBAR ========== */
+        .top-toolbar {
+            display: flex;
+            align-items: center;
+            background: var(--bg-darker);
+            border-bottom: 1px solid var(--border-color);
+            padding: 4px 10px;
+            height: 36px;
+            gap: 2px;
+        }
+
+        .menu-item {
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: var(--accent-blue);
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color);
+            margin: 0 8px;
+        }
+
+        .toolbar-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .toolbar-btn.active {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            color: #000;
+        }
+
+        /* ========== MAIN LAYOUT ========== */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ========== LEFT SIDEBAR ========== */
+        .left-sidebar {
+            width: 220px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            padding: 8px 12px;
+            background: var(--bg-darker);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-header:hover {
+            background: #1e2a4a;
+        }
+
+        .section-content {
+            padding: 8px;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+        }
+
+        .tool-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .tool-icon:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .tool-icon.active {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            color: #000;
+        }
+
+        .tool-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        /* Object Tree */
+        .object-tree {
+            font-size: 12px;
+        }
+
+        .tree-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tree-item:hover {
+            background: rgba(74, 144, 217, 0.2);
+        }
+
+        .tree-icon {
+            width: 12px;
+            height: 12px;
+            background: var(--accent-cyan);
+            border-radius: 2px;
+        }
+
+        /* Levels */
+        .levels-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+
+        .level-btn {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .level-btn:hover {
+            background: var(--accent-blue);
+        }
+
+        .level-display {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* Wall Types */
+        .wall-types {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .wall-type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .wall-type:hover {
+            background: rgba(74, 144, 217, 0.2);
+        }
+
+        .wall-preview {
+            width: 40px;
+            height: 8px;
+            background: var(--wall-color);
+        }
+
+        .wall-type-1 .wall-preview { height: 2px; }
+        .wall-type-2 .wall-preview { height: 4px; }
+        .wall-type-3 .wall-preview { height: 6px; }
+        .wall-type-4 .wall-preview { height: 10px; }
+
+        /* ========== CANVAS CONTAINER ========== */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-dark);
+        }
+
+        #blueprint-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ========== RIGHT SIDEBAR (Annotations) ========== */
+        .right-sidebar {
+            width: 180px;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .annotation-tools {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .anno-btn {
+            padding: 8px 12px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .anno-btn:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .anno-btn.active {
+            background: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            color: #000;
+        }
+
+        .anno-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Symbol Palette */
+        .symbol-palette {
+            padding: 8px;
+        }
+
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+        }
+
+        .symbol-item {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            font-size: 10px;
+            text-align: center;
+            padding: 4px;
+            user-select: none;
+        }
+
+        .symbol-item:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        .symbol-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        /* Room Label Dialog */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-dialog {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .modal-dialog h3 {
+            margin-bottom: 16px;
+            color: var(--accent-cyan);
+        }
+
+        .modal-dialog label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .modal-dialog select,
+        .modal-dialog input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .modal-dialog .btn-row {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .modal-dialog button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .modal-dialog .btn-primary {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+
+        .modal-dialog .btn-secondary {
+            background: var(--bg-darker);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .modal-dialog .dimensions-info {
+            background: var(--bg-darker);
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Snap indicator */
+        .snap-indicator {
+            position: absolute;
+            bottom: 40px;
+            right: 200px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid var(--accent-cyan);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--accent-cyan);
+            display: none;
+        }
+
+        .snap-indicator.active {
+            display: block;
+        }
+
+        /* ========== ROOM PALETTE (Sims-style) ========== */
+        .room-palette {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .room-block {
+            background: var(--bg-darker);
+            border: 2px solid var(--room-color, #666);
+            border-radius: 6px;
+            padding: 8px 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .room-block:hover {
+            background: color-mix(in srgb, var(--room-color) 30%, var(--bg-darker));
+            transform: scale(1.02);
+            box-shadow: 0 0 10px var(--room-color);
+        }
+
+        .room-block.selected {
+            background: color-mix(in srgb, var(--room-color) 40%, var(--bg-darker));
+            box-shadow: 0 0 15px var(--room-color);
+        }
+
+        .room-block-icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        .room-block span {
+            font-size: 10px;
+            color: var(--text-primary);
+            display: block;
+        }
+
+        /* ========== STATUS BAR ========== */
+        .status-bar {
+            height: 24px;
+            background: var(--bg-darker);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ========== SCALE LEGEND ========== */
+        .scale-legend {
+            position: absolute;
+            bottom: 40px;
+            left: 240px;
+            background: rgba(15, 15, 35, 0.9);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+        }
+
+        .scale-bar {
+            width: 100px;
+            height: 6px;
+            background: linear-gradient(90deg, #fff 50%, #000 50%);
+            border: 1px solid #fff;
+            margin-top: 4px;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 900px) {
+            .left-sidebar { width: 180px; }
+            .right-sidebar { width: 140px; }
+        }
+
+        @media (max-width: 600px) {
+            .left-sidebar, .right-sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== TOP TOOLBAR ========== -->
+    <div class="top-toolbar">
+        <div class="menu-item">File</div>
+        <div class="menu-item" onclick="saveToStorage()">Save</div>
+        <div class="menu-item" onclick="loadFromStorage()">Load</div>
+        <div class="menu-item" onclick="exportPDF()">Export PDF</div>
+        <div class="menu-item">View</div>
+        <div class="menu-item">Levels</div>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" onclick="toggleGrid()">
+            <span>Grid</span>
+        </button>
+        <button class="toolbar-btn" onclick="zoomIn()">+</button>
+        <button class="toolbar-btn" onclick="zoomOut()">-</button>
+        <button class="toolbar-btn" onclick="resetView()">Reset</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" id="selectBtn" onclick="setTool('select')">Select (V)</button>
+        <button class="toolbar-btn" id="roomBtn" onclick="setTool('room')">Draw Room (R)</button>
+        <button class="toolbar-btn" id="wallBtn" onclick="setTool('wall')">Wall (W)</button>
+        <button class="toolbar-btn" id="drawBtn" onclick="setTool('draw')">Freehand</button>
+    </div>
+
+    <!-- ========== MAIN CONTAINER ========== -->
+    <div class="main-container">
+        <!-- ========== LEFT SIDEBAR ========== -->
+        <div class="left-sidebar">
+            <!-- Room Palette (Sims-style) -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Add Rooms</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="room-palette" id="roomPalette">
+                        <div class="room-block" data-room="Bedroom" style="--room-color: #9ec5e8;">
+                            <div class="room-block-icon">🛏️</div>
+                            <span>Bedroom</span>
+                        </div>
+                        <div class="room-block" data-room="Bathroom" style="--room-color: #c9b8e6;">
+                            <div class="room-block-icon">🚿</div>
+                            <span>Bathroom</span>
+                        </div>
+                        <div class="room-block" data-room="Kitchen" style="--room-color: #f4d06f;">
+                            <div class="room-block-icon">🍳</div>
+                            <span>Kitchen</span>
+                        </div>
+                        <div class="room-block" data-room="Living Room" style="--room-color: #7cb9a8;">
+                            <div class="room-block-icon">🛋️</div>
+                            <span>Living Room</span>
+                        </div>
+                        <div class="room-block" data-room="Dining Room" style="--room-color: #e8d06f;">
+                            <div class="room-block-icon">🍽️</div>
+                            <span>Dining Room</span>
+                        </div>
+                        <div class="room-block" data-room="Closet" style="--room-color: #e8c5b8;">
+                            <div class="room-block-icon">👕</div>
+                            <span>Closet</span>
+                        </div>
+                        <div class="room-block" data-room="Laundry" style="--room-color: #d4e8b8;">
+                            <div class="room-block-icon">🧺</div>
+                            <span>Laundry</span>
+                        </div>
+                        <div class="room-block" data-room="Garage" style="--room-color: #b0b0b0;">
+                            <div class="room-block-icon">🚗</div>
+                            <span>Garage</span>
+                        </div>
+                        <div class="room-block" data-room="Office" style="--room-color: #b8d4e8;">
+                            <div class="room-block-icon">💼</div>
+                            <span>Office</span>
+                        </div>
+                        <div class="room-block" data-room="Hallway" style="--room-color: #c0c0c0;">
+                            <div class="room-block-icon">🚪</div>
+                            <span>Hallway</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floor Plan Tree -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Floor Plan</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="object-tree" id="objectTree">
+                        <div class="tree-item"><div class="tree-icon"></div>Click a room above to add</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Levels -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Levels</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="levels-control">
+                        <button class="level-btn" onclick="changeLevel(-1)">-</button>
+                        <div class="level-display" id="levelDisplay">Level 1 (Ground)</div>
+                        <button class="level-btn" onclick="changeLevel(1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features / Icons -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Features</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="tool-grid">
+                        <div class="tool-icon" title="Door" onclick="addFeature('door')">
+                            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="12" height="20" rx="1"/><circle cx="14" cy="12" r="1.5"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Window" onclick="addFeature('window')">
+                            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Stairs" onclick="addFeature('stairs')">
+                            <svg viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4v-4h4v-4"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Column" onclick="addFeature('column')">
+                            <svg viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="20"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Icons Grid -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Icons</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="tool-grid">
+                        <div class="tool-icon" title="Radiator" onclick="addIcon('radiator')">
+                            <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/><line x1="18" y1="8" x2="18" y2="16"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Pipe" onclick="addIcon('pipe')">
+                            <svg viewBox="0 0 24 24"><path d="M4 8 L8 16 L12 8 L16 16 L20 8"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Riser" onclick="addIcon('riser')">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 6 L12 18 M8 14 L12 18 L16 14"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Vent" onclick="addIcon('vent')">
+                            <svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="8"/><line x1="8" y1="8" x2="8" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="16" y1="8" x2="16" y2="16"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wall Types -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Wall Types</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="wall-types">
+                        <div class="wall-type wall-type-1" onclick="setWallType(1)">
+                            <div class="wall-preview"></div>
+                            <span>Type 1 (2px)</span>
+                        </div>
+                        <div class="wall-type wall-type-2" onclick="setWallType(2)">
+                            <div class="wall-preview"></div>
+                            <span>Type 2 (4px)</span>
+                        </div>
+                        <div class="wall-type wall-type-3" onclick="setWallType(3)">
+                            <div class="wall-preview"></div>
+                            <span>Type 3 (6px)</span>
+                        </div>
+                        <div class="wall-type wall-type-4" onclick="setWallType(4)">
+                            <div class="wall-preview"></div>
+                            <span>Type 4 (10px)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commands -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Commands</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content">
+                    <div class="tool-grid">
+                        <div class="tool-icon" title="Undo" onclick="undo()">
+                            <svg viewBox="0 0 24 24"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 h12 a4 4 0 0 1 0 8 h-4"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Redo" onclick="redo()">
+                            <svg viewBox="0 0 24 24"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 h-12 a4 4 0 0 0 0 8 h4"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Delete" onclick="deleteSelected()">
+                            <svg viewBox="0 0 24 24"><path d="M4 6h16 M9 6V4h6v2 M6 6v14h12V6"/></svg>
+                        </div>
+                        <div class="tool-icon" title="Copy" onclick="copySelected()">
+                            <svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V4h12"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== CANVAS ========== -->
+        <div class="canvas-container">
+            <div id="blueprint-container"></div>
+
+            <!-- Scale Legend -->
+            <div class="scale-legend">
+                <div>Scale: 1:50 | 1px = 2.5cm</div>
+                <div style="margin-top: 4px;">10 ft / 3.05 m</div>
+                <div class="scale-bar"></div>
+            </div>
+        </div>
+
+        <!-- ========== RIGHT SIDEBAR ========== -->
+        <div class="right-sidebar">
+            <!-- Annotation Tools -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Annotations</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content annotation-tools">
+                    <button class="anno-btn" onclick="setAnnotation('text')">
+                        <span class="anno-icon">A</span>
+                        <span>Text</span>
+                    </button>
+                    <button class="anno-btn" onclick="setAnnotation('arrow')">
+                        <span class="anno-icon">-></span>
+                        <span>Arrow Line</span>
+                    </button>
+                    <button class="anno-btn" onclick="setAnnotation('rect')">
+                        <span class="anno-icon">[]</span>
+                        <span>Rectangle</span>
+                    </button>
+                    <button class="anno-btn" onclick="setAnnotation('circle')">
+                        <span class="anno-icon">O</span>
+                        <span>Circle</span>
+                    </button>
+                    <button class="anno-btn" onclick="setAnnotation('arc')">
+                        <span class="anno-icon">)</span>
+                        <span>Arc</span>
+                    </button>
+                    <button class="anno-btn" onclick="setAnnotation('dimension')">
+                        <span class="anno-icon"><-></span>
+                        <span>Dimension</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Symbol Palette -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Symbols</span>
+                    <span>-</span>
+                </div>
+                <div class="section-content symbol-palette">
+                    <div class="symbol-grid">
+                        <div class="symbol-item" draggable="true" data-furniture="bed" title="Bed">BED</div>
+                        <div class="symbol-item" draggable="true" data-furniture="sofa" title="Sofa">SOFA</div>
+                        <div class="symbol-item" draggable="true" data-furniture="table" title="Table">TBL</div>
+                        <div class="symbol-item" draggable="true" data-furniture="chair" title="Chair">CHR</div>
+                        <div class="symbol-item" draggable="true" data-furniture="toilet" title="Toilet">WC</div>
+                        <div class="symbol-item" draggable="true" data-furniture="sink" title="Sink">SINK</div>
+                        <div class="symbol-item" draggable="true" data-furniture="stove" title="Stove">STOV</div>
+                        <div class="symbol-item" draggable="true" data-furniture="fridge" title="Refrigerator">FRIG</div>
+                        <div class="symbol-item" draggable="true" data-furniture="washer" title="Washer">WASH</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== ROOM LABEL DIALOG ========== -->
+    <div class="modal-overlay" id="roomLabelModal">
+        <div class="modal-dialog">
+            <h3>Edit Room</h3>
+            <div class="dimensions-info" id="roomDimensions">
+                Size: 0' x 0' (0m x 0m)
+            </div>
+            <label for="roomTypeSelect">Room Type</label>
+            <select id="roomTypeSelect">
+                <option value="Bedroom">Bedroom</option>
+                <option value="Bathroom">Bathroom</option>
+                <option value="Kitchen">Kitchen</option>
+                <option value="Living Room">Living Room</option>
+                <option value="Dining Room">Dining Room</option>
+                <option value="Closet">Closet</option>
+                <option value="Laundry">Laundry</option>
+                <option value="Garage">Garage</option>
+                <option value="Office">Office</option>
+                <option value="Hallway">Hallway</option>
+                <option value="Custom">Custom</option>
+            </select>
+            <label for="roomCustomLabel">Custom Label (optional)</label>
+            <input type="text" id="roomCustomLabel" placeholder="Enter custom label...">
+            <div class="btn-row">
+                <button class="btn-secondary" onclick="closeRoomLabelModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveRoomLabel()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SNAP INDICATOR ========== -->
+    <div class="snap-indicator" id="snapIndicator">SNAP</div>
+
+    <!-- ========== STATUS BAR ========== -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span>Pos:</span>
+            <span id="mousePos">X: 0, Y: 0</span>
+        </div>
+        <div class="status-item">
+            <span>Zoom:</span>
+            <span id="zoomLevel">100%</span>
+        </div>
+        <div class="status-item">
+            <span>Tool:</span>
+            <span id="currentTool">Select</span>
+        </div>
+        <div class="status-item">
+            <span>Objects:</span>
+            <span id="objectCount">0</span>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           CAD BLUEPRINT FLOOR PLAN - INTERACTIVE DRAWING APPLICATION
+           Using Konva.js for canvas rendering
+           Version 2.0 - Full CAD Drawing Tool
+           ========================================================================== */
+
+        // ========== CENTRALIZED STATE MANAGEMENT ==========
+        const CADState = {
+            // Canvas & Layers
+            stage: null,
+            layers: {
+                grid: null,
+                rooms: null,
+                walls: null,
+                furniture: null,
+                annotations: null,
+                ui: null
+            },
+            transformer: null,
+
+            // Dynamic collections
+            rooms: [],
+            walls: [],
+            furniture: [],
+
+            // Tool state
+            mode: 'select',
+            wallType: 3,
+            level: 1,
+
+            // Selection
+            selection: [],
+
+            // History for undo/redo
+            history: {
+                undoStack: [],
+                redoStack: [],
+                maxHistory: 50
+            },
+
+            // Settings
+            settings: {
+                gridSize: 20,
+                majorGridSize: 100,
+                snapThreshold: 10,
+                snapEnabled: true,
+                showGrid: true,
+                scaleFactor: 4 // 1 foot = 4 pixels
+            },
+
+            // Drawing state
+            drawing: {
+                isDrawing: false,
+                startPos: null,
+                preview: null,
+                wallStartPoint: null
+            },
+
+            // UI state
+            northArrowAngle: 0,
+            editingRoom: null,
+            selectedRoomType: null, // For Sims-style room placement
+
+            // Counter for unique IDs
+            idCounter: 0,
+            generateId: function(prefix) {
+                return `${prefix}_${++this.idCounter}`;
+            }
+        };
+
+        // Room type colors and default sizes (width x height in pixels)
+        const ROOM_TYPES = {
+            'Bedroom': { color: '#2e4a5a', textColor: '#9ec5e8', defaultSize: { w: 160, h: 140 } },
+            'Bathroom': { color: '#4a2e5a', textColor: '#c9b8e6', defaultSize: { w: 100, h: 80 } },
+            'Kitchen': { color: '#5a4d2e', textColor: '#f4d06f', defaultSize: { w: 140, h: 120 } },
+            'Living Room': { color: '#3d5a4c', textColor: '#7cb9a8', defaultSize: { w: 200, h: 160 } },
+            'Dining Room': { color: '#4a4d2e', textColor: '#e8d06f', defaultSize: { w: 140, h: 120 } },
+            'Closet': { color: '#5a3d2e', textColor: '#e8c5b8', defaultSize: { w: 60, h: 80 } },
+            'Laundry': { color: '#3d5a2e', textColor: '#d4e8b8', defaultSize: { w: 80, h: 80 } },
+            'Garage': { color: '#3a3a3a', textColor: '#b0b0b0', defaultSize: { w: 200, h: 200 } },
+            'Office': { color: '#2e3d5a', textColor: '#b8d4e8', defaultSize: { w: 120, h: 100 } },
+            'Hallway': { color: '#3a3a4a', textColor: '#c0c0c0', defaultSize: { w: 160, h: 60 } },
+            'Custom': { color: '#4a4a4a', textColor: '#d0d0d0', defaultSize: { w: 100, h: 100 } }
+        };
+
+        // ========== INITIALIZATION ==========
+        function init() {
+            const container = document.getElementById('blueprint-container');
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+
+            // Create Konva stage
+            CADState.stage = new Konva.Stage({
+                container: 'blueprint-container',
+                width: width,
+                height: height,
+                draggable: true
+            });
+
+            // Create layers (bottom to top)
+            CADState.layers.grid = new Konva.Layer();
+            CADState.layers.rooms = new Konva.Layer();
+            CADState.layers.walls = new Konva.Layer();
+            CADState.layers.furniture = new Konva.Layer();
+            CADState.layers.annotations = new Konva.Layer();
+            CADState.layers.ui = new Konva.Layer();
+
+            CADState.stage.add(CADState.layers.grid);
+            CADState.stage.add(CADState.layers.rooms);
+            CADState.stage.add(CADState.layers.walls);
+            CADState.stage.add(CADState.layers.furniture);
+            CADState.stage.add(CADState.layers.annotations);
+            CADState.stage.add(CADState.layers.ui);
+
+            // Create transformer for selection
+            CADState.transformer = new Konva.Transformer({
+                rotateEnabled: false,
+                boundBoxFunc: (oldBox, newBox) => {
+                    // Minimum size validation
+                    if (newBox.width < 20 || newBox.height < 20) {
+                        return oldBox;
+                    }
+                    return newBox;
+                }
+            });
+            CADState.layers.ui.add(CADState.transformer);
+
+            // Draw initial elements
+            drawGrid();
+            drawNorthArrow();
+
+            // Setup all event handlers
+            setupEventHandlers();
+            setupKeyboardShortcuts();
+            setupFurnitureDragAndDrop();
+            setupRoomPalette();
+
+            // Update status
+            updateObjectCount();
+            updateObjectTree();
+
+            // Try to load saved state
+            loadFromStorage(true);
+
+            // Save initial state for undo
+            saveHistoryState();
+        }
+
+        // ========== GRID DRAWING ==========
+        function drawGrid() {
+            const layer = CADState.layers.grid;
+            layer.destroyChildren();
+
+            if (!CADState.settings.showGrid) {
+                layer.batchDraw();
+                return;
+            }
+
+            const gridSize = CADState.settings.gridSize;
+            const majorGridSize = CADState.settings.majorGridSize;
+            const stage = CADState.stage;
+            const width = stage.width() * 3;
+            const height = stage.height() * 3;
+            const offsetX = -stage.width();
+            const offsetY = -stage.height();
+
+            // Background
+            layer.add(new Konva.Rect({
+                x: offsetX,
+                y: offsetY,
+                width: width,
+                height: height,
+                fill: '#1a1a2e'
+            }));
+
+            // Minor grid lines
+            for (let x = offsetX; x < width + offsetX; x += gridSize) {
+                layer.add(new Konva.Line({
+                    points: [x, offsetY, x, height + offsetY],
+                    stroke: '#2a3f5f',
+                    strokeWidth: 0.5
+                }));
+            }
+            for (let y = offsetY; y < height + offsetY; y += gridSize) {
+                layer.add(new Konva.Line({
+                    points: [offsetX, y, width + offsetX, y],
+                    stroke: '#2a3f5f',
+                    strokeWidth: 0.5
+                }));
+            }
+
+            // Major grid lines
+            for (let x = offsetX; x < width + offsetX; x += majorGridSize) {
+                layer.add(new Konva.Line({
+                    points: [x, offsetY, x, height + offsetY],
+                    stroke: '#3a5070',
+                    strokeWidth: 1
+                }));
+            }
+            for (let y = offsetY; y < height + offsetY; y += majorGridSize) {
+                layer.add(new Konva.Line({
+                    points: [offsetX, y, width + offsetX, y],
+                    stroke: '#3a5070',
+                    strokeWidth: 1
+                }));
+            }
+
+            layer.batchDraw();
+        }
+
+        // ========== SNAP TO GRID ==========
+        function snapToGrid(value) {
+            if (!CADState.settings.snapEnabled) return value;
+            const gridSize = CADState.settings.gridSize;
+            return Math.round(value / gridSize) * gridSize;
+        }
+
+        function snapPosition(pos) {
+            return {
+                x: snapToGrid(pos.x),
+                y: snapToGrid(pos.y)
+            };
+        }
+
+        function showSnapIndicator(show) {
+            const indicator = document.getElementById('snapIndicator');
+            if (show && CADState.settings.snapEnabled) {
+                indicator.classList.add('active');
+            } else {
+                indicator.classList.remove('active');
+            }
+        }
+
+        // ========== ROOM CREATION & MANAGEMENT ==========
+        function createRoom(x, y, width, height, type = 'Custom', customLabel = '') {
+            const roomId = CADState.generateId('room');
+            const colors = ROOM_TYPES[type] || ROOM_TYPES['Custom'];
+
+            // Create a group for the room
+            const roomGroup = new Konva.Group({
+                x: x,
+                y: y,
+                draggable: true,
+                name: 'room-group',
+                id: roomId
+            });
+
+            // Room fill rectangle
+            const roomRect = new Konva.Rect({
+                x: 0,
+                y: 0,
+                width: width,
+                height: height,
+                fill: colors.color,
+                opacity: 0.6,
+                name: 'room-fill'
+            });
+
+            // Wall outlines
+            const wallThickness = CADState.wallType * 2;
+            const walls = new Konva.Rect({
+                x: 0,
+                y: 0,
+                width: width,
+                height: height,
+                stroke: '#666',
+                strokeWidth: wallThickness,
+                name: 'room-walls'
+            });
+
+            // Room type label
+            const label = new Konva.Text({
+                x: 0,
+                y: height / 2 - 15,
+                width: width,
+                text: type.toUpperCase(),
+                fontSize: 14,
+                fontFamily: 'Segoe UI, Roboto, sans-serif',
+                fontStyle: 'bold',
+                fill: colors.textColor,
+                align: 'center',
+                name: 'room-label'
+            });
+
+            // Custom sublabel
+            const displayLabel = customLabel || type;
+            const sublabel = new Konva.Text({
+                x: 0,
+                y: height / 2 + 2,
+                width: width,
+                text: displayLabel,
+                fontSize: 10,
+                fontFamily: 'Segoe UI, Roboto, sans-serif',
+                fill: colors.textColor,
+                opacity: 0.7,
+                align: 'center',
+                name: 'room-sublabel'
+            });
+
+            roomGroup.add(roomRect);
+            roomGroup.add(walls);
+            roomGroup.add(label);
+            roomGroup.add(sublabel);
+
+            // Store room data
+            const roomData = {
+                id: roomId,
+                type: type,
+                customLabel: customLabel,
+                konvaGroup: roomGroup
+            };
+            CADState.rooms.push(roomData);
+
+            // Add to layer
+            CADState.layers.rooms.add(roomGroup);
+
+            // Setup room interactions
+            setupRoomInteractions(roomGroup, roomData);
+
+            CADState.layers.rooms.batchDraw();
+            updateObjectCount();
+            updateObjectTree();
+
+            return roomData;
+        }
+
+        function setupRoomInteractions(group, roomData) {
+            // Double-click to edit label
+            group.on('dblclick dbltap', () => {
+                openRoomLabelModal(roomData);
+            });
+
+            // Drag with snap
+            group.on('dragmove', () => {
+                if (CADState.settings.snapEnabled) {
+                    const snappedPos = snapPosition({ x: group.x(), y: group.y() });
+                    group.position(snappedPos);
+                    showSnapIndicator(true);
+                }
+            });
+
+            group.on('dragend', () => {
+                showSnapIndicator(false);
+                saveHistoryState();
+            });
+
+            // Click to select
+            group.on('click tap', (e) => {
+                if (CADState.mode === 'select') {
+                    e.cancelBubble = true;
+                    selectObjects([group], e.evt.shiftKey);
+                }
+            });
+
+            // Handle transformer resize
+            group.on('transform', () => {
+                // Update internal rect size
+                const scaleX = group.scaleX();
+                const scaleY = group.scaleY();
+                const roomRect = group.findOne('.room-fill');
+                const walls = group.findOne('.room-walls');
+                const label = group.findOne('.room-label');
+                const sublabel = group.findOne('.room-sublabel');
+
+                const newWidth = roomRect.width() * scaleX;
+                const newHeight = roomRect.height() * scaleY;
+
+                // Reset scale and update dimensions
+                group.scaleX(1);
+                group.scaleY(1);
+
+                roomRect.width(newWidth);
+                roomRect.height(newHeight);
+                walls.width(newWidth);
+                walls.height(newHeight);
+
+                // Update label positions
+                label.width(newWidth);
+                label.y(newHeight / 2 - 15);
+                sublabel.width(newWidth);
+                sublabel.y(newHeight / 2 + 2);
+
+                // Snap position
+                if (CADState.settings.snapEnabled) {
+                    const snappedPos = snapPosition({ x: group.x(), y: group.y() });
+                    group.position(snappedPos);
+                }
+            });
+
+            group.on('transformend', () => {
+                saveHistoryState();
+            });
+        }
+
+        function updateRoomLabel(roomData, newType, newCustomLabel) {
+            const colors = ROOM_TYPES[newType] || ROOM_TYPES['Custom'];
+            const group = roomData.konvaGroup;
+
+            // Update stored data
+            roomData.type = newType;
+            roomData.customLabel = newCustomLabel;
+
+            // Update visuals
+            const roomRect = group.findOne('.room-fill');
+            const label = group.findOne('.room-label');
+            const sublabel = group.findOne('.room-sublabel');
+
+            roomRect.fill(colors.color);
+            label.fill(colors.textColor);
+            label.text(newType.toUpperCase());
+            sublabel.fill(colors.textColor);
+            sublabel.text(newCustomLabel || newType);
+
+            CADState.layers.rooms.batchDraw();
+            updateObjectTree();
+            saveHistoryState();
+        }
+
+        // ========== ROOM LABEL MODAL ==========
+        function openRoomLabelModal(roomData) {
+            CADState.editingRoom = roomData;
+            const modal = document.getElementById('roomLabelModal');
+            const modalTitle = modal.querySelector('h3');
+            const typeSelect = document.getElementById('roomTypeSelect');
+            const customInput = document.getElementById('roomCustomLabel');
+            const dimInfo = document.getElementById('roomDimensions');
+
+            // Update title based on whether this is a new room or editing
+            const isNewRoom = roomData.type === 'Custom' && !roomData.customLabel;
+            modalTitle.textContent = isNewRoom ? 'What type of room is this?' : 'Edit Room';
+
+            // Set current values - default to Bedroom for new rooms
+            typeSelect.value = isNewRoom ? 'Bedroom' : roomData.type;
+            customInput.value = roomData.customLabel || '';
+
+            // Calculate dimensions
+            const roomRect = roomData.konvaGroup.findOne('.room-fill');
+            const widthFt = (roomRect.width() / CADState.settings.scaleFactor).toFixed(1);
+            const heightFt = (roomRect.height() / CADState.settings.scaleFactor).toFixed(1);
+            const widthM = (widthFt * 0.3048).toFixed(2);
+            const heightM = (heightFt * 0.3048).toFixed(2);
+            dimInfo.textContent = `Size: ${widthFt}' x ${heightFt}' (${widthM}m x ${heightM}m)`;
+
+            modal.classList.add('active');
+
+            // Focus on the type select for quick selection
+            setTimeout(() => typeSelect.focus(), 100);
+        }
+
+        function closeRoomLabelModal() {
+            document.getElementById('roomLabelModal').classList.remove('active');
+            CADState.editingRoom = null;
+        }
+
+        function saveRoomLabel() {
+            if (!CADState.editingRoom) return;
+
+            const newType = document.getElementById('roomTypeSelect').value;
+            const newCustomLabel = document.getElementById('roomCustomLabel').value;
+
+            updateRoomLabel(CADState.editingRoom, newType, newCustomLabel);
+            closeRoomLabelModal();
+        }
+
+        // ========== WALL DRAWING ==========
+        function createWall(x1, y1, x2, y2) {
+            const wallId = CADState.generateId('wall');
+            const wallThickness = CADState.wallType * 2;
+
+            const wall = new Konva.Line({
+                points: [x1, y1, x2, y2],
+                stroke: '#666',
+                strokeWidth: wallThickness,
+                lineCap: 'round',
+                lineJoin: 'round',
+                name: 'wall',
+                id: wallId,
+                draggable: true
+            });
+
+            // Store wall data
+            const wallData = {
+                id: wallId,
+                points: [x1, y1, x2, y2],
+                thickness: wallThickness,
+                konvaLine: wall
+            };
+            CADState.walls.push(wallData);
+
+            // Add to layer
+            CADState.layers.walls.add(wall);
+
+            // Setup wall interactions
+            setupWallInteractions(wall, wallData);
+
+            CADState.layers.walls.batchDraw();
+            updateObjectCount();
+            updateObjectTree();
+
+            return wallData;
+        }
+
+        function setupWallInteractions(wall, wallData) {
+            wall.on('click tap', (e) => {
+                if (CADState.mode === 'select') {
+                    e.cancelBubble = true;
+                    selectObjects([wall], e.evt.shiftKey);
+                }
+            });
+
+            wall.on('dragmove', () => {
+                if (CADState.settings.snapEnabled) {
+                    const snappedPos = snapPosition({ x: wall.x(), y: wall.y() });
+                    wall.position(snappedPos);
+                    showSnapIndicator(true);
+                }
+            });
+
+            wall.on('dragend', () => {
+                showSnapIndicator(false);
+                // Update stored points
+                const points = wall.points();
+                wallData.points = [
+                    points[0] + wall.x(),
+                    points[1] + wall.y(),
+                    points[2] + wall.x(),
+                    points[3] + wall.y()
+                ];
+                saveHistoryState();
+            });
+        }
+
+        function startWallDrawing(pos) {
+            const snapped = snapPosition(pos);
+            CADState.drawing.wallStartPoint = snapped;
+
+            // Create preview line
+            CADState.drawing.preview = new Konva.Line({
+                points: [snapped.x, snapped.y, snapped.x, snapped.y],
+                stroke: '#4a90d9',
+                strokeWidth: CADState.wallType * 2,
+                lineCap: 'round',
+                dash: [5, 5],
+                name: 'wall-preview'
+            });
+            CADState.layers.ui.add(CADState.drawing.preview);
+        }
+
+        function updateWallPreview(pos, constrained) {
+            if (!CADState.drawing.preview || !CADState.drawing.wallStartPoint) return;
+
+            let endPos = snapPosition(pos);
+
+            // Constrain to horizontal/vertical if shift is held
+            if (constrained) {
+                const start = CADState.drawing.wallStartPoint;
+                const dx = Math.abs(endPos.x - start.x);
+                const dy = Math.abs(endPos.y - start.y);
+                if (dx > dy) {
+                    endPos.y = start.y;
+                } else {
+                    endPos.x = start.x;
+                }
+            }
+
+            CADState.drawing.preview.points([
+                CADState.drawing.wallStartPoint.x,
+                CADState.drawing.wallStartPoint.y,
+                endPos.x,
+                endPos.y
+            ]);
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(true);
+        }
+
+        function finishWallDrawing(pos, constrained) {
+            if (!CADState.drawing.wallStartPoint) return;
+
+            let endPos = snapPosition(pos);
+
+            // Constrain to horizontal/vertical if shift is held
+            if (constrained) {
+                const start = CADState.drawing.wallStartPoint;
+                const dx = Math.abs(endPos.x - start.x);
+                const dy = Math.abs(endPos.y - start.y);
+                if (dx > dy) {
+                    endPos.y = start.y;
+                } else {
+                    endPos.x = start.x;
+                }
+            }
+
+            // Create the actual wall
+            createWall(
+                CADState.drawing.wallStartPoint.x,
+                CADState.drawing.wallStartPoint.y,
+                endPos.x,
+                endPos.y
+            );
+
+            // Clean up preview
+            if (CADState.drawing.preview) {
+                CADState.drawing.preview.destroy();
+                CADState.drawing.preview = null;
+            }
+            CADState.drawing.wallStartPoint = null;
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(false);
+            saveHistoryState();
+        }
+
+        function cancelWallDrawing() {
+            if (CADState.drawing.preview) {
+                CADState.drawing.preview.destroy();
+                CADState.drawing.preview = null;
+            }
+            CADState.drawing.wallStartPoint = null;
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(false);
+        }
+
+        // ========== FURNITURE CREATION ==========
+        function createFurniture(type, x, y, rotation = 0) {
+            const furnitureId = CADState.generateId('furniture');
+            let group;
+
+            switch (type) {
+                case 'bed': group = createBedShape(80, 60); break;
+                case 'sofa': group = createSofaShape(80, 30); break;
+                case 'table': group = createTableShape(40, 25); break;
+                case 'chair': group = createChairShape(20, 20); break;
+                case 'toilet': group = createToiletShape(25, 30); break;
+                case 'sink': group = createSinkShape(30, 25); break;
+                case 'stove': group = createStoveShape(40, 30); break;
+                case 'fridge': group = createFridgeShape(30, 50); break;
+                case 'washer': group = createWasherShape(30, 30); break;
+                default: group = createTableShape(40, 25);
+            }
+
+            // Position and configure
+            const snapped = snapPosition({ x, y });
+            group.position(snapped);
+            group.rotation(rotation);
+            group.id(furnitureId);
+            group.name('furniture-group');
+            group.draggable(true);
+
+            // Store furniture data
+            const furnitureData = {
+                id: furnitureId,
+                type: type,
+                rotation: rotation,
+                konvaGroup: group
+            };
+            CADState.furniture.push(furnitureData);
+
+            // Add to layer
+            CADState.layers.furniture.add(group);
+
+            // Setup interactions
+            setupFurnitureInteractions(group, furnitureData);
+
+            CADState.layers.furniture.batchDraw();
+            updateObjectCount();
+            updateObjectTree();
+
+            return furnitureData;
+        }
+
+        function setupFurnitureInteractions(group, furnitureData) {
+            group.on('click tap', (e) => {
+                if (CADState.mode === 'select') {
+                    e.cancelBubble = true;
+                    selectObjects([group], e.evt.shiftKey);
+                }
+            });
+
+            group.on('dragmove', () => {
+                if (CADState.settings.snapEnabled) {
+                    const snappedPos = snapPosition({ x: group.x(), y: group.y() });
+                    group.position(snappedPos);
+                    showSnapIndicator(true);
+                }
+            });
+
+            group.on('dragend', () => {
+                showSnapIndicator(false);
+                saveHistoryState();
+            });
+
+            group.on('transform', () => {
+                furnitureData.rotation = group.rotation();
+            });
+
+            group.on('transformend', () => {
+                saveHistoryState();
+            });
+        }
+
+        // Furniture shape creators
+        function createBedShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#2a3a4a', cornerRadius: 3
+            }));
+            group.add(new Konva.Rect({
+                x: -w/2 + 5, y: -h/2 + 5, width: w - 10, height: 12,
+                stroke: '#666', strokeWidth: 1, fill: '#3a4a5a', cornerRadius: 2
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'BED',
+                fontSize: 8, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createSofaShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#3a4a3a', cornerRadius: 4
+            }));
+            group.add(new Konva.Rect({
+                x: -w/2 + 3, y: -h/2 + 3, width: w - 6, height: 8,
+                stroke: '#666', strokeWidth: 1, fill: '#4a5a4a', cornerRadius: 2
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'SOFA',
+                fontSize: 8, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createTableShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1, fill: '#4a4030'
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'TABLE',
+                fontSize: 7, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createChairShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1, fill: '#4a4030'
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'CHR',
+                fontSize: 7, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createToiletShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Ellipse({
+                x: 0, y: 5,
+                radiusX: w / 2 - 2, radiusY: h / 3,
+                stroke: '#888', strokeWidth: 1.5, fill: '#e8e8e8'
+            }));
+            group.add(new Konva.Rect({
+                x: -w/2 + 2, y: -h/2, width: w - 4, height: h / 3,
+                stroke: '#888', strokeWidth: 1.5, fill: '#e8e8e8', cornerRadius: 2
+            }));
+            group.add(new Konva.Text({
+                x: -w/2 - 5, y: h/2 + 3, width: w + 10, text: 'WC',
+                fontSize: 8, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createSinkShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#2a3a4a', cornerRadius: 3
+            }));
+            group.add(new Konva.Circle({
+                x: 0, y: 0, radius: 4,
+                stroke: '#666', strokeWidth: 1
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'SINK',
+                fontSize: 7, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createStoveShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#3a3a3a'
+            }));
+            const burnerSize = 8;
+            const positions = [[-w/4, -h/4], [w/4, -h/4], [-w/4, h/4], [w/4, h/4]];
+            positions.forEach(pos => {
+                group.add(new Konva.Circle({
+                    x: pos[0], y: pos[1], radius: burnerSize / 2,
+                    stroke: '#ff6b6b', strokeWidth: 1.5
+                }));
+            });
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'STOVE',
+                fontSize: 8, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createFridgeShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#e8e8e8'
+            }));
+            group.add(new Konva.Line({
+                points: [-w/2, -h/2 + h * 0.4, w/2, -h/2 + h * 0.4],
+                stroke: '#666', strokeWidth: 1
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'FRIG',
+                fontSize: 7, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        function createWasherShape(w, h) {
+            const group = new Konva.Group();
+            group.add(new Konva.Rect({
+                x: -w/2, y: -h/2, width: w, height: h,
+                stroke: '#888', strokeWidth: 1.5, fill: '#e8e8e8', cornerRadius: 3
+            }));
+            group.add(new Konva.Circle({
+                x: 0, y: 0, radius: 10,
+                stroke: '#666', strokeWidth: 1
+            }));
+            group.add(new Konva.Text({
+                x: -w/2, y: h/2 + 3, width: w, text: 'WASH',
+                fontSize: 7, fill: '#666', align: 'center'
+            }));
+            return group;
+        }
+
+        // Rotate selected furniture
+        function rotateSelectedFurniture() {
+            CADState.selection.forEach(obj => {
+                if (obj.hasName('furniture-group')) {
+                    obj.rotation((obj.rotation() + 90) % 360);
+                    // Update data
+                    const data = CADState.furniture.find(f => f.id === obj.id());
+                    if (data) data.rotation = obj.rotation();
+                }
+            });
+            CADState.layers.furniture.batchDraw();
+            saveHistoryState();
+        }
+
+        // ========== DIMENSION LINES ==========
+        function createDimensionAnnotation(x1, y1, x2, y2) {
+            const dimColor = '#ff4444';
+            const tickSize = 5;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const lengthFt = (length / CADState.settings.scaleFactor).toFixed(1);
+            const lengthM = (lengthFt * 0.3048).toFixed(2);
+            const text = `${lengthFt}' (${lengthM}m)`;
+
+            const group = new Konva.Group({
+                draggable: true,
+                name: 'dimension-group'
+            });
+
+            // Determine orientation
+            const isHorizontal = Math.abs(dx) > Math.abs(dy);
+
+            // Main dimension line
+            group.add(new Konva.Line({
+                points: [x1, y1, x2, y2],
+                stroke: dimColor,
+                strokeWidth: 1
+            }));
+
+            // Tick marks
+            if (isHorizontal) {
+                group.add(new Konva.Line({
+                    points: [x1, y1 - tickSize, x1, y1 + tickSize],
+                    stroke: dimColor, strokeWidth: 1
+                }));
+                group.add(new Konva.Line({
+                    points: [x2, y2 - tickSize, x2, y2 + tickSize],
+                    stroke: dimColor, strokeWidth: 1
+                }));
+                group.add(new Konva.Text({
+                    x: (x1 + x2) / 2 - 30, y: y1 - 14,
+                    text: text, fontSize: 9, fill: dimColor,
+                    fontFamily: 'Segoe UI, sans-serif'
+                }));
+            } else {
+                group.add(new Konva.Line({
+                    points: [x1 - tickSize, y1, x1 + tickSize, y1],
+                    stroke: dimColor, strokeWidth: 1
+                }));
+                group.add(new Konva.Line({
+                    points: [x2 - tickSize, y2, x2 + tickSize, y2],
+                    stroke: dimColor, strokeWidth: 1
+                }));
+                group.add(new Konva.Text({
+                    x: x1 - 14, y: (y1 + y2) / 2,
+                    text: text, fontSize: 9, fill: dimColor,
+                    fontFamily: 'Segoe UI, sans-serif',
+                    rotation: -90
+                }));
+            }
+
+            CADState.layers.annotations.add(group);
+
+            group.on('click tap', (e) => {
+                if (CADState.mode === 'select') {
+                    e.cancelBubble = true;
+                    selectObjects([group], e.evt.shiftKey);
+                }
+            });
+
+            CADState.layers.annotations.batchDraw();
+            updateObjectCount();
+            return group;
+        }
+
+        // ========== NORTH ARROW ==========
+        function drawNorthArrow() {
+            const stage = CADState.stage;
+            const arrowX = stage.width() - 60;
+            const arrowY = 60;
+
+            const northGroup = new Konva.Group({
+                x: arrowX,
+                y: arrowY,
+                rotation: CADState.northArrowAngle,
+                draggable: true,
+                name: 'north-arrow'
+            });
+
+            northGroup.add(new Konva.Circle({
+                radius: 25,
+                stroke: '#4a90d9',
+                strokeWidth: 2,
+                fill: 'rgba(26, 26, 46, 0.8)'
+            }));
+
+            northGroup.add(new Konva.Line({
+                points: [0, 15, 0, -15],
+                stroke: '#ff4444',
+                strokeWidth: 2
+            }));
+            northGroup.add(new Konva.Line({
+                points: [-6, -8, 0, -15, 6, -8],
+                stroke: '#ff4444',
+                strokeWidth: 2,
+                closed: true,
+                fill: '#ff4444'
+            }));
+
+            northGroup.add(new Konva.Text({
+                x: -5,
+                y: -28,
+                text: 'N',
+                fontSize: 14,
+                fontStyle: 'bold',
+                fill: '#fff'
+            }));
+
+            northGroup.on('dblclick dbltap', () => {
+                CADState.northArrowAngle = (CADState.northArrowAngle + 45) % 360;
+                northGroup.rotation(CADState.northArrowAngle);
+                CADState.layers.ui.batchDraw();
+            });
+
+            CADState.layers.ui.add(northGroup);
+            CADState.layers.ui.batchDraw();
+        }
+
+        // ========== EVENT HANDLERS ==========
+        function setupEventHandlers() {
+            const stage = CADState.stage;
+
+            // Mouse position tracking
+            stage.on('mousemove touchmove', (e) => {
+                const pos = stage.getPointerPosition();
+                if (pos) {
+                    const stagePos = getStagePointerPosition();
+                    document.getElementById('mousePos').textContent =
+                        `X: ${Math.round(stagePos.x)}, Y: ${Math.round(stagePos.y)}`;
+
+                    // Handle drawing modes
+                    if (CADState.drawing.isDrawing) {
+                        handleDrawingMove(stagePos, e.evt.shiftKey);
+                    }
+
+                    // Update wall preview
+                    if (CADState.mode === 'wall' && CADState.drawing.wallStartPoint) {
+                        updateWallPreview(stagePos, e.evt.shiftKey);
+                    }
+                }
+            });
+
+            // Mouse down
+            stage.on('mousedown touchstart', (e) => {
+                const pos = getStagePointerPosition();
+
+                if (CADState.mode === 'room') {
+                    startRoomDrawing(pos);
+                } else if (CADState.mode === 'wall') {
+                    if (!CADState.drawing.wallStartPoint) {
+                        startWallDrawing(pos);
+                    }
+                } else if (CADState.mode === 'draw') {
+                    CADState.drawing.isDrawing = true;
+                    CADState.drawing.startPos = pos;
+                }
+            });
+
+            // Mouse up
+            stage.on('mouseup touchend', (e) => {
+                const pos = getStagePointerPosition();
+
+                if (CADState.mode === 'room' && CADState.drawing.isDrawing) {
+                    finishRoomDrawing(pos);
+                } else if (CADState.mode === 'wall' && CADState.drawing.wallStartPoint) {
+                    finishWallDrawing(pos, e.evt?.shiftKey);
+                } else if (CADState.mode === 'draw') {
+                    CADState.drawing.isDrawing = false;
+                    CADState.drawing.startPos = null;
+                    saveHistoryState();
+                }
+            });
+
+            // Click for selection or room placement
+            stage.on('click tap', (e) => {
+                if (CADState.mode === 'select' && e.target === stage) {
+                    deselectAll();
+                } else if (CADState.mode === 'place' && e.target === stage) {
+                    // Sims-style room placement
+                    const pos = getStagePointerPosition();
+                    placeRoomBlock(pos);
+                }
+            });
+
+            // Zoom with scroll
+            stage.on('wheel', (e) => {
+                e.evt.preventDefault();
+                const oldScale = stage.scaleX();
+                const pointer = stage.getPointerPosition();
+
+                const scaleBy = 1.1;
+                let newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
+                newScale = Math.max(0.1, Math.min(5, newScale)); // Clamp zoom
+
+                stage.scale({ x: newScale, y: newScale });
+
+                const newPos = {
+                    x: pointer.x - (pointer.x - stage.x()) * (newScale / oldScale),
+                    y: pointer.y - (pointer.y - stage.y()) * (newScale / oldScale)
+                };
+                stage.position(newPos);
+
+                document.getElementById('zoomLevel').textContent = Math.round(newScale * 100) + '%';
+            });
+
+            // Responsive resize
+            window.addEventListener('resize', () => {
+                const container = document.getElementById('blueprint-container');
+                stage.width(container.offsetWidth);
+                stage.height(container.offsetHeight);
+                drawGrid();
+            });
+        }
+
+        function getStagePointerPosition() {
+            const stage = CADState.stage;
+            const pointer = stage.getPointerPosition();
+            if (!pointer) return { x: 0, y: 0 };
+            const transform = stage.getAbsoluteTransform().copy().invert();
+            return transform.point(pointer);
+        }
+
+        // ========== ROOM DRAWING MODE ==========
+        function startRoomDrawing(pos) {
+            const snapped = snapPosition(pos);
+            CADState.drawing.isDrawing = true;
+            CADState.drawing.startPos = snapped;
+
+            // Create preview rectangle
+            CADState.drawing.preview = new Konva.Rect({
+                x: snapped.x,
+                y: snapped.y,
+                width: 0,
+                height: 0,
+                stroke: '#00d4ff',
+                strokeWidth: 2,
+                dash: [5, 5],
+                name: 'room-preview'
+            });
+            CADState.layers.ui.add(CADState.drawing.preview);
+        }
+
+        function updateRoomPreview(pos) {
+            if (!CADState.drawing.preview || !CADState.drawing.startPos) return;
+
+            const snapped = snapPosition(pos);
+            const start = CADState.drawing.startPos;
+
+            const x = Math.min(start.x, snapped.x);
+            const y = Math.min(start.y, snapped.y);
+            const width = Math.abs(snapped.x - start.x);
+            const height = Math.abs(snapped.y - start.y);
+
+            CADState.drawing.preview.setAttrs({ x, y, width, height });
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(true);
+        }
+
+        function finishRoomDrawing(pos) {
+            if (!CADState.drawing.startPos) return;
+
+            const snapped = snapPosition(pos);
+            const start = CADState.drawing.startPos;
+
+            const x = Math.min(start.x, snapped.x);
+            const y = Math.min(start.y, snapped.y);
+            const width = Math.abs(snapped.x - start.x);
+            const height = Math.abs(snapped.y - start.y);
+
+            // Minimum size validation
+            if (width >= 20 && height >= 20) {
+                // Create room with temporary "Custom" type, then open dialog to assign type
+                const roomData = createRoom(x, y, width, height, 'Custom');
+                saveHistoryState();
+
+                // Immediately open the label dialog so user can assign a room type
+                openRoomLabelModal(roomData);
+            }
+
+            // Clean up
+            if (CADState.drawing.preview) {
+                CADState.drawing.preview.destroy();
+                CADState.drawing.preview = null;
+            }
+            CADState.drawing.isDrawing = false;
+            CADState.drawing.startPos = null;
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(false);
+        }
+
+        function handleDrawingMove(pos, shiftKey) {
+            if (CADState.mode === 'room') {
+                updateRoomPreview(pos);
+            } else if (CADState.mode === 'draw' && CADState.drawing.startPos) {
+                handleFreehandDraw(pos);
+            }
+        }
+
+        function handleFreehandDraw(pos) {
+            const start = CADState.drawing.startPos;
+            if (!start) return;
+
+            CADState.layers.annotations.add(new Konva.Line({
+                points: [start.x, start.y, pos.x, pos.y],
+                stroke: '#4a90d9',
+                strokeWidth: 2,
+                lineCap: 'round',
+                lineJoin: 'round',
+                name: 'freehand'
+            }));
+            CADState.layers.annotations.batchDraw();
+            CADState.drawing.startPos = pos;
+            updateObjectCount();
+        }
+
+        // ========== TOOL FUNCTIONS ==========
+        function setTool(tool) {
+            // Cancel any current drawing operation
+            cancelCurrentOperation();
+
+            // Clear room palette selection when switching away from place mode
+            if (tool !== 'place') {
+                clearRoomSelection();
+            }
+
+            CADState.mode = tool;
+            document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById(tool + 'Btn');
+            if (btn) btn.classList.add('active');
+
+            const toolNames = {
+                'select': 'Select',
+                'room': 'Draw Room',
+                'wall': 'Draw Wall',
+                'draw': 'Freehand',
+                'place': 'Place ' + (CADState.selectedRoomType || 'Room')
+            };
+            document.getElementById('currentTool').textContent = toolNames[tool] || tool;
+
+            // Only allow panning in select mode
+            CADState.stage.draggable(tool === 'select');
+
+            // Deselect when switching tools
+            if (tool !== 'select') {
+                deselectAll();
+            }
+        }
+
+        function cancelCurrentOperation() {
+            if (CADState.drawing.preview) {
+                CADState.drawing.preview.destroy();
+                CADState.drawing.preview = null;
+            }
+            CADState.drawing.isDrawing = false;
+            CADState.drawing.startPos = null;
+            CADState.drawing.wallStartPoint = null;
+            CADState.layers.ui.batchDraw();
+            showSnapIndicator(false);
+        }
+
+        function setWallType(type) {
+            CADState.wallType = type;
+            // Update wall type buttons
+            document.querySelectorAll('.wall-type').forEach(el => el.classList.remove('active'));
+            const wallTypeEl = document.querySelector(`.wall-type-${type}`);
+            if (wallTypeEl) wallTypeEl.classList.add('active');
+        }
+
+        function setAnnotation(type) {
+            CADState.mode = 'annotation-' + type;
+            document.getElementById('currentTool').textContent = type.charAt(0).toUpperCase() + type.slice(1);
+        }
+
+        function toggleGrid() {
+            CADState.settings.showGrid = !CADState.settings.showGrid;
+            drawGrid();
+        }
+
+        function zoomIn() {
+            const stage = CADState.stage;
+            const newScale = Math.min(5, stage.scaleX() * 1.2);
+            stage.scale({ x: newScale, y: newScale });
+            document.getElementById('zoomLevel').textContent = Math.round(newScale * 100) + '%';
+        }
+
+        function zoomOut() {
+            const stage = CADState.stage;
+            const newScale = Math.max(0.1, stage.scaleX() / 1.2);
+            stage.scale({ x: newScale, y: newScale });
+            document.getElementById('zoomLevel').textContent = Math.round(newScale * 100) + '%';
+        }
+
+        function resetView() {
+            const stage = CADState.stage;
+            stage.scale({ x: 1, y: 1 });
+            stage.position({ x: 0, y: 0 });
+            document.getElementById('zoomLevel').textContent = '100%';
+        }
+
+        function changeLevel(delta) {
+            CADState.level = Math.max(1, Math.min(10, CADState.level + delta));
+            const levelNames = ['', 'Ground', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+            document.getElementById('levelDisplay').textContent = `Level ${CADState.level} (${levelNames[CADState.level]})`;
+        }
+
+        // ========== SELECTION SYSTEM ==========
+        function selectObjects(objects, addToSelection = false) {
+            if (!addToSelection) {
+                CADState.selection = [];
+            }
+
+            objects.forEach(obj => {
+                if (!CADState.selection.includes(obj)) {
+                    CADState.selection.push(obj);
+                }
+            });
+
+            // Update transformer
+            CADState.transformer.nodes(CADState.selection);
+            CADState.layers.ui.batchDraw();
+        }
+
+        function deselectAll() {
+            CADState.selection = [];
+            CADState.transformer.nodes([]);
+            CADState.layers.ui.batchDraw();
+        }
+
+        function deleteSelected() {
+            if (CADState.selection.length === 0) return;
+
+            CADState.selection.forEach(obj => {
+                const id = obj.id();
+
+                // Remove from data arrays
+                CADState.rooms = CADState.rooms.filter(r => r.id !== id);
+                CADState.walls = CADState.walls.filter(w => w.id !== id);
+                CADState.furniture = CADState.furniture.filter(f => f.id !== id);
+
+                // Destroy Konva object
+                obj.destroy();
+            });
+
+            CADState.selection = [];
+            CADState.transformer.nodes([]);
+
+            // Redraw all layers
+            Object.values(CADState.layers).forEach(layer => layer.batchDraw());
+            updateObjectCount();
+            updateObjectTree();
+            saveHistoryState();
+        }
+
+        function copySelected() {
+            if (CADState.selection.length === 0) return;
+
+            const newSelection = [];
+
+            CADState.selection.forEach(obj => {
+                if (obj.hasName('room-group')) {
+                    const data = CADState.rooms.find(r => r.id === obj.id());
+                    if (data) {
+                        const roomRect = obj.findOne('.room-fill');
+                        const newRoom = createRoom(
+                            obj.x() + 20,
+                            obj.y() + 20,
+                            roomRect.width(),
+                            roomRect.height(),
+                            data.type,
+                            data.customLabel
+                        );
+                        newSelection.push(newRoom.konvaGroup);
+                    }
+                } else if (obj.hasName('furniture-group')) {
+                    const data = CADState.furniture.find(f => f.id === obj.id());
+                    if (data) {
+                        const newFurniture = createFurniture(
+                            data.type,
+                            obj.x() + 20,
+                            obj.y() + 20,
+                            data.rotation
+                        );
+                        newSelection.push(newFurniture.konvaGroup);
+                    }
+                }
+            });
+
+            if (newSelection.length > 0) {
+                selectObjects(newSelection);
+                saveHistoryState();
+            }
+        }
+
+        // ========== FEATURE/ICON ADDING ==========
+        function addFeature(type) {
+            const stage = CADState.stage;
+            const center = getStagePointerPosition() || { x: stage.width() / 2, y: stage.height() / 2 };
+            const snapped = snapPosition(center);
+
+            const featureId = CADState.generateId('feature');
+            let feature;
+
+            switch (type) {
+                case 'door':
+                    feature = new Konva.Group({ x: snapped.x, y: snapped.y, draggable: true, name: 'feature-group', id: featureId });
+                    feature.add(new Konva.Arc({
+                        innerRadius: 0, outerRadius: 30,
+                        angle: 90, stroke: '#4a90d9',
+                        strokeWidth: 1.5, dash: [4, 2]
+                    }));
+                    feature.add(new Konva.Line({
+                        points: [0, 0, 30, 0],
+                        stroke: '#4a90d9', strokeWidth: 2
+                    }));
+                    break;
+                case 'window':
+                    feature = new Konva.Rect({
+                        x: snapped.x - 20, y: snapped.y - 5,
+                        width: 40, height: 10,
+                        stroke: '#4a90d9', strokeWidth: 2,
+                        fill: '#87ceeb', opacity: 0.5,
+                        draggable: true, name: 'feature-group', id: featureId
+                    });
+                    break;
+                case 'stairs':
+                    feature = new Konva.Group({ x: snapped.x, y: snapped.y, draggable: true, name: 'feature-group', id: featureId });
+                    for (let i = 0; i < 8; i++) {
+                        feature.add(new Konva.Line({
+                            points: [-15, i * 5 - 20, 15, i * 5 - 20],
+                            stroke: '#888', strokeWidth: 1
+                        }));
+                    }
+                    feature.add(new Konva.Rect({
+                        x: -15, y: -20, width: 30, height: 40,
+                        stroke: '#888', strokeWidth: 1.5
+                    }));
+                    break;
+                case 'column':
+                    feature = new Konva.Rect({
+                        x: snapped.x - 10, y: snapped.y - 10,
+                        width: 20, height: 20,
+                        fill: '#666', stroke: '#888',
+                        strokeWidth: 2, draggable: true,
+                        name: 'feature-group', id: featureId
+                    });
+                    break;
+            }
+
+            if (feature) {
+                CADState.layers.furniture.add(feature);
+                setupGenericInteractions(feature);
+                CADState.layers.furniture.batchDraw();
+                updateObjectCount();
+                saveHistoryState();
+            }
+        }
+
+        function addIcon(type) {
+            const stage = CADState.stage;
+            const center = getStagePointerPosition() || { x: stage.width() / 2, y: stage.height() / 2 };
+            const snapped = snapPosition(center);
+
+            const iconId = CADState.generateId('icon');
+            const iconGroup = new Konva.Group({ x: snapped.x, y: snapped.y, draggable: true, name: 'icon-group', id: iconId });
+
+            switch (type) {
+                case 'radiator':
+                    iconGroup.add(new Konva.Rect({ x: -20, y: -10, width: 40, height: 20, stroke: '#ff6b6b', strokeWidth: 1.5 }));
+                    for (let i = -15; i <= 15; i += 10) {
+                        iconGroup.add(new Konva.Line({ points: [i, -8, i, 8], stroke: '#ff6b6b', strokeWidth: 1 }));
+                    }
+                    break;
+                case 'pipe':
+                    iconGroup.add(new Konva.Line({ points: [-20, 0, -10, -10, 0, 10, 10, -10, 20, 0], stroke: '#4a90d9', strokeWidth: 2 }));
+                    break;
+                case 'riser':
+                    iconGroup.add(new Konva.Circle({ radius: 15, stroke: '#4a90d9', strokeWidth: 1.5 }));
+                    iconGroup.add(new Konva.Line({ points: [0, -10, 0, 10], stroke: '#4a90d9', strokeWidth: 2 }));
+                    iconGroup.add(new Konva.Line({ points: [-5, 5, 0, 10, 5, 5], stroke: '#4a90d9', strokeWidth: 2 }));
+                    break;
+                case 'vent':
+                    iconGroup.add(new Konva.Rect({ x: -15, y: -8, width: 30, height: 16, stroke: '#888', strokeWidth: 1.5 }));
+                    for (let i = -10; i <= 10; i += 5) {
+                        iconGroup.add(new Konva.Line({ points: [i, -6, i, 6], stroke: '#888', strokeWidth: 1 }));
+                    }
+                    break;
+            }
+
+            CADState.layers.furniture.add(iconGroup);
+            setupGenericInteractions(iconGroup);
+            CADState.layers.furniture.batchDraw();
+            updateObjectCount();
+            saveHistoryState();
+        }
+
+        function addSymbol(type) {
+            const stage = CADState.stage;
+            const center = getStagePointerPosition() || { x: stage.width() / 2, y: stage.height() / 2 };
+            createFurniture(type, center.x, center.y);
+            saveHistoryState();
+        }
+
+        function setupGenericInteractions(obj) {
+            obj.on('click tap', (e) => {
+                if (CADState.mode === 'select') {
+                    e.cancelBubble = true;
+                    selectObjects([obj], e.evt.shiftKey);
+                }
+            });
+
+            obj.on('dragmove', () => {
+                if (CADState.settings.snapEnabled) {
+                    const snappedPos = snapPosition({ x: obj.x(), y: obj.y() });
+                    obj.position(snappedPos);
+                    showSnapIndicator(true);
+                }
+            });
+
+            obj.on('dragend', () => {
+                showSnapIndicator(false);
+                saveHistoryState();
+            });
+        }
+
+        // ========== UNDO/REDO SYSTEM ==========
+        function saveHistoryState() {
+            // Capture current state
+            const state = {
+                rooms: CADState.rooms.map(r => ({
+                    id: r.id,
+                    type: r.type,
+                    customLabel: r.customLabel,
+                    x: r.konvaGroup.x(),
+                    y: r.konvaGroup.y(),
+                    width: r.konvaGroup.findOne('.room-fill').width(),
+                    height: r.konvaGroup.findOne('.room-fill').height()
+                })),
+                walls: CADState.walls.map(w => ({
+                    id: w.id,
+                    points: w.points,
+                    thickness: w.thickness
+                })),
+                furniture: CADState.furniture.map(f => ({
+                    id: f.id,
+                    type: f.type,
+                    x: f.konvaGroup.x(),
+                    y: f.konvaGroup.y(),
+                    rotation: f.rotation
+                }))
+            };
+
+            // Add to undo stack
+            CADState.history.undoStack.push(JSON.stringify(state));
+
+            // Limit stack size
+            if (CADState.history.undoStack.length > CADState.history.maxHistory) {
+                CADState.history.undoStack.shift();
+            }
+
+            // Clear redo stack on new action
+            CADState.history.redoStack = [];
+        }
+
+        function undo() {
+            if (CADState.history.undoStack.length <= 1) return; // Keep at least one state
+
+            // Move current state to redo
+            const currentState = CADState.history.undoStack.pop();
+            CADState.history.redoStack.push(currentState);
+
+            // Restore previous state
+            const previousState = CADState.history.undoStack[CADState.history.undoStack.length - 1];
+            if (previousState) {
+                restoreState(JSON.parse(previousState));
+            }
+        }
+
+        function redo() {
+            if (CADState.history.redoStack.length === 0) return;
+
+            const nextState = CADState.history.redoStack.pop();
+            CADState.history.undoStack.push(nextState);
+            restoreState(JSON.parse(nextState));
+        }
+
+        function restoreState(state) {
+            // Clear current objects
+            CADState.rooms.forEach(r => r.konvaGroup.destroy());
+            CADState.walls.forEach(w => w.konvaLine.destroy());
+            CADState.furniture.forEach(f => f.konvaGroup.destroy());
+
+            CADState.rooms = [];
+            CADState.walls = [];
+            CADState.furniture = [];
+
+            // Restore rooms
+            state.rooms.forEach(r => {
+                createRoom(r.x, r.y, r.width, r.height, r.type, r.customLabel);
+            });
+
+            // Restore walls
+            state.walls.forEach(w => {
+                createWall(w.points[0], w.points[1], w.points[2], w.points[3]);
+            });
+
+            // Restore furniture
+            state.furniture.forEach(f => {
+                createFurniture(f.type, f.x, f.y, f.rotation);
+            });
+
+            deselectAll();
+            updateObjectTree();
+        }
+
+        // ========== SAVE/LOAD ==========
+        function saveToStorage() {
+            try {
+                const data = {
+                    version: 2,
+                    rooms: CADState.rooms.map(r => ({
+                        id: r.id,
+                        type: r.type,
+                        customLabel: r.customLabel,
+                        x: r.konvaGroup.x(),
+                        y: r.konvaGroup.y(),
+                        width: r.konvaGroup.findOne('.room-fill').width(),
+                        height: r.konvaGroup.findOne('.room-fill').height()
+                    })),
+                    walls: CADState.walls.map(w => ({
+                        id: w.id,
+                        points: w.points,
+                        thickness: w.thickness
+                    })),
+                    furniture: CADState.furniture.map(f => ({
+                        id: f.id,
+                        type: f.type,
+                        x: f.konvaGroup.x(),
+                        y: f.konvaGroup.y(),
+                        rotation: f.rotation
+                    })),
+                    viewState: {
+                        scale: CADState.stage.scaleX(),
+                        x: CADState.stage.x(),
+                        y: CADState.stage.y()
+                    },
+                    northArrowAngle: CADState.northArrowAngle,
+                    level: CADState.level,
+                    timestamp: new Date().toISOString()
+                };
+
+                localStorage.setItem('cad-blueprint-data-v2', JSON.stringify(data));
+                alert('Blueprint saved successfully!');
+            } catch (e) {
+                console.error('Save failed:', e);
+                alert('Save failed: ' + e.message);
+            }
+        }
+
+        function loadFromStorage(silent = false) {
+            try {
+                // Try v2 format first
+                let saved = localStorage.getItem('cad-blueprint-data-v2');
+                let data;
+
+                if (saved) {
+                    data = JSON.parse(saved);
+                } else {
+                    // Try to migrate v1 data
+                    saved = localStorage.getItem('cad-blueprint-data');
+                    if (saved) {
+                        const v1Data = JSON.parse(saved);
+                        // Migrate v1 format (just load settings, not the old hardcoded rooms)
+                        CADState.northArrowAngle = v1Data.northArrowAngle || 0;
+                        CADState.level = v1Data.currentLevel || 1;
+                        if (!silent) {
+                            alert('Migrated settings from old save format.');
+                        }
+                        return;
+                    }
+                    return;
+                }
+
+                // Clear existing objects
+                CADState.rooms.forEach(r => r.konvaGroup.destroy());
+                CADState.walls.forEach(w => w.konvaLine.destroy());
+                CADState.furniture.forEach(f => f.konvaGroup.destroy());
+                CADState.rooms = [];
+                CADState.walls = [];
+                CADState.furniture = [];
+
+                // Restore rooms
+                if (data.rooms) {
+                    data.rooms.forEach(r => {
+                        createRoom(r.x, r.y, r.width, r.height, r.type, r.customLabel);
+                    });
+                }
+
+                // Restore walls
+                if (data.walls) {
+                    data.walls.forEach(w => {
+                        createWall(w.points[0], w.points[1], w.points[2], w.points[3]);
+                    });
+                }
+
+                // Restore furniture
+                if (data.furniture) {
+                    data.furniture.forEach(f => {
+                        createFurniture(f.type, f.x, f.y, f.rotation);
+                    });
+                }
+
+                // Restore view state
+                if (data.viewState) {
+                    CADState.stage.scale({ x: data.viewState.scale, y: data.viewState.scale });
+                    CADState.stage.position({ x: data.viewState.x, y: data.viewState.y });
+                    document.getElementById('zoomLevel').textContent = Math.round(data.viewState.scale * 100) + '%';
+                }
+
+                CADState.northArrowAngle = data.northArrowAngle || 0;
+                CADState.level = data.level || 1;
+
+                updateObjectTree();
+
+                if (!silent) {
+                    alert('Blueprint loaded from ' + new Date(data.timestamp).toLocaleString());
+                }
+            } catch (e) {
+                console.error('Load failed:', e);
+                if (!silent) {
+                    alert('Load failed: ' + e.message);
+                }
+            }
+        }
+
+        // ========== PDF EXPORT ==========
+        async function exportPDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('landscape', 'mm', 'a4');
+
+                // Title
+                pdf.setFontSize(18);
+                pdf.setTextColor(0, 0, 0);
+                pdf.text('Floor Plan Blueprint', 15, 15);
+
+                // Date and scale info
+                pdf.setFontSize(10);
+                pdf.text(`Date: ${new Date().toLocaleDateString()}`, 15, 22);
+                pdf.text(`Scale: 1:50 | Level: ${CADState.level}`, 15, 28);
+
+                // Hide UI elements during export
+                CADState.transformer.nodes([]);
+                CADState.layers.ui.visible(false);
+
+                // Canvas export
+                const dataURL = CADState.stage.toDataURL({
+                    pixelRatio: 2,
+                    mimeType: 'image/png'
+                });
+
+                // Restore UI
+                CADState.layers.ui.visible(true);
+
+                // Add image to PDF
+                pdf.addImage(dataURL, 'PNG', 15, 35, 267, 160);
+
+                // Legend
+                pdf.setFontSize(8);
+                pdf.text('Legend: Red lines = Dimensions | Blue arcs = Doors | Gray = Walls', 15, 200);
+
+                // Room count
+                pdf.text(`Rooms: ${CADState.rooms.length} | Furniture: ${CADState.furniture.length}`, 200, 200);
+
+                // Save
+                pdf.save('floor-plan-blueprint.pdf');
+            } catch (e) {
+                console.error('PDF export failed:', e);
+                alert('PDF export failed: ' + e.message);
+            }
+        }
+
+        // ========== UTILITY ==========
+        function updateObjectCount() {
+            const count = CADState.rooms.length + CADState.walls.length + CADState.furniture.length;
+            document.getElementById('objectCount').textContent = count;
+        }
+
+        function updateObjectTree() {
+            const tree = document.getElementById('objectTree');
+            // Clear existing content safely
+            while (tree.firstChild) {
+                tree.removeChild(tree.firstChild);
+            }
+
+            // Create root item
+            const rootItem = document.createElement('div');
+            rootItem.className = 'tree-item';
+            const rootIcon = document.createElement('div');
+            rootIcon.className = 'tree-icon';
+            rootItem.appendChild(rootIcon);
+            rootItem.appendChild(document.createTextNode('Floor Plan'));
+            tree.appendChild(rootItem);
+
+            // Add rooms
+            CADState.rooms.forEach(room => {
+                const colors = ROOM_TYPES[room.type] || ROOM_TYPES['Custom'];
+                const label = room.customLabel || room.type;
+
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                item.style.paddingLeft = '20px';
+                item.addEventListener('click', () => selectRoomById(room.id));
+
+                const icon = document.createElement('div');
+                icon.className = 'tree-icon';
+                icon.style.background = colors.textColor;
+
+                item.appendChild(icon);
+                item.appendChild(document.createTextNode(label));
+                tree.appendChild(item);
+            });
+
+            // Add furniture
+            CADState.furniture.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'tree-item';
+                item.style.paddingLeft = '20px';
+                item.addEventListener('click', () => selectFurnitureById(f.id));
+
+                const icon = document.createElement('div');
+                icon.className = 'tree-icon';
+                icon.style.background = '#888';
+
+                item.appendChild(icon);
+                item.appendChild(document.createTextNode(f.type.charAt(0).toUpperCase() + f.type.slice(1)));
+                tree.appendChild(item);
+            });
+        }
+
+        function selectRoomById(id) {
+            const room = CADState.rooms.find(r => r.id === id);
+            if (room) {
+                setTool('select');
+                selectObjects([room.konvaGroup]);
+            }
+        }
+
+        function selectFurnitureById(id) {
+            const furniture = CADState.furniture.find(f => f.id === id);
+            if (furniture) {
+                setTool('select');
+                selectObjects([furniture.konvaGroup]);
+            }
+        }
+
+        // ========== KEYBOARD SHORTCUTS ==========
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Don't trigger shortcuts when typing in inputs
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                // Tool shortcuts
+                if (!e.ctrlKey && !e.metaKey) {
+                    switch (e.key.toLowerCase()) {
+                        case 'v': setTool('select'); break;
+                        case 'r':
+                            if (!e.shiftKey) setTool('room');
+                            break;
+                        case 'w': setTool('wall'); break;
+                        case 'escape':
+                            cancelCurrentOperation();
+                            clearRoomSelection();
+                            deselectAll();
+                            setTool('select');
+                            break;
+                    }
+                }
+
+                // Delete
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    if (e.target.tagName !== 'INPUT') {
+                        e.preventDefault();
+                        deleteSelected();
+                    }
+                }
+
+                // Rotate furniture with R key (when shift is held)
+                if (e.key.toLowerCase() === 'r' && e.shiftKey && CADState.selection.length > 0) {
+                    e.preventDefault();
+                    rotateSelectedFurniture();
+                }
+
+                // Undo/Redo
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        redo();
+                    } else {
+                        undo();
+                    }
+                }
+
+                if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                    e.preventDefault();
+                    redo();
+                }
+
+                // Save
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    saveToStorage();
+                }
+
+                // Copy
+                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                    if (CADState.selection.length > 0) {
+                        e.preventDefault();
+                        copySelected();
+                    }
+                }
+            });
+        }
+
+        // ========== FURNITURE DRAG AND DROP ==========
+        function setupFurnitureDragAndDrop() {
+            const symbolItems = document.querySelectorAll('.symbol-item[draggable="true"]');
+            const container = document.getElementById('blueprint-container');
+
+            symbolItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('furniture-type', item.dataset.furniture);
+                    item.classList.add('dragging');
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                });
+            });
+
+            // Allow drop on canvas
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const furnitureType = e.dataTransfer.getData('furniture-type');
+                if (furnitureType) {
+                    // Convert screen coordinates to stage coordinates
+                    const rect = container.getBoundingClientRect();
+                    const stage = CADState.stage;
+                    const scale = stage.scaleX();
+
+                    const x = (e.clientX - rect.left - stage.x()) / scale;
+                    const y = (e.clientY - rect.top - stage.y()) / scale;
+
+                    createFurniture(furnitureType, x, y);
+                    saveHistoryState();
+                }
+            });
+        }
+
+        // ========== ROOM PALETTE (Sims-style) ==========
+        function setupRoomPalette() {
+            const roomBlocks = document.querySelectorAll('.room-block');
+
+            roomBlocks.forEach(block => {
+                block.addEventListener('click', () => {
+                    const roomType = block.dataset.room;
+
+                    // Toggle selection
+                    if (CADState.selectedRoomType === roomType) {
+                        // Deselect
+                        CADState.selectedRoomType = null;
+                        block.classList.remove('selected');
+                        setTool('select');
+                    } else {
+                        // Select this room type
+                        roomBlocks.forEach(b => b.classList.remove('selected'));
+                        block.classList.add('selected');
+                        CADState.selectedRoomType = roomType;
+                        setTool('place');
+                    }
+                });
+            });
+        }
+
+        function placeRoomBlock(pos) {
+            if (!CADState.selectedRoomType) return;
+
+            const roomType = CADState.selectedRoomType;
+            const typeInfo = ROOM_TYPES[roomType] || ROOM_TYPES['Custom'];
+            const size = typeInfo.defaultSize || { w: 100, h: 100 };
+
+            // Snap position to grid
+            const snapped = snapPosition(pos);
+
+            // Center the room on click position
+            const x = snapped.x - size.w / 2;
+            const y = snapped.y - size.h / 2;
+
+            // Create the room
+            createRoom(x, y, size.w, size.h, roomType);
+            saveHistoryState();
+
+            // Keep the room type selected for placing more rooms
+            // User can press Escape or V to exit placement mode
+        }
+
+        function clearRoomSelection() {
+            CADState.selectedRoomType = null;
+            document.querySelectorAll('.room-block').forEach(b => b.classList.remove('selected'));
+        }
+
+        // ========== WEB COMPONENT / API ==========
+        window.BlueprintCAD = {
+            init: init,
+            getState: () => CADState,
+            getRooms: () => CADState.rooms,
+            getWalls: () => CADState.walls,
+            getFurniture: () => CADState.furniture,
+            getStage: () => CADState.stage,
+            createRoom: createRoom,
+            createWall: createWall,
+            createFurniture: createFurniture,
+            save: saveToStorage,
+            load: loadFromStorage,
+            exportPDF: exportPDF,
+            undo: undo,
+            redo: redo,
+            setTool: setTool
+        };
+
+        // ========== AUTO-INITIALIZE ON LOAD ==========
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
