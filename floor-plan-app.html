@@ -44,6 +44,7 @@
         .section { border-bottom: 1px solid var(--border); }
         .section-header { padding: 8px; font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .section-content { padding: 6px; }
+        .section-content.collapsed { display: none; }
 
         .tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
         .tool-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 2px; background: var(--bg-tool); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 7px; font-weight: 500; cursor: pointer; min-height: 44px; }
@@ -151,9 +152,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="section">
-                    <div class="section-header">Objects</div>
-                    <div class="section-content" id="objectTree"></div>
+                <div class="section" id="objectSection">
+                    <div class="section-header" onclick="App.toggleObjectPanel()">Objects <span id="objectToggle">▶</span></div>
+                    <div class="section-content collapsed" id="objectTree"></div>
                 </div>
             </div>
         </div>
@@ -1810,6 +1811,13 @@ const App = {
     },
 
     toggleSidebar() { $('#sidebarLeft').classList.toggle('collapsed'); },
+
+    toggleObjectPanel() {
+        const tree = $('#objectTree');
+        const toggle = $('#objectToggle');
+        tree.classList.toggle('collapsed');
+        toggle.textContent = tree.classList.contains('collapsed') ? '▶' : '▼';
+    },
 
     resetView() {
         Render.stage.scale({ x: 1, y: 1 });
