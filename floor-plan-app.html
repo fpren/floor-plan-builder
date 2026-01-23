@@ -890,27 +890,122 @@ const Render = {
         const doorGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
         // Door opening (gap in wall)
-        doorGroup.add(new Konva.Rect({
+        const doorRect = new Konva.Rect({
             x: 0, y: -ws.thickness / 2, width: door.width, height: ws.thickness,
             fill: '#1a1a1a', stroke: isSelected ? '#06b6d4' : '#fff', strokeWidth: 1
-        }));
+        });
+        doorGroup.add(doorRect);
 
         // Swing arc
         const arcDir = door.swingDir === 'left' ? -1 : 1;
-        doorGroup.add(new Konva.Arc({
+        const swingArc = new Konva.Arc({
             x: 0, y: arcDir * ws.thickness / 2, innerRadius: 0, outerRadius: door.width * 0.75,
             angle: 90, rotation: arcDir > 0 ? -90 : 0,
             stroke: '#555', strokeWidth: 1, dash: [4, 4]
-        }));
+        });
+        doorGroup.add(swingArc);
 
         doorGroup.on('tap click', () => App.onObjectTap('door', door.id));
         this.layers.openings.add(doorGroup);
 
         // Label
-        this.layers.labels.add(new Konva.Text({
+        const doorLabel = new Konva.Text({
             x: pos.x + (isVertical ? 12 : 0), y: pos.y + (isVertical ? 0 : -14),
             text: door.label, fontSize: 9, fill: isSelected ? '#06b6d4' : '#3b82f6', listening: false
-        }));
+        });
+        this.layers.labels.add(doorLabel);
+
+        // Add resize handles when selected
+        if (isSelected) {
+            const handleSize = 16;
+            const self = this;
+
+            // Left handle (adjusts offset and width)
+            const leftHandle = new Konva.Circle({
+                x: pos.x, y: pos.y,
+                radius: handleSize / 2,
+                fill: '#3b82f6', stroke: '#fff', strokeWidth: 2,
+                draggable: true
+            });
+
+            // Right handle (adjusts width only)
+            const rightPos = this.getPositionOnSegment(ws, door.distanceFromStart + door.width);
+            const rightHandle = new Konva.Circle({
+                x: rightPos.x, y: rightPos.y,
+                radius: handleSize / 2,
+                fill: '#3b82f6', stroke: '#fff', strokeWidth: 2,
+                draggable: true
+            });
+
+            // Update visuals directly without full re-render
+            const updateDoorVisuals = () => {
+                const newPos = self.getPositionOnSegment(ws, door.distanceFromStart);
+                const newRightPos = self.getPositionOnSegment(ws, door.distanceFromStart + door.width);
+
+                // Update door group position and rect width
+                doorGroup.x(newPos.x);
+                doorGroup.y(newPos.y);
+                doorRect.width(door.width);
+                swingArc.outerRadius(door.width * 0.75);
+
+                // Update handle positions
+                leftHandle.x(newPos.x);
+                leftHandle.y(newPos.y);
+                rightHandle.x(newRightPos.x);
+                rightHandle.y(newRightPos.y);
+
+                // Update label
+                doorLabel.x(newPos.x + (isVertical ? 12 : 0));
+                doorLabel.y(newPos.y + (isVertical ? 0 : -14));
+
+                self.layers.openings.batchDraw();
+                self.layers.labels.batchDraw();
+            };
+
+            leftHandle.on('dragmove', function() {
+                const pointer = self.stage.getPointerPosition();
+                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const oldEnd = door.distanceFromStart + door.width;
+                const minWidth = 2 * FOOT;  // Doors min 2ft
+
+                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
+                    door.width = oldEnd - newOffset;
+                    door.distanceFromStart = newOffset;
+                    updateDoorVisuals();
+                }
+                const handlePos = self.getPositionOnSegment(ws, door.distanceFromStart);
+                this.x(handlePos.x);
+                this.y(handlePos.y);
+            });
+
+            rightHandle.on('dragmove', function() {
+                const pointer = self.stage.getPointerPosition();
+                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const newWidth = newEnd - door.distanceFromStart;
+                const maxOffset = getSegmentLength(ws);
+                const minWidth = 2 * FOOT;
+
+                if (newWidth >= minWidth && newEnd <= maxOffset) {
+                    door.width = newWidth;
+                    updateDoorVisuals();
+                }
+                const handlePos = self.getPositionOnSegment(ws, door.distanceFromStart + door.width);
+                this.x(handlePos.x);
+                this.y(handlePos.y);
+            });
+
+            leftHandle.on('dragend', () => {
+                App.updateInspector();
+                App.updateQABadge();
+            });
+            rightHandle.on('dragend', () => {
+                App.updateInspector();
+                App.updateQABadge();
+            });
+
+            this.layers.openings.add(leftHandle);
+            this.layers.openings.add(rightHandle);
+        }
     },
 
     renderWindow(win, doc) {
@@ -923,22 +1018,32 @@ const Render = {
 
         const winGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
-        winGroup.add(new Konva.Rect({
+        const winRect = new Konva.Rect({
             x: 0, y: -ws.thickness / 2, width: win.width, height: ws.thickness,
             fill: '#1a1a1a', stroke: isSelected ? '#06b6d4' : '#87ceeb', strokeWidth: 2
-        }));
+        });
+        winGroup.add(winRect);
+
         // Mullion
-        winGroup.add(new Konva.Line({
+        const mullion = new Konva.Line({
             points: [win.width / 2, -ws.thickness / 2, win.width / 2, ws.thickness / 2],
             stroke: '#87ceeb', strokeWidth: 1
-        }));
+        });
+        winGroup.add(mullion);
 
         winGroup.on('tap click', () => App.onObjectTap('window', win.id));
         this.layers.openings.add(winGroup);
 
+        const winLabel = new Konva.Text({
+            x: pos.x + win.width / 2 - 15, y: pos.y - 14,
+            text: win.label, fontSize: 9, fill: isSelected ? '#06b6d4' : '#87ceeb', listening: false
+        });
+        this.layers.labels.add(winLabel);
+
         // Add resize handles when selected
         if (isSelected) {
-            const handleSize = 14;  // Mobile-friendly touch target
+            const handleSize = 16;  // Mobile-friendly touch target
+            const self = this;
 
             // Left handle (adjusts offset and width)
             const leftHandle = new Konva.Circle({
@@ -947,22 +1052,6 @@ const Render = {
                 fill: '#06b6d4', stroke: '#fff', strokeWidth: 2,
                 draggable: true
             });
-            leftHandle.on('dragmove', (e) => {
-                const stage = this.stage;
-                const pointer = stage.getPointerPosition();
-                const newOffset = this.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const oldEnd = win.distanceFromStart + win.width;
-                const minWidth = 1 * FOOT;
-
-                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
-                    win.width = oldEnd - newOffset;
-                    win.distanceFromStart = newOffset;
-                    this.render();
-                    App.updateInspector();
-                }
-            });
-            leftHandle.on('dragend', () => App.updateQABadge());
-            this.layers.openings.add(leftHandle);
 
             // Right handle (adjusts width only)
             const rightPos = this.getPositionOnSegment(ws, win.distanceFromStart + win.width);
@@ -972,28 +1061,78 @@ const Render = {
                 fill: '#06b6d4', stroke: '#fff', strokeWidth: 2,
                 draggable: true
             });
-            rightHandle.on('dragmove', (e) => {
-                const stage = this.stage;
-                const pointer = stage.getPointerPosition();
-                const newEnd = this.getOffsetOnSegment(ws, pointer.x, pointer.y);
+
+            // Update visuals directly without full re-render
+            const updateWindowVisuals = () => {
+                const newPos = self.getPositionOnSegment(ws, win.distanceFromStart);
+                const newRightPos = self.getPositionOnSegment(ws, win.distanceFromStart + win.width);
+
+                // Update window group position and rect width
+                winGroup.x(newPos.x);
+                winGroup.y(newPos.y);
+                winRect.width(win.width);
+                mullion.points([win.width / 2, -ws.thickness / 2, win.width / 2, ws.thickness / 2]);
+
+                // Update handle positions
+                leftHandle.x(newPos.x);
+                leftHandle.y(newPos.y);
+                rightHandle.x(newRightPos.x);
+                rightHandle.y(newRightPos.y);
+
+                // Update label
+                winLabel.x(newPos.x + win.width / 2 - 15);
+                winLabel.y(newPos.y - 14);
+
+                self.layers.openings.batchDraw();
+                self.layers.labels.batchDraw();
+            };
+
+            leftHandle.on('dragmove', function() {
+                const pointer = self.stage.getPointerPosition();
+                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const oldEnd = win.distanceFromStart + win.width;
+                const minWidth = 1 * FOOT;
+
+                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
+                    win.width = oldEnd - newOffset;
+                    win.distanceFromStart = newOffset;
+                    updateWindowVisuals();
+                }
+                // Keep handle at pointer position during drag
+                const handlePos = self.getPositionOnSegment(ws, win.distanceFromStart);
+                this.x(handlePos.x);
+                this.y(handlePos.y);
+            });
+
+            rightHandle.on('dragmove', function() {
+                const pointer = self.stage.getPointerPosition();
+                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
                 const newWidth = newEnd - win.distanceFromStart;
                 const maxOffset = getSegmentLength(ws);
                 const minWidth = 1 * FOOT;
 
                 if (newWidth >= minWidth && newEnd <= maxOffset) {
                     win.width = newWidth;
-                    this.render();
-                    App.updateInspector();
+                    updateWindowVisuals();
                 }
+                // Keep handle at pointer position during drag
+                const handlePos = self.getPositionOnSegment(ws, win.distanceFromStart + win.width);
+                this.x(handlePos.x);
+                this.y(handlePos.y);
             });
-            rightHandle.on('dragend', () => App.updateQABadge());
+
+            leftHandle.on('dragend', () => {
+                App.updateInspector();
+                App.updateQABadge();
+            });
+            rightHandle.on('dragend', () => {
+                App.updateInspector();
+                App.updateQABadge();
+            });
+
+            this.layers.openings.add(leftHandle);
             this.layers.openings.add(rightHandle);
         }
-
-        this.layers.labels.add(new Konva.Text({
-            x: pos.x + win.width / 2 - 15, y: pos.y - 14,
-            text: win.label, fontSize: 9, fill: isSelected ? '#06b6d4' : '#87ceeb', listening: false
-        }));
     },
 
     renderCasedOpening(op, doc) {
