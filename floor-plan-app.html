@@ -936,6 +936,60 @@ const Render = {
         winGroup.on('tap click', () => App.onObjectTap('window', win.id));
         this.layers.openings.add(winGroup);
 
+        // Add resize handles when selected
+        if (isSelected) {
+            const handleSize = 14;  // Mobile-friendly touch target
+
+            // Left handle (adjusts offset and width)
+            const leftHandle = new Konva.Circle({
+                x: pos.x, y: pos.y,
+                radius: handleSize / 2,
+                fill: '#06b6d4', stroke: '#fff', strokeWidth: 2,
+                draggable: true
+            });
+            leftHandle.on('dragmove', (e) => {
+                const stage = this.stage;
+                const pointer = stage.getPointerPosition();
+                const newOffset = this.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const oldEnd = win.distanceFromStart + win.width;
+                const minWidth = 1 * FOOT;
+
+                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
+                    win.width = oldEnd - newOffset;
+                    win.distanceFromStart = newOffset;
+                    this.render();
+                    App.updateInspector();
+                }
+            });
+            leftHandle.on('dragend', () => App.updateQABadge());
+            this.layers.openings.add(leftHandle);
+
+            // Right handle (adjusts width only)
+            const rightPos = this.getPositionOnSegment(ws, win.distanceFromStart + win.width);
+            const rightHandle = new Konva.Circle({
+                x: rightPos.x, y: rightPos.y,
+                radius: handleSize / 2,
+                fill: '#06b6d4', stroke: '#fff', strokeWidth: 2,
+                draggable: true
+            });
+            rightHandle.on('dragmove', (e) => {
+                const stage = this.stage;
+                const pointer = stage.getPointerPosition();
+                const newEnd = this.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const newWidth = newEnd - win.distanceFromStart;
+                const maxOffset = getSegmentLength(ws);
+                const minWidth = 1 * FOOT;
+
+                if (newWidth >= minWidth && newEnd <= maxOffset) {
+                    win.width = newWidth;
+                    this.render();
+                    App.updateInspector();
+                }
+            });
+            rightHandle.on('dragend', () => App.updateQABadge());
+            this.layers.openings.add(rightHandle);
+        }
+
         this.layers.labels.add(new Konva.Text({
             x: pos.x + win.width / 2 - 15, y: pos.y - 14,
             text: win.label, fontSize: 9, fill: isSelected ? '#06b6d4' : '#87ceeb', listening: false
@@ -1016,6 +1070,18 @@ const Render = {
             x: seg.x1 + t * (seg.x2 - seg.x1),
             y: seg.y1 + t * (seg.y2 - seg.y1)
         };
+    },
+
+    // Convert a point (x,y) to an offset along a wall segment
+    getOffsetOnSegment(seg, px, py) {
+        const dx = seg.x2 - seg.x1;
+        const dy = seg.y2 - seg.y1;
+        const len = getSegmentLength(seg);
+        if (len === 0) return 0;
+
+        // Project point onto line segment
+        const t = Math.max(0, Math.min(1, ((px - seg.x1) * dx + (py - seg.y1) * dy) / (len * len)));
+        return t * len;
     },
 
     getInteriorOffset(ws, doc) {
