@@ -314,166 +314,232 @@ function findNearestWallSegment(x, y, doc) {
 // ========== GENERATE 2BR/1BA ==========
 function generate2BR1BA() {
     const doc = Doc.create();
+
+    // Layout: Clean 2x3 grid with shared walls, no gaps
+    // Total exterior: 26' x 20' (compact ranch-style)
+    //
+    //      0      12     16      26
+    //      +------+------+-------+  0
+    //      | Bed1 | Hall |Kitchen|
+    //      | 12x10| 4x10 | 10x10 |
+    //      +------+------+-------+ 10
+    //      |Living| Bath | Bed 2 |
+    //      | 12x10| 4x10 | 10x10 |
+    //      +------+------+-------+ 20
+    //
     const startX = 60, startY = 60;
-    const extW = 30 * FOOT, extH = 24 * FOOT;
-    const intX = startX + WALL_EXT, intY = startY + WALL_EXT;
-    const intW = extW - 2 * WALL_EXT, intH = extH - 2 * WALL_EXT;
 
-    // Living
-    const living = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Living', isExterior: true,
-        geometry: { x: intX, y: intY + intH - 12 * FOOT, width: 14 * FOOT, height: 12 * FOOT }
-    };
-    createWallSegments(living, doc);
-    doc.rooms.push(living);
+    // Grid columns (x positions)
+    const col1 = startX;                    // Left edge
+    const col2 = startX + 12 * FOOT;        // 12'
+    const col3 = col2 + 4 * FOOT;           // 16'
+    const col4 = col3 + 10 * FOOT;          // 26' (right edge)
 
-    // Kitchen
-    const kitchen = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Kitchen', isExterior: true,
-        geometry: { x: intX + intW - 10 * FOOT, y: intY, width: 10 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(kitchen, doc);
-    doc.rooms.push(kitchen);
+    // Grid rows (y positions)
+    const row1 = startY;                    // Top edge
+    const row2 = startY + 10 * FOOT;        // 10'
+    const row3 = row2 + 10 * FOOT;          // 20' (bottom edge)
 
-    // Hall
-    const hall = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Hall', isExterior: false,
-        geometry: { x: intX + 14 * FOOT, y: intY + 10 * FOOT, width: 3 * FOOT + WALL_INT, height: intH - 12 * FOOT }
-    };
-    createWallSegments(hall, doc);
-    doc.rooms.push(hall);
-
-    // Bed 1
+    // ========== ROW 1: Bed1 | Hall | Kitchen ==========
+    // Bedroom 1: Top-left (12' x 10')
     const bed1 = {
         id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bedroom 1', isExterior: true,
-        geometry: { x: intX, y: intY, width: 12 * FOOT, height: 11 * FOOT }
+        geometry: { x: col1, y: row1, width: 12 * FOOT, height: 10 * FOOT }
     };
     createWallSegments(bed1, doc);
     doc.rooms.push(bed1);
 
-    // Bath
+    // Hall: Top-center (4' x 10')
+    const hall = {
+        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Hall', isExterior: false,
+        geometry: { x: col2, y: row1, width: 4 * FOOT, height: 10 * FOOT }
+    };
+    createWallSegments(hall, doc);
+    doc.rooms.push(hall);
+
+    // Kitchen: Top-right (10' x 10')
+    const kitchen = {
+        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Kitchen', isExterior: true,
+        geometry: { x: col3, y: row1, width: 10 * FOOT, height: 10 * FOOT }
+    };
+    createWallSegments(kitchen, doc);
+    doc.rooms.push(kitchen);
+
+    // ========== ROW 2: Living | Bath | Bed2 ==========
+    // Living: Bottom-left (12' x 10')
+    const living = {
+        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Living', isExterior: true,
+        geometry: { x: col1, y: row2, width: 12 * FOOT, height: 10 * FOOT }
+    };
+    createWallSegments(living, doc);
+    doc.rooms.push(living);
+
+    // Bathroom: Bottom-center (4' x 10')
     const bath = {
         id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bathroom', isExterior: false,
-        geometry: { x: intX + 12 * FOOT, y: intY + 10 * FOOT, width: 8 * FOOT, height: 5 * FOOT }
+        geometry: { x: col2, y: row2, width: 4 * FOOT, height: 10 * FOOT }
     };
     createWallSegments(bath, doc);
     doc.rooms.push(bath);
 
-    // Bed 2
+    // Bedroom 2: Bottom-right (10' x 10')
     const bed2 = {
         id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bedroom 2', isExterior: true,
-        geometry: { x: intX + intW - 11 * FOOT, y: intY + intH - 10 * FOOT, width: 11 * FOOT, height: 10 * FOOT }
+        geometry: { x: col3, y: row2, width: 10 * FOOT, height: 10 * FOOT }
     };
     createWallSegments(bed2, doc);
     doc.rooms.push(bed2);
 
-    // Closets
+    // ========== CLOSETS (with parentRoomId and wall segments) ==========
+    // CL-01: Inside Bedroom 1 (4' x 2.5')
     const cl1 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), parentRoom: bed1.label,
-        geometry: { x: bed1.geometry.x + bed1.geometry.width - 4 * FOOT, y: bed1.geometry.y + WALL_INT, width: 4 * FOOT, height: 2 * FOOT }
+        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
+        parentRoomId: bed1.id,
+        parentRoomLabel: bed1.label,
+        isExterior: false,
+        geometry: {
+            x: bed1.geometry.x + bed1.geometry.width - 4.5 * FOOT,
+            y: bed1.geometry.y + 0.5 * FOOT,
+            width: 4 * FOOT,
+            height: 2.5 * FOOT
+        }
     };
+    createWallSegments(cl1, doc);  // Closets now have wall segments!
     doc.closets.push(cl1);
 
+    // CL-02: Inside Bedroom 2 (4' x 2.5')
     const cl2 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), parentRoom: bed2.label,
-        geometry: { x: bed2.geometry.x + WALL_INT, y: bed2.geometry.y + WALL_INT, width: 4 * FOOT, height: 2 * FOOT }
+        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
+        parentRoomId: bed2.id,
+        parentRoomLabel: bed2.label,
+        isExterior: false,
+        geometry: {
+            x: bed2.geometry.x + 0.5 * FOOT,
+            y: bed2.geometry.y + 0.5 * FOOT,
+            width: 4 * FOOT,
+            height: 2.5 * FOOT
+        }
     };
+    createWallSegments(cl2, doc);  // Closets now have wall segments!
     doc.closets.push(cl2);
 
-    // Attach doors to wall segments
+    // ========== DOORS ==========
+    // New layout wall reference:
+    // W1=SOUTH, W2=WEST, W3=NORTH, W4=EAST (clockwise from south)
+    //
+    // Circulation path: Entry(Living W1) → Living → Bath(W4/W2) → Hall(W3/W1) → Bed1(W2/W4) + Kitchen(W4/W2)
+    //                   Bath → Bed2 (W4/W2)
+
+    // D-01: Entry door on Living south wall (W1) - exterior entry
     const livingSouthWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W1');
     if (livingSouthWall) {
         const d1 = {
             id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'entry',
             parentWallSegmentId: livingSouthWall.id,
             parentRoomId: living.id,
-            distanceFromStart: 2 * FOOT,
+            distanceFromStart: 3 * FOOT,
             width: 3 * FOOT,
             swing: 'in', swingDir: 'left'
         };
         doc.doors.push(d1);
         livingSouthWall.attachedObjects.push({ type: 'door', id: d1.id, label: d1.label });
 
-        // POE attached to entry door
+        // POE anchored to entry door
         const poe1 = {
             id: Doc.uid(), label: Doc.label(doc, 'poe'), type: 'entry',
             parentWallSegmentId: livingSouthWall.id,
             parentRoomId: living.id,
             anchorDoorId: d1.id,
-            distanceFromStart: 2 * FOOT + 1.5 * FOOT
+            distanceFromStart: 4.5 * FOOT
         };
         doc.mep.push(poe1);
         livingSouthWall.attachedObjects.push({ type: 'poe', id: poe1.id, label: poe1.label });
     }
 
-    // D-02 Living to Hall
-    const livingNorthWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W3');
-    if (livingNorthWall) {
+    // D-02: Bed 1 to Hall - on Bed1's east wall (W4)
+    const bed1EastWall = doc.wallSegments.find(ws => ws.roomId === bed1.id && ws.label === 'W4');
+    if (bed1EastWall) {
         const d2 = {
             id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: livingNorthWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 6 * FOOT,
+            parentWallSegmentId: bed1EastWall.id,
+            parentRoomId: bed1.id,
+            distanceFromStart: 4 * FOOT,
             width: 2.67 * FOOT,
             swing: 'in', swingDir: 'right'
         };
         doc.doors.push(d2);
-        livingNorthWall.attachedObjects.push({ type: 'door', id: d2.id, label: d2.label });
+        bed1EastWall.attachedObjects.push({ type: 'door', id: d2.id, label: d2.label });
     }
 
-    // D-03 to Bed 1
-    const bed1EastWall = doc.wallSegments.find(ws => ws.roomId === bed1.id && ws.label === 'W4');
-    if (bed1EastWall) {
+    // D-03: Bath to Hall - on Bath's north wall (W3)
+    const bathNorthWall = doc.wallSegments.find(ws => ws.roomId === bath.id && ws.label === 'W3');
+    if (bathNorthWall) {
         const d3 = {
             id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: bed1EastWall.id,
-            parentRoomId: bed1.id,
-            distanceFromStart: 5 * FOOT,
-            width: 2.67 * FOOT,
-            swing: 'in', swingDir: 'left'
-        };
-        doc.doors.push(d3);
-        bed1EastWall.attachedObjects.push({ type: 'door', id: d3.id, label: d3.label });
-    }
-
-    // D-04 to Bath
-    const bathSouthWall = doc.wallSegments.find(ws => ws.roomId === bath.id && ws.label === 'W1');
-    if (bathSouthWall) {
-        const d4 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: bathSouthWall.id,
+            parentWallSegmentId: bathNorthWall.id,
             parentRoomId: bath.id,
-            distanceFromStart: 1 * FOOT,
+            distanceFromStart: 0.5 * FOOT,
             width: 2.5 * FOOT,
             swing: 'in', swingDir: 'right'
         };
-        doc.doors.push(d4);
-        bathSouthWall.attachedObjects.push({ type: 'door', id: d4.id, label: d4.label });
+        doc.doors.push(d3);
+        bathNorthWall.attachedObjects.push({ type: 'door', id: d3.id, label: d3.label });
     }
 
-    // D-05 to Bed 2
+    // D-04: Bed 2 to Bath - on Bed2's west wall (W2)
     const bed2WestWall = doc.wallSegments.find(ws => ws.roomId === bed2.id && ws.label === 'W2');
     if (bed2WestWall) {
-        const d5 = {
+        const d4 = {
             id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
             parentWallSegmentId: bed2WestWall.id,
             parentRoomId: bed2.id,
-            distanceFromStart: 1 * FOOT,
+            distanceFromStart: 4 * FOOT,
+            width: 2.67 * FOOT,
+            swing: 'in', swingDir: 'left'
+        };
+        doc.doors.push(d4);
+        bed2WestWall.attachedObjects.push({ type: 'door', id: d4.id, label: d4.label });
+    }
+
+    // D-05: Kitchen to Hall - on Kitchen's west wall (W2)
+    const kitchenWestWall = doc.wallSegments.find(ws => ws.roomId === kitchen.id && ws.label === 'W2');
+    if (kitchenWestWall) {
+        const d5 = {
+            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+            parentWallSegmentId: kitchenWestWall.id,
+            parentRoomId: kitchen.id,
+            distanceFromStart: 4 * FOOT,
             width: 2.67 * FOOT,
             swing: 'in', swingDir: 'left'
         };
         doc.doors.push(d5);
-        bed2WestWall.attachedObjects.push({ type: 'door', id: d5.id, label: d5.label });
+        kitchenWestWall.attachedObjects.push({ type: 'door', id: d5.id, label: d5.label });
     }
 
-    // Window on Living west wall
+    // D-06: Living to Bath - on Living's east wall (W4)
+    const livingEastWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W4');
+    if (livingEastWall) {
+        const d6 = {
+            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+            parentWallSegmentId: livingEastWall.id,
+            parentRoomId: living.id,
+            distanceFromStart: 4 * FOOT,
+            width: 2.67 * FOOT,
+            swing: 'out', swingDir: 'right'
+        };
+        doc.doors.push(d6);
+        livingEastWall.attachedObjects.push({ type: 'door', id: d6.id, label: d6.label });
+    }
+
+    // ========== WINDOWS ==========
+    // WIN-01: Living west wall
     const livingWestWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W2');
     if (livingWestWall) {
         const w1 = {
             id: Doc.uid(), label: Doc.label(doc, 'window'),
             parentWallSegmentId: livingWestWall.id,
             parentRoomId: living.id,
-            distanceFromStart: 3 * FOOT,
+            distanceFromStart: 2 * FOOT,
             width: 5 * FOOT,
             sillHeight: 36 * INCH
         };
@@ -481,10 +547,40 @@ function generate2BR1BA() {
         livingWestWall.attachedObjects.push({ type: 'window', id: w1.id, label: w1.label });
     }
 
-    // Window on Kitchen east wall
+    // WIN-02: Bed 1 north wall
+    const bed1NorthWall = doc.wallSegments.find(ws => ws.roomId === bed1.id && ws.label === 'W3');
+    if (bed1NorthWall) {
+        const w2 = {
+            id: Doc.uid(), label: Doc.label(doc, 'window'),
+            parentWallSegmentId: bed1NorthWall.id,
+            parentRoomId: bed1.id,
+            distanceFromStart: 3 * FOOT,
+            width: 4 * FOOT,
+            sillHeight: 36 * INCH
+        };
+        doc.windows.push(w2);
+        bed1NorthWall.attachedObjects.push({ type: 'window', id: w2.id, label: w2.label });
+    }
+
+    // WIN-03: Bed 2 south wall
+    const bed2SouthWall = doc.wallSegments.find(ws => ws.roomId === bed2.id && ws.label === 'W1');
+    if (bed2SouthWall) {
+        const w3 = {
+            id: Doc.uid(), label: Doc.label(doc, 'window'),
+            parentWallSegmentId: bed2SouthWall.id,
+            parentRoomId: bed2.id,
+            distanceFromStart: 4 * FOOT,
+            width: 4 * FOOT,
+            sillHeight: 36 * INCH
+        };
+        doc.windows.push(w3);
+        bed2SouthWall.attachedObjects.push({ type: 'window', id: w3.id, label: w3.label });
+    }
+
+    // WIN-04: Kitchen east wall
     const kitchenEastWall = doc.wallSegments.find(ws => ws.roomId === kitchen.id && ws.label === 'W4');
     if (kitchenEastWall) {
-        const w2 = {
+        const w4 = {
             id: Doc.uid(), label: Doc.label(doc, 'window'),
             parentWallSegmentId: kitchenEastWall.id,
             parentRoomId: kitchen.id,
@@ -492,43 +588,30 @@ function generate2BR1BA() {
             width: 3 * FOOT,
             sillHeight: 42 * INCH
         };
-        doc.windows.push(w2);
-        kitchenEastWall.attachedObjects.push({ type: 'window', id: w2.id, label: w2.label });
+        doc.windows.push(w4);
+        kitchenEastWall.attachedObjects.push({ type: 'window', id: w4.id, label: w4.label });
     }
 
-    // Cased opening Living to Kitchen
-    const livingEastWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W4');
-    if (livingEastWall) {
-        const op1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'cased'),
-            parentWallSegmentId: livingEastWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 2 * FOOT,
-            width: 4 * FOOT
-        };
-        doc.casedOpenings.push(op1);
-        livingEastWall.attachedObjects.push({ type: 'cased', id: op1.id, label: op1.label });
-    }
-
+    // ========== MEP ==========
     // Radiator in Living
     if (livingWestWall) {
         const rad1 = {
             id: Doc.uid(), label: Doc.label(doc, 'radiator'),
             parentWallSegmentId: livingWestWall.id,
             parentRoomId: living.id,
-            distanceFromStart: 9 * FOOT,
-            width: 4 * FOOT, height: 1 * FOOT,
+            distanceFromStart: 8 * FOOT,
+            width: 3 * FOOT, height: 1 * FOOT,
             side: 'interior'
         };
         doc.mep.push(rad1);
         livingWestWall.attachedObjects.push({ type: 'radiator', id: rad1.id, label: rad1.label });
 
-        // Riser
+        // Riser near radiator
         const rsr1 = {
             id: Doc.uid(), label: Doc.label(doc, 'riser'),
             parentWallSegmentId: livingWestWall.id,
             parentRoomId: living.id,
-            distanceFromStart: 8.5 * FOOT,
+            distanceFromStart: 7.5 * FOOT,
             width: 0.5 * FOOT, height: 0.5 * FOOT,
             side: 'interior'
         };
@@ -536,9 +619,11 @@ function generate2BR1BA() {
         livingWestWall.attachedObjects.push({ type: 'riser', id: rsr1.id, label: rsr1.label });
     }
 
-    // Dimensions
-    doc.dimensions.push({ type: 'linear', label: "30'-0\"", x1: startX, y1: startY - 25, x2: startX + extW, y2: startY - 25 });
-    doc.dimensions.push({ type: 'linear', label: "24'-0\"", x1: startX - 25, y1: startY, x2: startX - 25, y2: startY + extH, vertical: true });
+    // ========== DIMENSIONS ==========
+    const totalW = col4 - col1;  // 26'
+    const totalH = row3 - row1;  // 20'
+    doc.dimensions.push({ type: 'linear', label: `${Math.round(totalW / FOOT)}'-0"`, x1: startX, y1: startY - 25, x2: startX + totalW, y2: startY - 25 });
+    doc.dimensions.push({ type: 'linear', label: `${Math.round(totalH / FOOT)}'-0"`, x1: startX - 25, y1: startY, x2: startX - 25, y2: startY + totalH, vertical: true });
 
     return doc;
 }
@@ -711,18 +796,35 @@ const Render = {
     renderCloset(closet, doc) {
         const g = closet.geometry;
         const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
+        const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
 
+        // Closet fill (slightly different from room)
         const rect = new Konva.Rect({
             x: g.x, y: g.y, width: g.width, height: g.height,
-            fill: '#1a1a1a', stroke: isSelected ? '#06b6d4' : '#777', strokeWidth: 2, dash: [8, 4]
+            fill: '#1f1f1f', stroke: isSelected ? '#06b6d4' : '#888', strokeWidth: 2, dash: [6, 3]
         });
         rect.on('tap click', () => App.onObjectTap('closet', closet.id));
         this.layers.openings.add(rect);
 
+        // Closet label with parent room indicator
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 5, width: g.width,
-            text: closet.label, fontSize: 9, fill: '#777', align: 'center', listening: false
+            x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
+            text: closet.label, fontSize: 10, fontStyle: 'bold', fill: isSelected ? '#06b6d4' : '#888', align: 'center', listening: false
         }));
+
+        // Show parent room connection
+        if (parentRoom) {
+            this.layers.labels.add(new Konva.Text({
+                x: g.x, y: g.y + g.height / 2 + 2, width: g.width,
+                text: `(${parentRoom.label})`, fontSize: 8, fill: '#666', align: 'center', listening: false
+            }));
+        }
+
+        // Render closet wall segments if they exist
+        if (closet.wallSegmentIds) {
+            const closetWalls = doc.wallSegments.filter(ws => ws.roomId === closet.id);
+            closetWalls.forEach(ws => this.renderWallSegment(ws, doc, App.showWallIds));
+        }
     },
 
     renderDoor(door, doc) {
