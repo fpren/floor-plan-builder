@@ -121,7 +121,7 @@
                     <div class="section-content">
                         <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
                             <button class="tool-btn" onclick="App.setTool('room')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3,2"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke-width="2"/></svg>Room</button>
-                            <button class="tool-btn" onclick="App.setTool('wall')"><svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4" stroke-width="3"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg>Wall</button>
+                            <button class="tool-btn" onclick="App.setTool('editShape')" style="background: #22c55e; color: white;"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="4" cy="4" r="3" fill="currentColor"/><circle cx="20" cy="4" r="3" fill="currentColor"/><circle cx="20" cy="20" r="3" fill="currentColor"/><circle cx="4" cy="20" r="3" fill="currentColor"/><rect x="10" y="2" width="4" height="4" fill="currentColor" rx="1"/></svg>Edit Shape</button>
                         </div>
                     </div>
                 </div>
@@ -205,20 +205,226 @@ const WALL_INT = 4.5 * INCH;
 const SNAP_DISTANCE = 24; // Mobile-friendly snap distance in pixels
 const HIT_WIDTH = 28; // Hit region width for wall segments
 const GRID_SNAP = FOOT; // Snap to 1-foot grid
+const VERTEX_HANDLE_RADIUS = 10; // Vertex drag handle radius
+const EDGE_HANDLE_SIZE = 8; // Edge drag handle size
+
+// ========== POLYGON GEOMETRY HELPERS ==========
+// Get wall edges derived from room vertices (Room-First model)
+function getWallEdges(room) {
+    const edges = [];
+    const verts = room.vertices;
+    if (!verts || verts.length < 3) return edges;
+    const n = verts.length;
+
+    // Find SOUTH-most edge (highest Y midpoint)
+    let southIdx = 0;
+    let maxMidY = -Infinity;
+    for (let i = 0; i < n; i++) {
+        const midY = (verts[i].y + verts[(i + 1) % n].y) / 2;
+        if (midY > maxMidY) {
+            maxMidY = midY;
+            southIdx = i;
+        }
+    }
+
+    // Build edges starting from south-most, clockwise
+    for (let i = 0; i < n; i++) {
+        const idx = (southIdx + i) % n;
+        const nextIdx = (idx + 1) % n;
+        edges.push({
+            edgeIndex: i,
+            label: 'W' + (i + 1),
+            roomId: room.id,
+            roomLabel: room.label,
+            start: { x: verts[idx].x, y: verts[idx].y },
+            end: { x: verts[nextIdx].x, y: verts[nextIdx].y },
+            isExterior: room.isExterior
+        });
+    }
+    return edges;
+}
+
+// Get edge length
+function getEdgeLength(edge) {
+    return Math.sqrt(
+        Math.pow(edge.end.x - edge.start.x, 2) +
+        Math.pow(edge.end.y - edge.start.y, 2)
+    );
+}
+
+// Get world position from normalized edge position (t: 0-1)
+function getPositionOnEdge(edge, t) {
+    return {
+        x: edge.start.x + t * (edge.end.x - edge.start.x),
+        y: edge.start.y + t * (edge.end.y - edge.start.y)
+    };
+}
+
+// Convert world position to t value (0-1) on edge
+function getTOnEdge(edge, worldX, worldY) {
+    const len = getEdgeLength(edge);
+    if (len === 0) return 0;
+    const dx = edge.end.x - edge.start.x;
+    const dy = edge.end.y - edge.start.y;
+    return Math.max(0, Math.min(1,
+        ((worldX - edge.start.x) * dx + (worldY - edge.start.y) * dy) / (len * len)
+    ));
+}
+
+// Get edge midpoint
+function getEdgeMidpoint(edge) {
+    return {
+        x: (edge.start.x + edge.end.x) / 2,
+        y: (edge.start.y + edge.end.y) / 2
+    };
+}
+
+// Get edge angle in radians
+function getEdgeAngle(edge) {
+    return Math.atan2(edge.end.y - edge.start.y, edge.end.x - edge.start.x);
+}
+
+// Point to line distance for edge-based hit detection
+function pointToEdgeDistance(px, py, edge) {
+    const dx = edge.end.x - edge.start.x;
+    const dy = edge.end.y - edge.start.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.sqrt((px - edge.start.x) ** 2 + (py - edge.start.y) ** 2);
+    let t = ((px - edge.start.x) * dx + (py - edge.start.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const nearX = edge.start.x + t * dx;
+    const nearY = edge.start.y + t * dy;
+    return { distance: Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2), t, nearX, nearY };
+}
+
+// Find nearest wall edge within a room or across all rooms
+function findNearestWallEdge(x, y, doc, roomId = null) {
+    let nearest = null;
+    let minDist = HIT_WIDTH;
+    let nearestT = 0;
+    let nearestPoint = null;
+    let nearestRoom = null;
+
+    const roomsToCheck = roomId
+        ? doc.rooms.filter(r => r.id === roomId)
+        : doc.rooms;
+
+    roomsToCheck.forEach(room => {
+        const edges = getWallEdges(room);
+        edges.forEach((edge, idx) => {
+            const result = pointToEdgeDistance(x, y, edge);
+            if (result.distance < minDist) {
+                minDist = result.distance;
+                nearest = edge;
+                nearestT = result.t;
+                nearestPoint = { x: result.nearX, y: result.nearY };
+                nearestRoom = room;
+            }
+        });
+    });
+
+    return { edge: nearest, distance: minDist, t: nearestT, point: nearestPoint, room: nearestRoom };
+}
+
+// Convert geometry (x, y, width, height) to vertices array (clockwise from bottom-left)
+function geometryToVertices(g) {
+    return [
+        { x: g.x, y: g.y + g.height },           // bottom-left (SW)
+        { x: g.x + g.width, y: g.y + g.height }, // bottom-right (SE)
+        { x: g.x + g.width, y: g.y },            // top-right (NE)
+        { x: g.x, y: g.y }                       // top-left (NW)
+    ];
+}
+
+// Get bounding box from vertices
+function getVerticesBounds(vertices) {
+    if (!vertices || vertices.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    vertices.forEach(v => {
+        minX = Math.min(minX, v.x);
+        minY = Math.min(minY, v.y);
+        maxX = Math.max(maxX, v.x);
+        maxY = Math.max(maxY, v.y);
+    });
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+// Check if a point is inside a polygon (vertices)
+function pointInPolygon(px, py, vertices) {
+    let inside = false;
+    const n = vertices.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+        const xi = vertices[i].x, yi = vertices[i].y;
+        const xj = vertices[j].x, yj = vertices[j].y;
+        if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
 
 // ========== SNAPPING FUNCTIONS ==========
 function snapToGrid(value) {
     return Math.round(value / GRID_SNAP) * GRID_SNAP;
 }
 
+// Find all corner points for wall snapping (room vertices + closet vertices)
+function findWallSnapPoints(doc) {
+    const points = [];
+
+    // Room vertices
+    doc.rooms.forEach(room => {
+        if (room.vertices) {
+            room.vertices.forEach((v, idx) => {
+                points.push({ x: v.x, y: v.y, type: 'room-corner', roomId: room.id, vertexIdx: idx });
+            });
+        }
+    });
+
+    // Closet vertices
+    doc.closets.forEach(closet => {
+        if (closet.vertices) {
+            closet.vertices.forEach((v, idx) => {
+                points.push({ x: v.x, y: v.y, type: 'closet-corner', closetId: closet.id, vertexIdx: idx });
+            });
+        }
+    });
+
+    return points;
+}
+
+// Snap a point to nearest corner or grid
+function snapWallPoint(x, y, snapPoints) {
+    let bestPoint = null;
+    let bestDist = SNAP_DISTANCE;
+
+    for (const pt of snapPoints) {
+        const dist = Math.sqrt(Math.pow(x - pt.x, 2) + Math.pow(y - pt.y, 2));
+        if (dist < bestDist) {
+            bestDist = dist;
+            bestPoint = pt;
+        }
+    }
+
+    if (bestPoint) {
+        return { x: bestPoint.x, y: bestPoint.y, snapped: true, type: bestPoint.type };
+    }
+
+    // Fall back to grid snap
+    return { x: snapToGrid(x), y: snapToGrid(y), snapped: false, type: 'grid' };
+}
+
 function findRoomSnapPoints(doc, excludeRoomId) {
-    // Get all room edges for snapping (excluding current room)
+    // Get all room vertex coordinates for snapping (excluding current room)
     const snapPoints = { x: [], y: [] };
     doc.rooms.forEach(room => {
         if (room.id === excludeRoomId) return;
-        const g = room.geometry;
-        snapPoints.x.push(g.x, g.x + g.width);
-        snapPoints.y.push(g.y, g.y + g.height);
+        if (room.vertices) {
+            room.vertices.forEach(v => {
+                if (!snapPoints.x.includes(v.x)) snapPoints.x.push(v.x);
+                if (!snapPoints.y.includes(v.y)) snapPoints.y.push(v.y);
+            });
+        }
     });
     return snapPoints;
 }
@@ -251,15 +457,14 @@ const Doc = {
     create() {
         return {
             id: this.uid(),
-            version: '4.0',
+            version: '5.0',  // Updated for Room-First polygon model
             address: '2BR/1BA Blueprint',
-            counters: { room: 0, wallSegment: 0, door: 0, window: 0, closet: 0, cased: 0, pipe: 0, gas: 0, riser: 0, radiator: 0, poe: 0 },
-            rooms: [],
-            wallSegments: [],  // All wall segments indexed here
-            doors: [],
+            counters: { room: 0, door: 0, window: 0, closet: 0, cased: 0, pipe: 0, gas: 0, riser: 0, radiator: 0, poe: 0 },
+            rooms: [],       // Rooms with vertices arrays
+            doors: [],       // Attachments use parentRoomId + parentWallEdgeIndex + tAlongEdge
             windows: [],
             casedOpenings: [],
-            closets: [],
+            closets: [],     // Closets with hostRoomId for sub-room linking
             mep: [],
             dimensions: []
         };
@@ -267,146 +472,129 @@ const Doc = {
     uid() { return 'id_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36); },
     label(doc, type) {
         doc.counters[type] = (doc.counters[type] || 0) + 1;
-        const prefixes = { room: 'Rm', wallSegment: 'WS', door: 'D', window: 'WIN', closet: 'CL', cased: 'OP', pipe: 'PIPE', gas: 'GAS', riser: 'PRSR', radiator: 'RAD', poe: 'POE' };
+        const prefixes = { room: 'Rm', door: 'D', window: 'WIN', closet: 'CL', cased: 'OP', pipe: 'PIPE', gas: 'GAS', riser: 'PRSR', radiator: 'RAD', poe: 'POE' };
         const n = doc.counters[type];
         return (prefixes[type] || type.toUpperCase()) + '-' + (n < 10 ? '0' : '') + n;
     }
 };
 
-// ========== WALL SEGMENT CREATION ==========
-function createWallSegments(room, doc) {
-    const g = room.geometry;
-    // Create 4 segments for rectangular room: S, W, N, E
-    // Segments defined by endpoints, ordered clockwise
-    const segments = [
-        { side: 'south', x1: g.x, y1: g.y + g.height, x2: g.x + g.width, y2: g.y + g.height },
-        { side: 'west',  x1: g.x, y1: g.y + g.height, x2: g.x, y2: g.y },
-        { side: 'north', x1: g.x, y1: g.y, x2: g.x + g.width, y2: g.y },
-        { side: 'east',  x1: g.x + g.width, y1: g.y, x2: g.x + g.width, y2: g.y + g.height }
-    ];
-
-    // Determine which segment is SOUTH-most (highest Y average)
-    let southIdx = 0;
-    let maxY = -Infinity;
-    segments.forEach((seg, i) => {
-        const avgY = (seg.y1 + seg.y2) / 2;
-        if (avgY > maxY) { maxY = avgY; southIdx = i; }
-    });
-
-    // Reorder so W1 is the SOUTH-most, then clockwise
-    const ordered = [];
-    for (let i = 0; i < 4; i++) {
-        ordered.push(segments[(southIdx + i) % 4]);
-    }
-
-    // Create WallSegment objects
-    const wallSegments = ordered.map((seg, idx) => {
-        const ws = {
-            id: Doc.uid(),
-            roomId: room.id,
-            roomLabel: room.label,
-            index: idx + 1,
-            label: 'W' + (idx + 1),
-            side: seg.side,
-            x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
-            thickness: room.isExterior ? WALL_EXT : WALL_INT,
-            type: 'interior',  // Default to interior, will be set properly by markExteriorWalls()
-            attachedObjects: []
-        };
-        doc.wallSegments.push(ws);
-        return ws;
-    });
-
-    room.wallSegmentIds = wallSegments.map(ws => ws.id);
-    return wallSegments;
+// ========== ROOM CREATION HELPERS ==========
+// Create a room with vertices from geometry (for backwards compatibility and new room creation)
+function createRoomFromGeometry(geometry, doc, options = {}) {
+    const vertices = geometryToVertices(geometry);
+    const room = {
+        id: Doc.uid(),
+        label: Doc.label(doc, 'room'),
+        type: options.type || 'Room',
+        roomType: options.roomType || 'Room',  // 'Room' | 'Closet'
+        isExterior: options.isExterior !== undefined ? options.isExterior : true,
+        vertices: vertices
+    };
+    return room;
 }
 
+// Legacy helpers for segment-like access (redirect to edge functions)
 function getSegmentLength(seg) {
+    // Works with both old segment format and new edge format
+    if (seg.start && seg.end) {
+        return getEdgeLength(seg);
+    }
     return Math.sqrt(Math.pow(seg.x2 - seg.x1, 2) + Math.pow(seg.y2 - seg.y1, 2));
 }
 
 function getSegmentMidpoint(seg) {
+    if (seg.start && seg.end) {
+        return getEdgeMidpoint(seg);
+    }
     return { x: (seg.x1 + seg.x2) / 2, y: (seg.y1 + seg.y2) / 2 };
 }
 
 function getSegmentAngle(seg) {
+    if (seg.start && seg.end) {
+        return getEdgeAngle(seg);
+    }
     return Math.atan2(seg.y2 - seg.y1, seg.x2 - seg.x1);
 }
 
-function pointToSegmentDistance(px, py, seg) {
-    const dx = seg.x2 - seg.x1;
-    const dy = seg.y2 - seg.y1;
-    const len2 = dx * dx + dy * dy;
-    if (len2 === 0) return Math.sqrt((px - seg.x1) ** 2 + (py - seg.y1) ** 2);
-    let t = ((px - seg.x1) * dx + (py - seg.y1) * dy) / len2;
-    t = Math.max(0, Math.min(1, t));
-    const nearX = seg.x1 + t * dx;
-    const nearY = seg.y1 + t * dy;
-    return { distance: Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2), t, nearX, nearY };
-}
+// Get all attachments (doors, windows, MEP) for a specific room and edge
+function getAttachmentsOnEdge(doc, roomId, edgeIndex) {
+    const attachments = [];
+    const collections = [
+        { items: doc.doors, type: 'door' },
+        { items: doc.windows, type: 'window' },
+        { items: doc.casedOpenings, type: 'cased' },
+        { items: doc.mep, type: 'mep' }
+    ];
 
-function findNearestWallSegment(x, y, doc) {
-    let nearest = null;
-    let minDist = Infinity;
-    let nearestT = 0;
-    let nearestPoint = null;
-
-    doc.wallSegments.forEach(seg => {
-        const result = pointToSegmentDistance(x, y, seg);
-        if (result.distance < minDist) {
-            minDist = result.distance;
-            nearest = seg;
-            nearestT = result.t;
-            nearestPoint = { x: result.nearX, y: result.nearY };
-        }
+    collections.forEach(({ items, type }) => {
+        items.forEach(item => {
+            if (item.parentRoomId === roomId && item.parentWallEdgeIndex === edgeIndex) {
+                attachments.push({ ...item, attachmentType: type });
+            }
+        });
     });
 
-    return { segment: nearest, distance: minDist, t: nearestT, point: nearestPoint };
+    return attachments;
 }
 
 // ========== MARK EXTERIOR WALLS ==========
-// Determines which walls are on the building perimeter (exterior) vs shared with other rooms (interior)
+// Determines which room edges are on the building perimeter (exterior) vs shared with other rooms (interior)
+// Stores exterior edge info in room.exteriorEdges array
 function markExteriorWalls(doc) {
     if (doc.rooms.length === 0) return;
 
-    // Find building bounding box from all rooms
+    // Find building bounding box from all room vertices
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     doc.rooms.forEach(room => {
-        const g = room.geometry;
-        minX = Math.min(minX, g.x);
-        minY = Math.min(minY, g.y);
-        maxX = Math.max(maxX, g.x + g.width);
-        maxY = Math.max(maxY, g.y + g.height);
+        if (room.vertices) {
+            room.vertices.forEach(v => {
+                minX = Math.min(minX, v.x);
+                minY = Math.min(minY, v.y);
+                maxX = Math.max(maxX, v.x);
+                maxY = Math.max(maxY, v.y);
+            });
+        }
     });
 
     // Tolerance for edge detection (walls on perimeter)
     const tolerance = 2;
 
-    // Mark each wall segment as exterior if it's on the building perimeter
-    doc.wallSegments.forEach(ws => {
-        const midX = (ws.x1 + ws.x2) / 2;
-        const midY = (ws.y1 + ws.y2) / 2;
-        const isVertical = Math.abs(ws.x1 - ws.x2) < tolerance;
-        const isHorizontal = Math.abs(ws.y1 - ws.y2) < tolerance;
+    // Mark each room's exterior edges
+    doc.rooms.forEach(room => {
+        room.exteriorEdges = [];
+        const edges = getWallEdges(room);
 
-        let isExterior = false;
+        edges.forEach((edge, idx) => {
+            const midX = (edge.start.x + edge.end.x) / 2;
+            const midY = (edge.start.y + edge.end.y) / 2;
+            const isVertical = Math.abs(edge.start.x - edge.end.x) < tolerance;
+            const isHorizontal = Math.abs(edge.start.y - edge.end.y) < tolerance;
 
-        if (isHorizontal) {
-            // Check if on top or bottom edge
-            if (Math.abs(midY - minY) < tolerance || Math.abs(midY - maxY) < tolerance) {
-                isExterior = true;
+            let isExterior = false;
+
+            if (isHorizontal) {
+                // Check if on top or bottom edge of building
+                if (Math.abs(midY - minY) < tolerance || Math.abs(midY - maxY) < tolerance) {
+                    isExterior = true;
+                }
             }
-        }
-        if (isVertical) {
-            // Check if on left or right edge
-            if (Math.abs(midX - minX) < tolerance || Math.abs(midX - maxX) < tolerance) {
-                isExterior = true;
+            if (isVertical) {
+                // Check if on left or right edge of building
+                if (Math.abs(midX - minX) < tolerance || Math.abs(midX - maxX) < tolerance) {
+                    isExterior = true;
+                }
             }
-        }
 
-        ws.type = isExterior ? 'exterior' : 'interior';
-        ws.thickness = isExterior ? WALL_EXT : WALL_INT;
+            if (isExterior) {
+                room.exteriorEdges.push(idx);
+            }
+        });
     });
+}
+
+// Check if a specific edge of a room is exterior
+function isEdgeExterior(room, edgeIndex) {
+    return room.exteriorEdges && room.exteriorEdges.includes(edgeIndex);
 }
 
 // ========== GENERATE 2BR/1BA ==========
@@ -438,285 +626,259 @@ function generate2BR1BA() {
     const row2 = startY + 10 * FOOT;        // 10'
     const row3 = row2 + 10 * FOOT;          // 20' (bottom edge)
 
-    // ========== ROW 1: Bed1 | Hall | Kitchen ==========
-    // Bedroom 1: Top-left (12' x 10')
-    const bed1 = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bedroom 1', isExterior: true,
-        geometry: { x: col1, y: row1, width: 12 * FOOT, height: 10 * FOOT }
+    // Helper to create room with vertices (clockwise from bottom-left for W1=south)
+    const makeRoom = (x, y, w, h, type, isExterior) => {
+        return {
+            id: Doc.uid(),
+            label: Doc.label(doc, 'room'),
+            type: type,
+            roomType: 'Room',
+            isExterior: isExterior,
+            vertices: [
+                { x: x, y: y + h },           // bottom-left (SW)
+                { x: x + w, y: y + h },       // bottom-right (SE)
+                { x: x + w, y: y },           // top-right (NE)
+                { x: x, y: y }                // top-left (NW)
+            ]
+        };
     };
-    createWallSegments(bed1, doc);
+
+    // ========== ROW 1: Bed1 | Hall | Kitchen ==========
+    const bed1 = makeRoom(col1, row1, 12 * FOOT, 10 * FOOT, 'Bedroom 1', true);
     doc.rooms.push(bed1);
 
-    // Hall: Top-center (4' x 10')
-    const hall = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Hall', isExterior: false,
-        geometry: { x: col2, y: row1, width: 4 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(hall, doc);
+    const hall = makeRoom(col2, row1, 4 * FOOT, 10 * FOOT, 'Hall', false);
     doc.rooms.push(hall);
 
-    // Kitchen: Top-right (10' x 10')
-    const kitchen = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Kitchen', isExterior: true,
-        geometry: { x: col3, y: row1, width: 10 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(kitchen, doc);
+    const kitchen = makeRoom(col3, row1, 10 * FOOT, 10 * FOOT, 'Kitchen', true);
     doc.rooms.push(kitchen);
 
     // ========== ROW 2: Living | Bath | Bed2 ==========
-    // Living: Bottom-left (12' x 10')
-    const living = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Living', isExterior: true,
-        geometry: { x: col1, y: row2, width: 12 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(living, doc);
+    const living = makeRoom(col1, row2, 12 * FOOT, 10 * FOOT, 'Living', true);
     doc.rooms.push(living);
 
-    // Bathroom: Bottom-center (4' x 10')
-    const bath = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bathroom', isExterior: false,
-        geometry: { x: col2, y: row2, width: 4 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(bath, doc);
+    const bath = makeRoom(col2, row2, 4 * FOOT, 10 * FOOT, 'Bathroom', false);
     doc.rooms.push(bath);
 
-    // Bedroom 2: Bottom-right (10' x 10')
-    const bed2 = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Bedroom 2', isExterior: true,
-        geometry: { x: col3, y: row2, width: 10 * FOOT, height: 10 * FOOT }
-    };
-    createWallSegments(bed2, doc);
+    const bed2 = makeRoom(col3, row2, 10 * FOOT, 10 * FOOT, 'Bedroom 2', true);
     doc.rooms.push(bed2);
 
-    // Mark which walls are actually on the building exterior vs interior (shared)
+    // Mark which edges are actually on the building exterior vs interior (shared)
     markExteriorWalls(doc);
 
-    // ========== CLOSETS (with parentRoomId and wall segments) ==========
-    // CL-01: Inside Bedroom 1, corner position (4' x 3') - shares north and east walls
+    // ========== CLOSETS (as sub-rooms with vertices) ==========
+    // CL-01: Inside Bedroom 1, NE corner (4' x 3')
+    const bed1Bounds = getVerticesBounds(bed1.vertices);
     const cl1 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
-        parentRoomId: bed1.id,
-        parentRoomLabel: bed1.label,
-        isExterior: false,
-        geometry: {
-            x: bed1.geometry.x + bed1.geometry.width - 4 * FOOT,  // Flush with east wall
-            y: bed1.geometry.y,  // Flush with north wall
+        id: Doc.uid(),
+        label: Doc.label(doc, 'closet'),
+        type: 'Closet',
+        roomType: 'Closet',
+        hostRoomId: bed1.id,
+        hostEdgeIndex: 2,  // W3 (north wall)
+        tStart: 0.67, tEnd: 1.0,  // Right side of north wall
+        depth: 3 * FOOT,
+        vertices: geometryToVertices({
+            x: bed1Bounds.x + bed1Bounds.width - 4 * FOOT,
+            y: bed1Bounds.y,
             width: 4 * FOOT,
             height: 3 * FOOT
-        }
+        })
     };
     doc.closets.push(cl1);
 
-    // CL-02: Inside Bedroom 2, corner position (4' x 3') - shares north and west walls
+    // CL-02: Inside Bedroom 2, NW corner (4' x 3')
+    const bed2Bounds = getVerticesBounds(bed2.vertices);
     const cl2 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
-        parentRoomId: bed2.id,
-        parentRoomLabel: bed2.label,
-        isExterior: false,
-        geometry: {
-            x: bed2.geometry.x,  // Flush with west wall
-            y: bed2.geometry.y,  // Flush with north wall
+        id: Doc.uid(),
+        label: Doc.label(doc, 'closet'),
+        type: 'Closet',
+        roomType: 'Closet',
+        hostRoomId: bed2.id,
+        hostEdgeIndex: 2,  // W3 (north wall)
+        tStart: 0.0, tEnd: 0.4,  // Left side of north wall
+        depth: 3 * FOOT,
+        vertices: geometryToVertices({
+            x: bed2Bounds.x,
+            y: bed2Bounds.y,
             width: 4 * FOOT,
             height: 3 * FOOT
-        }
+        })
     };
     doc.closets.push(cl2);
 
     // ========== DOORS ==========
-    // New layout wall reference:
-    // W1=SOUTH, W2=WEST, W3=NORTH, W4=EAST (clockwise from south)
-    //
-    // Circulation path: Entry(Living W1) → Living → Bath(W4/W2) → Hall(W3/W1) → Bed1(W2/W4) + Kitchen(W4/W2)
-    //                   Bath → Bed2 (W4/W2)
+    // Wall reference (clockwise from south): W1=SOUTH (edgeIndex 0), W2=EAST (1), W3=NORTH (2), W4=WEST (3)
+    // tAlongEdge: 0 = start of edge, 1 = end of edge
 
-    // D-01: Entry door on Living south wall (W1) - exterior entry
-    const livingSouthWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W1');
-    if (livingSouthWall) {
-        const d1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'entry',
-            parentWallSegmentId: livingSouthWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 3 * FOOT,
-            width: 3 * FOOT,
-            swing: 'in', swingDir: 'left'
-        };
-        doc.doors.push(d1);
-        livingSouthWall.attachedObjects.push({ type: 'door', id: d1.id, label: d1.label });
+    // Helper: convert absolute distance to tAlongEdge for a room/closet
+    const closetDistToT = (closet, edgeIndex, dist) => {
+        const edges = getWallEdges(closet);
+        if (!edges[edgeIndex]) return 0.5;
+        const edgeLen = getEdgeLength(edges[edgeIndex]);
+        return dist / edgeLen;
+    };
 
-        // POE anchored to entry door
-        const poe1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'poe'), type: 'entry',
-            parentWallSegmentId: livingSouthWall.id,
-            parentRoomId: living.id,
-            anchorDoorId: d1.id,
-            distanceFromStart: 4.5 * FOOT
-        };
-        doc.mep.push(poe1);
-        livingSouthWall.attachedObjects.push({ type: 'poe', id: poe1.id, label: poe1.label });
-    }
+    // Closet doors (on closet's south wall W1 which faces into bedroom)
+    // CL-01 door
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'closet',
+        parentRoomId: cl1.id,
+        parentWallEdgeIndex: 0,  // W1 (south wall of closet)
+        tAlongEdge: closetDistToT(cl1, 0, 1.5 * FOOT),
+        width: 2 * FOOT,
+        swing: 'out', swingDir: 'left'
+    });
 
-    // D-02: Bed 1 to Hall - on Bed1's east wall (W4)
-    const bed1EastWall = doc.wallSegments.find(ws => ws.roomId === bed1.id && ws.label === 'W4');
-    if (bed1EastWall) {
-        const d2 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: bed1EastWall.id,
-            parentRoomId: bed1.id,
-            distanceFromStart: 4 * FOOT,
-            width: 2.67 * FOOT,
-            swing: 'in', swingDir: 'right'
-        };
-        doc.doors.push(d2);
-        bed1EastWall.attachedObjects.push({ type: 'door', id: d2.id, label: d2.label });
-    }
+    // CL-02 door
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'closet',
+        parentRoomId: cl2.id,
+        parentWallEdgeIndex: 0,  // W1 (south wall of closet)
+        tAlongEdge: closetDistToT(cl2, 0, 1.5 * FOOT),
+        width: 2 * FOOT,
+        swing: 'out', swingDir: 'right'
+    });
 
-    // D-03: Bath to Hall - on Bath's north wall (W3)
-    const bathNorthWall = doc.wallSegments.find(ws => ws.roomId === bath.id && ws.label === 'W3');
-    if (bathNorthWall) {
-        const d3 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: bathNorthWall.id,
-            parentRoomId: bath.id,
-            distanceFromStart: 0.5 * FOOT,
-            width: 2.5 * FOOT,
-            swing: 'in', swingDir: 'right'
-        };
-        doc.doors.push(d3);
-        bathNorthWall.attachedObjects.push({ type: 'door', id: d3.id, label: d3.label });
-    }
+    // Helper: convert absolute distance to tAlongEdge
+    const distToT = (room, edgeIndex, dist) => {
+        const edges = getWallEdges(room);
+        const edgeLen = getEdgeLength(edges[edgeIndex]);
+        return dist / edgeLen;
+    };
 
-    // D-04: Bed 2 to Bath - on Bed2's west wall (W2)
-    const bed2WestWall = doc.wallSegments.find(ws => ws.roomId === bed2.id && ws.label === 'W2');
-    if (bed2WestWall) {
-        const d4 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: bed2WestWall.id,
-            parentRoomId: bed2.id,
-            distanceFromStart: 4 * FOOT,
-            width: 2.67 * FOOT,
-            swing: 'in', swingDir: 'left'
-        };
-        doc.doors.push(d4);
-        bed2WestWall.attachedObjects.push({ type: 'door', id: d4.id, label: d4.label });
-    }
+    // D-01: Entry door on Living south wall (W1)
+    const d1 = {
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'entry',
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 0,  // W1 (south)
+        tAlongEdge: distToT(living, 0, 3 * FOOT),
+        width: 3 * FOOT,
+        swing: 'in', swingDir: 'left'
+    };
+    doc.doors.push(d1);
 
-    // D-05: Kitchen to Hall - on Kitchen's west wall (W2)
-    const kitchenWestWall = doc.wallSegments.find(ws => ws.roomId === kitchen.id && ws.label === 'W2');
-    if (kitchenWestWall) {
-        const d5 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: kitchenWestWall.id,
-            parentRoomId: kitchen.id,
-            distanceFromStart: 4 * FOOT,
-            width: 2.67 * FOOT,
-            swing: 'in', swingDir: 'left'
-        };
-        doc.doors.push(d5);
-        kitchenWestWall.attachedObjects.push({ type: 'door', id: d5.id, label: d5.label });
-    }
+    // POE anchored to entry door
+    const poe1 = {
+        id: Doc.uid(), label: Doc.label(doc, 'poe'), type: 'entry',
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 0,
+        tAlongEdge: distToT(living, 0, 4.5 * FOOT),
+        anchorDoorId: d1.id
+    };
+    doc.mep.push(poe1);
 
-    // D-06: Living to Bath - on Living's east wall (W4)
-    const livingEastWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W4');
-    if (livingEastWall) {
-        const d6 = {
-            id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
-            parentWallSegmentId: livingEastWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 4 * FOOT,
-            width: 2.67 * FOOT,
-            swing: 'out', swingDir: 'right'
-        };
-        doc.doors.push(d6);
-        livingEastWall.attachedObjects.push({ type: 'door', id: d6.id, label: d6.label });
-    }
+    // D-02: Bed 1 to Hall - on Bed1's east wall (W2, edgeIndex 1)
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+        parentRoomId: bed1.id,
+        parentWallEdgeIndex: 1,  // W2 (east)
+        tAlongEdge: distToT(bed1, 1, 4 * FOOT),
+        width: 2.67 * FOOT,
+        swing: 'in', swingDir: 'right'
+    });
+
+    // D-03: Bath to Hall - on Bath's north wall (W3, edgeIndex 2)
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+        parentRoomId: bath.id,
+        parentWallEdgeIndex: 2,  // W3 (north)
+        tAlongEdge: distToT(bath, 2, 0.5 * FOOT),
+        width: 2.5 * FOOT,
+        swing: 'in', swingDir: 'right'
+    });
+
+    // D-04: Bed 2 to Bath - on Bed2's west wall (W4, edgeIndex 3)
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+        parentRoomId: bed2.id,
+        parentWallEdgeIndex: 3,  // W4 (west)
+        tAlongEdge: distToT(bed2, 3, 4 * FOOT),
+        width: 2.67 * FOOT,
+        swing: 'in', swingDir: 'left'
+    });
+
+    // D-05: Kitchen to Hall - on Kitchen's west wall (W4, edgeIndex 3)
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+        parentRoomId: kitchen.id,
+        parentWallEdgeIndex: 3,  // W4 (west)
+        tAlongEdge: distToT(kitchen, 3, 4 * FOOT),
+        width: 2.67 * FOOT,
+        swing: 'in', swingDir: 'left'
+    });
+
+    // D-06: Living to Bath - on Living's east wall (W2, edgeIndex 1)
+    doc.doors.push({
+        id: Doc.uid(), label: Doc.label(doc, 'door'), type: 'interior',
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 1,  // W2 (east)
+        tAlongEdge: distToT(living, 1, 4 * FOOT),
+        width: 2.67 * FOOT,
+        swing: 'out', swingDir: 'right'
+    });
 
     // ========== WINDOWS ==========
-    // WIN-01: Living west wall
-    const livingWestWall = doc.wallSegments.find(ws => ws.roomId === living.id && ws.label === 'W2');
-    if (livingWestWall) {
-        const w1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'window'),
-            parentWallSegmentId: livingWestWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 2 * FOOT,
-            width: 5 * FOOT,
-            sillHeight: 36 * INCH
-        };
-        doc.windows.push(w1);
-        livingWestWall.attachedObjects.push({ type: 'window', id: w1.id, label: w1.label });
-    }
+    // WIN-01: Living west wall (W4, edgeIndex 3) - exterior
+    doc.windows.push({
+        id: Doc.uid(), label: Doc.label(doc, 'window'),
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 3,  // W4 (west) - exterior
+        tAlongEdge: distToT(living, 3, 2 * FOOT),
+        width: 5 * FOOT,
+        sillHeight: 36 * INCH
+    });
 
-    // WIN-02: Bed 1 north wall
-    const bed1NorthWall = doc.wallSegments.find(ws => ws.roomId === bed1.id && ws.label === 'W3');
-    if (bed1NorthWall) {
-        const w2 = {
-            id: Doc.uid(), label: Doc.label(doc, 'window'),
-            parentWallSegmentId: bed1NorthWall.id,
-            parentRoomId: bed1.id,
-            distanceFromStart: 3 * FOOT,
-            width: 4 * FOOT,
-            sillHeight: 36 * INCH
-        };
-        doc.windows.push(w2);
-        bed1NorthWall.attachedObjects.push({ type: 'window', id: w2.id, label: w2.label });
-    }
+    // WIN-02: Bed 1 north wall (W3, edgeIndex 2)
+    doc.windows.push({
+        id: Doc.uid(), label: Doc.label(doc, 'window'),
+        parentRoomId: bed1.id,
+        parentWallEdgeIndex: 2,  // W3 (north)
+        tAlongEdge: distToT(bed1, 2, 3 * FOOT),
+        width: 4 * FOOT,
+        sillHeight: 36 * INCH
+    });
 
-    // WIN-03: Bed 2 south wall
-    const bed2SouthWall = doc.wallSegments.find(ws => ws.roomId === bed2.id && ws.label === 'W1');
-    if (bed2SouthWall) {
-        const w3 = {
-            id: Doc.uid(), label: Doc.label(doc, 'window'),
-            parentWallSegmentId: bed2SouthWall.id,
-            parentRoomId: bed2.id,
-            distanceFromStart: 4 * FOOT,
-            width: 4 * FOOT,
-            sillHeight: 36 * INCH
-        };
-        doc.windows.push(w3);
-        bed2SouthWall.attachedObjects.push({ type: 'window', id: w3.id, label: w3.label });
-    }
+    // WIN-03: Bed 2 south wall (W1, edgeIndex 0)
+    doc.windows.push({
+        id: Doc.uid(), label: Doc.label(doc, 'window'),
+        parentRoomId: bed2.id,
+        parentWallEdgeIndex: 0,  // W1 (south)
+        tAlongEdge: distToT(bed2, 0, 4 * FOOT),
+        width: 4 * FOOT,
+        sillHeight: 36 * INCH
+    });
 
-    // WIN-04: Kitchen east wall
-    const kitchenEastWall = doc.wallSegments.find(ws => ws.roomId === kitchen.id && ws.label === 'W4');
-    if (kitchenEastWall) {
-        const w4 = {
-            id: Doc.uid(), label: Doc.label(doc, 'window'),
-            parentWallSegmentId: kitchenEastWall.id,
-            parentRoomId: kitchen.id,
-            distanceFromStart: 3 * FOOT,
-            width: 3 * FOOT,
-            sillHeight: 42 * INCH
-        };
-        doc.windows.push(w4);
-        kitchenEastWall.attachedObjects.push({ type: 'window', id: w4.id, label: w4.label });
-    }
+    // WIN-04: Kitchen east wall (W2, edgeIndex 1) - exterior
+    doc.windows.push({
+        id: Doc.uid(), label: Doc.label(doc, 'window'),
+        parentRoomId: kitchen.id,
+        parentWallEdgeIndex: 1,  // W2 (east) - exterior
+        tAlongEdge: distToT(kitchen, 1, 3 * FOOT),
+        width: 3 * FOOT,
+        sillHeight: 42 * INCH
+    });
 
     // ========== MEP ==========
-    // Radiator in Living
-    if (livingWestWall) {
-        const rad1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'radiator'),
-            parentWallSegmentId: livingWestWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 8 * FOOT,
-            width: 3 * FOOT, height: 1 * FOOT,
-            side: 'interior'
-        };
-        doc.mep.push(rad1);
-        livingWestWall.attachedObjects.push({ type: 'radiator', id: rad1.id, label: rad1.label });
+    // Radiator in Living on west wall (W4, edgeIndex 3) - near window
+    doc.mep.push({
+        id: Doc.uid(), label: Doc.label(doc, 'radiator'),
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 3,  // W4 (west) - exterior, near window
+        tAlongEdge: distToT(living, 3, 8 * FOOT),
+        width: 3 * FOOT, height: 1 * FOOT,
+        side: 'interior'
+    });
 
-        // Riser near radiator
-        const rsr1 = {
-            id: Doc.uid(), label: Doc.label(doc, 'riser'),
-            parentWallSegmentId: livingWestWall.id,
-            parentRoomId: living.id,
-            distanceFromStart: 7.5 * FOOT,
-            width: 0.5 * FOOT, height: 0.5 * FOOT,
-            side: 'interior'
-        };
-        doc.mep.push(rsr1);
-        livingWestWall.attachedObjects.push({ type: 'riser', id: rsr1.id, label: rsr1.label });
-    }
+    // Riser near radiator on west wall (W4, edgeIndex 3)
+    doc.mep.push({
+        id: Doc.uid(), label: Doc.label(doc, 'riser'),
+        parentRoomId: living.id,
+        parentWallEdgeIndex: 3,  // W4 (west) - near radiator
+        tAlongEdge: distToT(living, 3, 7.5 * FOOT),
+        width: 0.5 * FOOT, height: 0.5 * FOOT,
+        side: 'interior'
+    });
 
     // ========== DIMENSIONS ==========
     const totalW = col4 - col1;  // 26'
@@ -768,6 +930,14 @@ const Render = {
             this.stage.position({ x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale });
         });
 
+        // Click on empty canvas to deselect
+        this.stage.on('click tap', (e) => {
+            // Only deselect if clicking directly on stage (not on objects)
+            if (e.target === this.stage) {
+                App.deselect();
+            }
+        });
+
         new ResizeObserver(() => {
             const rect = c.getBoundingClientRect();
             if (rect.width > 0 && rect.height > 0) {
@@ -800,11 +970,11 @@ const Render = {
         ['rooms', 'walls', 'hit', 'openings', 'mep', 'labels', 'dims'].forEach(l => this.layers[l].destroyChildren());
         this.wallGroups = {};
 
-        // Room fills (non-listening)
-        doc.rooms.forEach(r => this.renderRoomFill(r, doc));
-
-        // Wall segments (with hit regions)
-        doc.wallSegments.forEach(ws => this.renderWallSegment(ws, doc, showWallIds));
+        // Room fills and walls (derived from vertices)
+        doc.rooms.forEach(r => {
+            this.renderRoomFill(r, doc);
+            this.renderRoomWalls(r, doc, showWallIds);
+        });
 
         // Closets
         doc.closets.forEach(c => this.renderCloset(c, doc));
@@ -828,12 +998,15 @@ const Render = {
     },
 
     renderRoomFill(room, doc) {
-        const g = room.geometry;
+        if (!room || !room.vertices || room.vertices.length < 3) return;
+
         const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
         const self = this;
+        const bounds = getVerticesBounds(room.vertices);
+        if (!bounds) return;
 
-        // Find closets that belong to this room
-        const roomClosets = doc.closets.filter(c => c.parentRoomId === room.id);
+        // Find closets that belong to this room (hostRoomId) and have valid vertices
+        const roomClosets = doc.closets.filter(c => c.hostRoomId === room.id && c.vertices && c.vertices.length >= 3);
 
         // Create a group for the room (for dragging)
         const roomGroup = new Konva.Group({
@@ -845,45 +1018,54 @@ const Render = {
         const roomFill = '#fafbfc';
         const roomBorder = isSelected ? '#3b82f6' : '#e5e7eb';
 
-        if (roomClosets.length === 0) {
-            // Simple case: no closets, just draw rectangle
-            roomGroup.add(new Konva.Rect({
-                x: g.x, y: g.y, width: g.width, height: g.height,
-                fill: roomFill,
-                stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1
-            }));
-        } else {
-            // Room has closets - draw room fill excluding closet areas
-            // Use a custom shape to punch holes for closets
-            const roomShape = new Konva.Shape({
-                sceneFunc: (context, shape) => {
-                    context.beginPath();
-                    // Outer room rectangle (clockwise)
-                    context.moveTo(g.x, g.y);
-                    context.lineTo(g.x + g.width, g.y);
-                    context.lineTo(g.x + g.width, g.y + g.height);
-                    context.lineTo(g.x, g.y + g.height);
-                    context.closePath();
+        // Draw room polygon with closet cutouts using evenodd fill rule
+        const roomShape = new Konva.Shape({
+            sceneFunc: (context, shape) => {
+                context.beginPath();
+                // Outer room polygon (from vertices) - clockwise
+                const verts = room.vertices;
+                context.moveTo(verts[0].x, verts[0].y);
+                for (let i = 1; i < verts.length; i++) {
+                    context.lineTo(verts[i].x, verts[i].y);
+                }
+                context.closePath();
 
-                    // Cut out closet areas (counter-clockwise to create holes)
-                    roomClosets.forEach(closet => {
-                        const cg = closet.geometry;
-                        context.moveTo(cg.x, cg.y);
-                        context.lineTo(cg.x, cg.y + cg.height);
-                        context.lineTo(cg.x + cg.width, cg.y + cg.height);
-                        context.lineTo(cg.x + cg.width, cg.y);
+                // Cut out closet areas (counter-clockwise to create holes)
+                roomClosets.forEach(closet => {
+                    if (closet.vertices && closet.vertices.length >= 3) {
+                        const cv = closet.vertices;
+                        // Draw counter-clockwise for cutout
+                        context.moveTo(cv[cv.length - 1].x, cv[cv.length - 1].y);
+                        for (let i = cv.length - 2; i >= 0; i--) {
+                            context.lineTo(cv[i].x, cv[i].y);
+                        }
                         context.closePath();
-                    });
+                    }
+                });
 
-                    context.fillStrokeShape(shape);
-                },
-                fill: roomFill,
-                stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1
-            });
-            roomGroup.add(roomShape);
-        }
+                // Use evenodd fill rule for proper cutouts
+                context.fillStyle = shape.fill();
+                context.fill('evenodd');
+                context.strokeStyle = shape.stroke();
+                context.lineWidth = shape.strokeWidth();
+                context.stroke();
+            },
+            // Hit function for click detection - just the outer polygon
+            hitFunc: (context, shape) => {
+                context.beginPath();
+                const verts = room.vertices;
+                context.moveTo(verts[0].x, verts[0].y);
+                for (let i = 1; i < verts.length; i++) {
+                    context.lineTo(verts[i].x, verts[i].y);
+                }
+                context.closePath();
+                context.fillStrokeShape(shape);
+            },
+            fill: roomFill,
+            stroke: roomBorder,
+            strokeWidth: isSelected ? 2 : 1
+        });
+        roomGroup.add(roomShape);
 
         // Add tap handler for room selection
         roomGroup.on('tap click', (e) => {
@@ -893,71 +1075,62 @@ const Render = {
 
         // Add drag handlers for room movement
         if (isSelected) {
-            let startRoomX, startRoomY;
-            let startClosetPositions = [];
+            let startVertices = [];
+            let startClosetVertices = [];
             let snapPoints = null;
 
             roomGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
                 self.stage.draggable(false);
-                startRoomX = g.x;
-                startRoomY = g.y;
-                // Store initial closet positions
-                startClosetPositions = roomClosets.map(c => ({ id: c.id, x: c.geometry.x, y: c.geometry.y }));
+                // Store initial vertex positions
+                startVertices = room.vertices.map(v => ({ ...v }));
+                // Store initial closet vertex positions
+                startClosetVertices = roomClosets.map(c => ({
+                    id: c.id,
+                    vertices: c.vertices ? c.vertices.map(v => ({ ...v })) : []
+                }));
                 // Get snap points from other rooms
                 snapPoints = findRoomSnapPoints(doc, room.id);
             });
 
             roomGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
-                const dx = this.x();
-                const dy = this.y();
-
-                // Calculate raw position
-                const rawX = startRoomX + dx;
-                const rawY = startRoomY + dy;
-
-                // Apply snapping
-                const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
-                g.x = snapped.x;
-                g.y = snapped.y;
-
-                // Calculate actual delta after snapping (for closets)
-                const actualDx = g.x - startRoomX;
-                const actualDy = g.y - startRoomY;
-
-                // Update wall segments for this room
-                const segs = doc.wallSegments.filter(ws => ws.roomId === room.id);
-                segs.forEach(ws => {
-                    const roomG = room.geometry;
-                    if (ws.label === 'W1') { // South wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y + roomG.height;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y + roomG.height;
-                    } else if (ws.label === 'W2') { // West wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y + roomG.height;
-                        ws.x2 = roomG.x; ws.y2 = roomG.y;
-                    } else if (ws.label === 'W3') { // North wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y;
-                    } else if (ws.label === 'W4') { // East wall
-                        ws.x1 = roomG.x + roomG.width; ws.y1 = roomG.y;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y + roomG.height;
-                    }
-                });
-
-                // Update closets that belong to this room
-                roomClosets.forEach(closet => {
-                    const startPos = startClosetPositions.find(p => p.id === closet.id);
-                    if (startPos) {
-                        closet.geometry.x = startPos.x + actualDx;
-                        closet.geometry.y = startPos.y + actualDy;
-                    }
-                });
+                // Let Konva handle visual movement smoothly - no re-render during drag
             });
 
             roomGroup.on('dragend', function(e) {
                 self.stage.draggable(true);
-                // Reset group position (geometry already updated)
+
+                // Calculate final delta from group position
+                const dx = this.x();
+                const dy = this.y();
+
+                // Apply snapping
+                const startBounds = getVerticesBounds(startVertices);
+                const rawX = startBounds.x + dx;
+                const rawY = startBounds.y + dy;
+                const snapped = snapRoomPosition(rawX, rawY, startBounds.width, startBounds.height, snapPoints);
+                const actualDx = snapped.x - startBounds.x;
+                const actualDy = snapped.y - startBounds.y;
+
+                // Update room vertices
+                room.vertices = startVertices.map(v => ({
+                    x: v.x + actualDx,
+                    y: v.y + actualDy
+                }));
+
+                // Update closet vertices
+                roomClosets.forEach(closet => {
+                    const startData = startClosetVertices.find(p => p.id === closet.id);
+                    if (startData && startData.vertices.length > 0) {
+                        closet.vertices = startData.vertices.map(v => ({
+                            x: v.x + actualDx,
+                            y: v.y + actualDy
+                        }));
+                    }
+                });
+
+                // Reset group position
                 this.x(0);
                 this.y(0);
 
@@ -970,40 +1143,332 @@ const Render = {
                 App.updateInspector();
                 App.updateQABadge();
             });
+
+            // Add vertex handles when selected
+            self.renderVertexHandles(room, doc, roomGroup);
         }
 
         this.layers.rooms.add(roomGroup);
 
-        // Room label (inside)
+        // Room label (inside, using bounds)
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 16, width: g.width,
+            x: bounds.x, y: bounds.y + bounds.height / 2 - 16, width: bounds.width,
             text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
         }));
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 + 2, width: g.width,
+            x: bounds.x, y: bounds.y + bounds.height / 2 + 2, width: bounds.width,
             text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
         }));
 
         // Room dimensions (outside) - L x W format
-        const widthFt = Math.round(g.width / FOOT);
-        const heightFt = Math.round(g.height / FOOT);
-        const dimText = `${widthFt}' x ${heightFt}'`;
+        const widthFt = Math.round(bounds.width / FOOT);
+        const heightFt = Math.round(bounds.height / FOOT);
 
         // Width dimension (below room)
         this.layers.dims.add(new Konva.Text({
-            x: g.x, y: g.y + g.height + 8, width: g.width,
+            x: bounds.x, y: bounds.y + bounds.height + 8, width: bounds.width,
             text: `${widthFt}'-0"`, fontSize: 9, fill: '#6b7280', align: 'center', listening: false
         }));
 
         // Height dimension (right of room, rotated)
         this.layers.dims.add(new Konva.Text({
-            x: g.x + g.width + 12, y: g.y + g.height / 2 + 15,
+            x: bounds.x + bounds.width + 12, y: bounds.y + bounds.height / 2 + 15,
             text: `${heightFt}'-0"`, fontSize: 9, fill: '#6b7280', rotation: -90, listening: false
         }));
     },
 
+    // Render vertex handles for room editing
+    renderVertexHandles(room, doc, parentGroup) {
+        const self = this;
+
+        // Vertex handles (blue circles) - drag to move, double-tap to delete
+        room.vertices.forEach((vertex, idx) => {
+            const handle = new Konva.Circle({
+                x: vertex.x,
+                y: vertex.y,
+                radius: VERTEX_HANDLE_RADIUS,
+                fill: '#3b82f6',
+                stroke: '#fff',
+                strokeWidth: 2,
+                draggable: true
+            });
+
+            let startX, startY;
+
+            handle.on('dragstart', function(e) {
+                e.cancelBubble = true;
+                self.stage.draggable(false);
+                startX = vertex.x;
+                startY = vertex.y;
+            });
+
+            handle.on('dragmove', function(e) {
+                e.cancelBubble = true;
+                // Snap to grid
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                this.x(newX);
+                this.y(newY);
+                room.vertices[idx] = { x: newX, y: newY };
+            });
+
+            handle.on('dragend', function(e) {
+                self.stage.draggable(true);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+                App.updateQABadge();
+            });
+
+            // Double-tap to delete vertex (if >3 vertices)
+            handle.on('dblclick dbltap', function(e) {
+                e.cancelBubble = true;
+                if (room.vertices.length > 3) {
+                    room.vertices.splice(idx, 1);
+                    markExteriorWalls(doc);
+                    App.saveState();
+                    App.render();
+                    App.updateQABadge();
+                }
+            });
+
+            this.layers.openings.add(handle);
+        });
+
+        // Edge midpoint handles (green squares with +) - drag or tap to add vertex
+        const n = room.vertices.length;
+        for (let i = 0; i < n; i++) {
+            const v1 = room.vertices[i];
+            const v2 = room.vertices[(i + 1) % n];
+            const midX = (v1.x + v2.x) / 2;
+            const midY = (v1.y + v2.y) / 2;
+
+            // Green square handle at edge midpoint
+            const addHandle = new Konva.Group({
+                x: midX,
+                y: midY,
+                draggable: true
+            });
+
+            // Square background
+            addHandle.add(new Konva.Rect({
+                x: -8,
+                y: -8,
+                width: 16,
+                height: 16,
+                fill: '#22c55e',
+                stroke: '#fff',
+                strokeWidth: 2,
+                cornerRadius: 3
+            }));
+
+            // Plus sign
+            addHandle.add(new Konva.Text({
+                x: -5,
+                y: -7,
+                text: '+',
+                fontSize: 14,
+                fontStyle: 'bold',
+                fill: '#fff'
+            }));
+
+            const edgeIdx = i; // Capture for closure
+            let isDragging = false;
+
+            addHandle.on('dragstart', function(e) {
+                e.cancelBubble = true;
+                self.stage.draggable(false);
+                isDragging = true;
+
+                // Insert new vertex at midpoint
+                const newVertex = { x: snapToGrid(midX), y: snapToGrid(midY) };
+                room.vertices.splice(edgeIdx + 1, 0, newVertex);
+            });
+
+            addHandle.on('dragmove', function(e) {
+                e.cancelBubble = true;
+                // Move the newly inserted vertex
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                room.vertices[edgeIdx + 1] = { x: newX, y: newY };
+            });
+
+            addHandle.on('dragend', function(e) {
+                self.stage.draggable(true);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+                App.updateQABadge();
+            });
+
+            // Tap to insert vertex at midpoint
+            addHandle.on('tap click', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    return;
+                }
+                e.cancelBubble = true;
+                // Insert vertex at midpoint
+                const newVertex = { x: snapToGrid(midX), y: snapToGrid(midY) };
+                room.vertices.splice(edgeIdx + 1, 0, newVertex);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+                App.updateQABadge();
+            });
+
+            this.layers.openings.add(addHandle);
+        }
+    },
+
+    // Render room wall edges (derived from vertices)
+    renderRoomWalls(room, doc, showWallIds) {
+        const edges = getWallEdges(room);
+        const isRoomSelected = this.selection.type === 'room' && this.selection.id === room.id;
+
+        edges.forEach((edge, edgeIndex) => {
+            const isExterior = isEdgeExterior(room, edgeIndex);
+            const wallKey = `${room.id}_${edgeIndex}`;
+            const isSelected = this.selection.type === 'wall' && this.selection.id === wallKey;
+
+            // Visible wall line
+            const wallColor = isSelected ? '#3b82f6' : '#2d3748';
+            const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
+            const visibleLine = new Konva.Line({
+                points: [edge.start.x, edge.start.y, edge.end.x, edge.end.y],
+                stroke: wallColor,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            });
+            this.layers.walls.add(visibleLine);
+
+            // Hit region for wall selection
+            const hitLine = new Konva.Line({
+                points: [edge.start.x, edge.start.y, edge.end.x, edge.end.y],
+                stroke: 'transparent',
+                strokeWidth: HIT_WIDTH,
+                lineCap: 'round',
+                hitStrokeWidth: HIT_WIDTH
+            });
+            hitLine.on('tap click', () => App.onWallEdgeTap(room.id, edgeIndex));
+            this.layers.hit.add(hitLine);
+
+            // Wall ID label
+            if (showWallIds) {
+                const mid = getEdgeMidpoint(edge);
+                const labelOffset = this.getWallLabelOffset(edge, room);
+                this.layers.labels.add(new Konva.Text({
+                    x: mid.x + labelOffset.x - 8,
+                    y: mid.y + labelOffset.y - 5,
+                    text: edge.label,
+                    fontSize: 9,
+                    fill: isSelected ? '#3b82f6' : '#9ca3af',
+                    fontStyle: 'bold',
+                    listening: false
+                }));
+            }
+
+            // Edge drag handle (for moving entire edge) - only show when room selected
+            if (isRoomSelected) {
+                const mid = getEdgeMidpoint(edge);
+                const edgeHandle = new Konva.Rect({
+                    x: mid.x - EDGE_HANDLE_SIZE / 2,
+                    y: mid.y - EDGE_HANDLE_SIZE / 2,
+                    width: EDGE_HANDLE_SIZE,
+                    height: EDGE_HANDLE_SIZE,
+                    fill: '#22c55e',
+                    stroke: '#fff',
+                    strokeWidth: 1,
+                    cornerRadius: 2,
+                    draggable: true
+                });
+                this.setupEdgeDragHandler(edgeHandle, room, edgeIndex, doc);
+                this.layers.openings.add(edgeHandle);
+            }
+        });
+    },
+
+    // Setup drag handler for edge movement
+    setupEdgeDragHandler(handle, room, edgeIndex, doc) {
+        const self = this;
+        const edges = getWallEdges(room);
+        const edge = edges[edgeIndex];
+        const n = room.vertices.length;
+
+        // Find which vertices belong to this edge
+        let southIdx = 0;
+        let maxMidY = -Infinity;
+        for (let i = 0; i < n; i++) {
+            const midY = (room.vertices[i].y + room.vertices[(i + 1) % n].y) / 2;
+            if (midY > maxMidY) {
+                maxMidY = midY;
+                southIdx = i;
+            }
+        }
+        const v1Idx = (southIdx + edgeIndex) % n;
+        const v2Idx = (v1Idx + 1) % n;
+
+        let startV1, startV2, startHandleX, startHandleY;
+
+        handle.on('dragstart', function(e) {
+            e.cancelBubble = true;
+            self.stage.draggable(false);
+            startV1 = { ...room.vertices[v1Idx] };
+            startV2 = { ...room.vertices[v2Idx] };
+            startHandleX = this.x();
+            startHandleY = this.y();
+        });
+
+        handle.on('dragmove', function(e) {
+            e.cancelBubble = true;
+            const dx = this.x() - startHandleX;
+            const dy = this.y() - startHandleY;
+
+            // Determine if edge is horizontal or vertical
+            const isHorizontal = Math.abs(edge.start.y - edge.end.y) < 2;
+            const isVertical = Math.abs(edge.start.x - edge.end.x) < 2;
+
+            if (isHorizontal) {
+                // Move only in Y direction
+                const newY = snapToGrid(startV1.y + dy);
+                room.vertices[v1Idx] = { x: startV1.x, y: newY };
+                room.vertices[v2Idx] = { x: startV2.x, y: newY };
+            } else if (isVertical) {
+                // Move only in X direction
+                const newX = snapToGrid(startV1.x + dx);
+                room.vertices[v1Idx] = { x: newX, y: startV1.y };
+                room.vertices[v2Idx] = { x: newX, y: startV2.y };
+            }
+        });
+
+        handle.on('dragend', function(e) {
+            self.stage.draggable(true);
+            markExteriorWalls(doc);
+            App.saveState();
+            App.render();
+            App.updateQABadge();
+        });
+    },
+
+    getWallLabelOffset(edge, room) {
+        const bounds = getVerticesBounds(room.vertices);
+        const mid = getEdgeMidpoint(edge);
+        const cx = bounds.x + bounds.width / 2;
+        const cy = bounds.y + bounds.height / 2;
+        const dx = mid.x - cx;
+        const dy = mid.y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        return { x: -(dx / dist) * 14, y: -(dy / dist) * 10 };
+    },
+
+    // Legacy function - redirect to new edge-based approach
     renderWallSegment(ws, doc, showWallIds) {
+        // This function is now deprecated - walls are rendered from room vertices
+        // Keep for backwards compatibility during transition
         const room = doc.rooms.find(r => r.id === ws.roomId);
+        if (!room) return;
+
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
         const isExterior = ws.type === 'exterior';
 
@@ -1049,11 +1514,11 @@ const Render = {
     },
 
     getLabelOffset(ws, room) {
-        if (!room) return { x: 0, y: 0 };
-        const g = room.geometry;
+        if (!room || !room.vertices) return { x: 0, y: 0 };
+        const bounds = getVerticesBounds(room.vertices);
         const mid = getSegmentMidpoint(ws);
-        const cx = g.x + g.width / 2;
-        const cy = g.y + g.height / 2;
+        const cx = bounds.x + bounds.width / 2;
+        const cy = bounds.y + bounds.height / 2;
         const dx = mid.x - cx;
         const dy = mid.y - cy;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -1061,86 +1526,231 @@ const Render = {
     },
 
     renderCloset(closet, doc) {
-        const g = closet.geometry;
-        const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
-        const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
-        const pg = parentRoom ? parentRoom.geometry : null;
+        if (!closet || !closet.vertices || closet.vertices.length < 3) return;
 
-        // Closet fill with light grey
-        const rect = new Konva.Rect({
-            x: g.x, y: g.y, width: g.width, height: g.height,
-            fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: 1
+        const bounds = getVerticesBounds(closet.vertices);
+        if (!bounds) return;
+
+        const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
+        const hostRoom = doc.rooms.find(r => r.id === closet.hostRoomId);
+        const hostBounds = hostRoom && hostRoom.vertices ? getVerticesBounds(hostRoom.vertices) : null;
+        const self = this;
+
+        // Create closet group for dragging
+        const closetGroup = new Konva.Group({
+            x: 0, y: 0,
+            draggable: isSelected
         });
-        rect.on('tap click', () => App.onObjectTap('closet', closet.id));
-        this.layers.openings.add(rect);
+
+        // Closet fill with light grey (polygon)
+        const closetShape = new Konva.Shape({
+            sceneFunc: (context, shape) => {
+                context.beginPath();
+                const verts = closet.vertices;
+                context.moveTo(verts[0].x, verts[0].y);
+                for (let i = 1; i < verts.length; i++) {
+                    context.lineTo(verts[i].x, verts[i].y);
+                }
+                context.closePath();
+                context.fillStrokeShape(shape);
+            },
+            fill: '#f3f4f6',
+            stroke: isSelected ? '#3b82f6' : '#d1d5db',
+            strokeWidth: isSelected ? 2 : 1
+        });
+        closetGroup.add(closetShape);
+
+        // Add drag handlers when selected
+        if (isSelected) {
+            let startVertices = [];
+
+            closetGroup.on('dragstart', function(e) {
+                e.cancelBubble = true;
+                self.stage.draggable(false);
+                startVertices = closet.vertices.map(v => ({ ...v }));
+            });
+
+            closetGroup.on('dragmove', function(e) {
+                e.cancelBubble = true;
+                // Let Konva handle visual movement smoothly - no re-render during drag
+            });
+
+            closetGroup.on('dragend', function(e) {
+                self.stage.draggable(true);
+
+                // Calculate final delta and apply snapping
+                const dx = this.x();
+                const dy = this.y();
+
+                // Update closet vertices with snapping
+                closet.vertices = startVertices.map(v => ({
+                    x: snapToGrid(v.x + dx),
+                    y: snapToGrid(v.y + dy)
+                }));
+
+                // Reset group position
+                this.x(0);
+                this.y(0);
+
+                // Check if closet is now inside a different room
+                const newBounds = getVerticesBounds(closet.vertices);
+                const closetCenterX = newBounds.x + newBounds.width / 2;
+                const closetCenterY = newBounds.y + newBounds.height / 2;
+
+                const newHostRoom = doc.rooms.find(room => {
+                    const roomBounds = getVerticesBounds(room.vertices);
+                    return closetCenterX >= roomBounds.x && closetCenterX <= roomBounds.x + roomBounds.width &&
+                           closetCenterY >= roomBounds.y && closetCenterY <= roomBounds.y + roomBounds.height;
+                });
+
+                // Update parent if changed
+                if (newHostRoom && newHostRoom.id !== closet.hostRoomId) {
+                    const oldHost = doc.rooms.find(r => r.id === closet.hostRoomId);
+                    const oldName = oldHost ? oldHost.label : 'none';
+                    if (confirm(`Move ${closet.label} from ${oldName} to ${newHostRoom.label}?`)) {
+                        closet.hostRoomId = newHostRoom.id;
+                    }
+                } else if (!newHostRoom && closet.hostRoomId) {
+                    // Closet moved outside all rooms
+                    const oldHost = doc.rooms.find(r => r.id === closet.hostRoomId);
+                    if (confirm(`${closet.label} is outside all rooms. Remove parent link to ${oldHost?.label}?`)) {
+                        closet.hostRoomId = null;
+                    }
+                } else if (newHostRoom && !closet.hostRoomId) {
+                    // Closet was unlinked, now inside a room
+                    if (confirm(`Link ${closet.label} to ${newHostRoom.label}?`)) {
+                        closet.hostRoomId = newHostRoom.id;
+                    }
+                }
+
+                App.saveState();
+                App.render();
+                App.updateTree();
+                App.updateQABadge();
+            });
+        }
+
+        closetGroup.on('tap click', (e) => {
+            e.cancelBubble = true;
+            App.onObjectTap('closet', closet.id);
+        });
+        this.layers.openings.add(closetGroup);
 
         // Diagonal hatch lines (architectural convention for closets)
-        const hatchGroup = new Konva.Group({ clip: { x: g.x, y: g.y, width: g.width, height: g.height } });
+        const hatchGroup = new Konva.Group({ clip: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
         const spacing = 12;
         const hatchColor = '#d1d5db';
-        for (let i = -g.height; i < g.width + g.height; i += spacing) {
+        for (let i = -bounds.height; i < bounds.width + bounds.height; i += spacing) {
             hatchGroup.add(new Konva.Line({
-                points: [g.x + i, g.y, g.x + i + g.height, g.y + g.height],
+                points: [bounds.x + i, bounds.y, bounds.x + i + bounds.height, bounds.y + bounds.height],
                 stroke: hatchColor, strokeWidth: 1, listening: false
             }));
         }
         this.layers.openings.add(hatchGroup);
 
-        // Draw only the interior-facing walls (walls that don't touch parent room edges)
+        // Draw only interior-facing walls (walls that don't touch host room edges)
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
         const wallWidth = 2;
+        const tolerance = 2;
 
-        if (pg) {
-            // South wall of closet (if not touching room's south edge)
-            if (g.y + g.height < pg.y + pg.height) {
-                this.layers.walls.add(new Konva.Line({
-                    points: [g.x, g.y + g.height, g.x + g.width, g.y + g.height],
-                    stroke: wallColor, strokeWidth: wallWidth, listening: false
-                }));
-            }
-            // North wall of closet (if not touching room's north edge)
-            if (g.y > pg.y) {
-                this.layers.walls.add(new Konva.Line({
-                    points: [g.x, g.y, g.x + g.width, g.y],
-                    stroke: wallColor, strokeWidth: wallWidth, listening: false
-                }));
-            }
-            // West wall of closet (if not touching room's west edge)
-            if (g.x > pg.x) {
-                this.layers.walls.add(new Konva.Line({
-                    points: [g.x, g.y, g.x, g.y + g.height],
-                    stroke: wallColor, strokeWidth: wallWidth, listening: false
-                }));
-            }
-            // East wall of closet (if not touching room's east edge)
-            if (g.x + g.width < pg.x + pg.width) {
-                this.layers.walls.add(new Konva.Line({
-                    points: [g.x + g.width, g.y, g.x + g.width, g.y + g.height],
-                    stroke: wallColor, strokeWidth: wallWidth, listening: false
-                }));
-            }
+        if (hostBounds) {
+            const closetEdges = getWallEdges(closet);
+            closetEdges.forEach(edge => {
+                const midY = (edge.start.y + edge.end.y) / 2;
+                const midX = (edge.start.x + edge.end.x) / 2;
+                const isHorizontal = Math.abs(edge.start.y - edge.end.y) < tolerance;
+                const isVertical = Math.abs(edge.start.x - edge.end.x) < tolerance;
+
+                let touchesHostEdge = false;
+                if (isHorizontal) {
+                    if (Math.abs(midY - hostBounds.y) < tolerance || Math.abs(midY - (hostBounds.y + hostBounds.height)) < tolerance) {
+                        touchesHostEdge = true;
+                    }
+                }
+                if (isVertical) {
+                    if (Math.abs(midX - hostBounds.x) < tolerance || Math.abs(midX - (hostBounds.x + hostBounds.width)) < tolerance) {
+                        touchesHostEdge = true;
+                    }
+                }
+
+                // Only draw if doesn't touch host room edge
+                if (!touchesHostEdge) {
+                    this.layers.walls.add(new Konva.Line({
+                        points: [edge.start.x, edge.start.y, edge.end.x, edge.end.y],
+                        stroke: wallColor, strokeWidth: wallWidth, listening: false
+                    }));
+                }
+            });
         }
 
-        // Closet label
+        // Closet label with parent room indicator
+        const parentLabel = hostRoom ? ` (${hostRoom.label})` : ' (unlinked)';
+        const labelColor = isSelected ? '#3b82f6' : (hostRoom ? '#6b7280' : '#ef4444');
+
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 6, width: g.width,
-            text: closet.label, fontSize: 10, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#6b7280', align: 'center', listening: false
+            x: bounds.x, y: bounds.y + bounds.height / 2 - 12, width: bounds.width,
+            text: closet.label, fontSize: 10, fontStyle: 'bold', fill: labelColor, align: 'center', listening: false
         }));
+        this.layers.labels.add(new Konva.Text({
+            x: bounds.x, y: bounds.y + bounds.height / 2 + 1, width: bounds.width,
+            text: hostRoom ? `→ ${hostRoom.label}` : '⚠ no parent', fontSize: 8, fill: labelColor, align: 'center', listening: false
+        }));
+
+        // Show connection line to parent room when selected
+        if (isSelected && hostRoom && hostBounds) {
+            const closetCenter = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+            const roomCenter = { x: hostBounds.x + hostBounds.width / 2, y: hostBounds.y + hostBounds.height / 2 };
+            this.layers.dims.add(new Konva.Line({
+                points: [closetCenter.x, closetCenter.y, roomCenter.x, roomCenter.y],
+                stroke: '#3b82f6',
+                strokeWidth: 2,
+                dash: [5, 5],
+                opacity: 0.5,
+                listening: false
+            }));
+            // Highlight parent room
+            this.layers.dims.add(new Konva.Rect({
+                x: hostBounds.x - 3,
+                y: hostBounds.y - 3,
+                width: hostBounds.width + 6,
+                height: hostBounds.height + 6,
+                stroke: '#3b82f6',
+                strokeWidth: 2,
+                dash: [8, 4],
+                fill: 'transparent',
+                listening: false
+            }));
+        }
     },
 
     renderDoor(door, doc) {
-        const ws = doc.wallSegments.find(s => s.id === door.parentWallSegmentId);
-        if (!ws) return;
+        // Get the parent room or closet and edge
+        let room = doc.rooms.find(r => r.id === door.parentRoomId);
+        if (!room) {
+            // Check if parent is a closet
+            room = doc.closets.find(c => c.id === door.parentRoomId);
+        }
+        if (!room || !room.vertices) return;
 
-        const pos = this.getPositionOnSegment(ws, door.distanceFromStart);
-        const angle = getSegmentAngle(ws);
+        const edges = getWallEdges(room);
+        const edge = edges[door.parentWallEdgeIndex];
+        if (!edge) return;
+
+        // Calculate position from tAlongEdge
+        const pos = getPositionOnEdge(edge, door.tAlongEdge);
+        const angle = getEdgeAngle(edge);
         const isVertical = Math.abs(Math.sin(angle)) > 0.5;
         const isSelected = this.selection.type === 'door' && this.selection.id === door.id;
+        const isExterior = isEdgeExterior(room, door.parentWallEdgeIndex);
+
+        // Wall thickness based on exterior/interior
+        const wallThickness = isExterior ? WALL_EXT : WALL_INT;
+        const edgeLength = getEdgeLength(edge);
 
         const doorGroup = new Konva.Group({
             x: pos.x, y: pos.y,
             rotation: angle * 180 / Math.PI,
-            draggable: isSelected  // Allow dragging when selected
+            draggable: isSelected
         });
 
         // Door opening (gap in wall) - match room fill color
@@ -1148,7 +1758,7 @@ const Render = {
             x: 0, y: -3,
             width: door.width,
             height: 6,
-            fill: '#fafbfc',  // Match room fill color
+            fill: '#fafbfc',
             stroke: 'transparent'
         });
         doorGroup.add(doorRect);
@@ -1165,21 +1775,19 @@ const Render = {
         }));
 
         // Door geometry - hinge point and swing direction
-        const swingOut = door.swing === 'out' ? -1 : 1;  // in = toward positive y, out = toward negative y
-        const hingeLeft = door.swingDir === 'left';      // hinge on left or right side
+        const swingOut = door.swing === 'out' ? -1 : 1;
+        const hingeLeft = door.swingDir === 'left';
 
-        // Hinge position (at corner of door opening)
+        // Hinge position
         const hingeX = hingeLeft ? 0 : door.width;
-        const hingeY = swingOut * ws.thickness / 2;
+        const hingeY = swingOut * wallThickness / 2;
 
-        // Door leaf length (slightly less than full width for visual clarity)
+        // Door leaf length
         const leafLength = door.width * 0.9;
-
-        // Door leaf end point at 90 degrees (perpendicular to wall, fully open)
-        const leafEndX = hingeX;  // Straight perpendicular, no x movement
+        const leafEndX = hingeX;
         const leafEndY = hingeY + swingOut * leafLength;
 
-        // Swing arc (dashed/perforated) - from hinge, showing door swing path
+        // Swing arc
         const swingArc = new Konva.Arc({
             x: hingeX,
             y: hingeY,
@@ -1193,7 +1801,7 @@ const Render = {
         });
         doorGroup.add(swingArc);
 
-        // Door leaf (solid line representing the actual door panel)
+        // Door leaf
         const doorLeaf = new Konva.Line({
             points: [hingeX, hingeY, leafEndX, leafEndY],
             stroke: isSelected ? '#3b82f6' : '#2d3748',
@@ -1202,7 +1810,7 @@ const Render = {
         });
         doorGroup.add(doorLeaf);
 
-        // Large invisible hit area for easier selection (covers door opening + swing)
+        // Hit area
         const hitArea = new Konva.Rect({
             x: -5,
             y: Math.min(hingeY, leafEndY) - 5,
@@ -1228,7 +1836,11 @@ const Render = {
             const handleSize = 16;
             const self = this;
 
-            // Left handle (adjusts offset and width)
+            // Calculate right position using tAlongEdge + width
+            const widthAsT = door.width / edgeLength;
+            const rightT = Math.min(1, door.tAlongEdge + widthAsT);
+            const rightPos = getPositionOnEdge(edge, rightT);
+
             const leftHandle = new Konva.Circle({
                 x: pos.x, y: pos.y,
                 radius: handleSize / 2,
@@ -1236,8 +1848,6 @@ const Render = {
                 draggable: true
             });
 
-            // Right handle (adjusts width only)
-            const rightPos = this.getPositionOnSegment(ws, door.distanceFromStart + door.width);
             const rightHandle = new Konva.Circle({
                 x: rightPos.x, y: rightPos.y,
                 radius: handleSize / 2,
@@ -1245,66 +1855,29 @@ const Render = {
                 draggable: true
             });
 
-            // Update visuals directly without full re-render
-            const updateDoorVisuals = () => {
-                const newPos = self.getPositionOnSegment(ws, door.distanceFromStart);
-                const newRightPos = self.getPositionOnSegment(ws, door.distanceFromStart + door.width);
-
-                // Recalculate door geometry
-                const newHingeX = hingeLeft ? 0 : door.width;
-                const newLeafLength = door.width * 0.9;
-                const newLeafEndX = newHingeX;  // 90 degrees - straight perpendicular
-                const newLeafEndY = hingeY + swingOut * newLeafLength;
-
-                // Update door group position and rect width
-                doorGroup.x(newPos.x);
-                doorGroup.y(newPos.y);
-                doorRect.width(door.width);
-
-                // Update swing arc
-                swingArc.x(newHingeX);
-                swingArc.innerRadius(newLeafLength - 1);
-                swingArc.outerRadius(newLeafLength);
-
-                // Update door leaf
-                doorLeaf.points([newHingeX, hingeY, newLeafEndX, newLeafEndY]);
-
-                // Update handle positions
-                leftHandle.x(newPos.x);
-                leftHandle.y(newPos.y);
-                rightHandle.x(newRightPos.x);
-                rightHandle.y(newRightPos.y);
-
-                // Update label
-                doorLabel.x(newPos.x + (isVertical ? 12 : 0));
-                doorLabel.y(newPos.y + (isVertical ? 0 : -14));
-
-                self.layers.openings.batchDraw();
-                self.layers.labels.batchDraw();
-            };
-
             // Drag-to-move the entire door along wall
             doorGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
-                self.stage.draggable(false);  // Disable stage panning
+                self.stage.draggable(false);
             });
             doorGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const maxOffset = getSegmentLength(ws) - door.width;
+                const newT = getTOnEdge(edge, pointer.x, pointer.y);
+                const maxT = 1 - (door.width / edgeLength);
 
                 // Constrain to wall bounds
-                const clampedOffset = Math.max(0, Math.min(newOffset, maxOffset));
-                door.distanceFromStart = clampedOffset;
+                const clampedT = Math.max(0, Math.min(newT, maxT));
+                door.tAlongEdge = clampedT;
 
-                // Snap to wall position
-                const newPos = self.getPositionOnSegment(ws, clampedOffset);
+                // Update position
+                const newPos = getPositionOnEdge(edge, clampedT);
                 this.x(newPos.x);
                 this.y(newPos.y);
 
                 // Update handle positions
-                const newRightPos = self.getPositionOnSegment(ws, clampedOffset + door.width);
+                const newRightT = Math.min(1, clampedT + door.width / edgeLength);
+                const newRightPos = getPositionOnEdge(edge, newRightT);
                 leftHandle.x(newPos.x);
                 leftHandle.y(newPos.y);
                 rightHandle.x(newRightPos.x);
@@ -1318,7 +1891,7 @@ const Render = {
                 self.layers.labels.batchDraw();
             });
             doorGroup.on('dragend', () => {
-                self.stage.draggable(true);  // Re-enable stage panning
+                self.stage.draggable(true);
                 App.saveState();
                 App.updateInspector();
             });
@@ -1330,16 +1903,25 @@ const Render = {
             leftHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const oldEnd = door.distanceFromStart + door.width;
-                const minWidth = 0.5 * FOOT;  // Doors min 6 inches
+                const newT = getTOnEdge(edge, pointer.x, pointer.y);
+                const oldEndT = door.tAlongEdge + door.width / edgeLength;
+                const minWidthT = (0.5 * FOOT) / edgeLength;
 
-                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
-                    door.width = oldEnd - newOffset;
-                    door.distanceFromStart = newOffset;
-                    updateDoorVisuals();
+                if (newT >= 0 && (oldEndT - newT) >= minWidthT) {
+                    door.width = (oldEndT - newT) * edgeLength;
+                    door.tAlongEdge = newT;
+
+                    // Update door group
+                    const newPos = getPositionOnEdge(edge, newT);
+                    doorGroup.x(newPos.x);
+                    doorGroup.y(newPos.y);
+                    doorRect.width(door.width);
+
+                    // Update handles
+                    leftHandle.x(newPos.x);
+                    leftHandle.y(newPos.y);
                 }
-                const handlePos = self.getPositionOnSegment(ws, door.distanceFromStart);
+                const handlePos = getPositionOnEdge(edge, door.tAlongEdge);
                 this.x(handlePos.x);
                 this.y(handlePos.y);
             });
@@ -1351,16 +1933,17 @@ const Render = {
             rightHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const newWidth = newEnd - door.distanceFromStart;
-                const maxOffset = getSegmentLength(ws);
-                const minWidth = 0.5 * FOOT;  // Doors min 6 inches
+                const newEndT = getTOnEdge(edge, pointer.x, pointer.y);
+                const newWidthT = newEndT - door.tAlongEdge;
+                const minWidthT = (0.5 * FOOT) / edgeLength;
 
-                if (newWidth >= minWidth && newEnd <= maxOffset) {
-                    door.width = newWidth;
-                    updateDoorVisuals();
+                if (newWidthT >= minWidthT && newEndT <= 1) {
+                    door.width = newWidthT * edgeLength;
+
+                    // Update door visuals
+                    doorRect.width(door.width);
                 }
-                const handlePos = self.getPositionOnSegment(ws, door.distanceFromStart + door.width);
+                const handlePos = getPositionOnEdge(edge, door.tAlongEdge + door.width / edgeLength);
                 this.x(handlePos.x);
                 this.y(handlePos.y);
             });
@@ -1384,21 +1967,28 @@ const Render = {
     },
 
     renderWindow(win, doc) {
-        const ws = doc.wallSegments.find(s => s.id === win.parentWallSegmentId);
-        if (!ws) return;
+        // Get the parent room and edge
+        const room = doc.rooms.find(r => r.id === win.parentRoomId);
+        if (!room) return;
 
-        const pos = this.getPositionOnSegment(ws, win.distanceFromStart);
-        const angle = getSegmentAngle(ws);
+        const edges = getWallEdges(room);
+        const edge = edges[win.parentWallEdgeIndex];
+        if (!edge) return;
+
+        // Calculate position from tAlongEdge
+        const pos = getPositionOnEdge(edge, win.tAlongEdge);
+        const angle = getEdgeAngle(edge);
         const isSelected = this.selection.type === 'window' && this.selection.id === win.id;
+        const edgeLength = getEdgeLength(edge);
 
         const winGroup = new Konva.Group({
             x: pos.x, y: pos.y,
             rotation: angle * 180 / Math.PI,
-            draggable: isSelected  // Allow dragging when selected
+            draggable: isSelected
         });
 
-        // Window opening (gap in wall) - match room fill color
-        const winThickness = 8;  // Thicker window frame
+        // Window opening
+        const winThickness = 8;
         const winRect = new Konva.Rect({
             x: 0, y: -winThickness / 2,
             width: win.width, height: winThickness,
@@ -1407,7 +1997,7 @@ const Render = {
         });
         winGroup.add(winRect);
 
-        // Window frame lines (top and bottom sill) - thicker
+        // Window frame lines
         const frameColor = isSelected ? '#3b82f6' : '#60a5fa';
         const topSill = new Konva.Line({
             points: [0, -winThickness / 2, win.width, -winThickness / 2],
@@ -1421,7 +2011,6 @@ const Render = {
         });
         winGroup.add(bottomSill);
 
-        // Window jambs (ends)
         const leftJamb = new Konva.Line({
             points: [0, -winThickness / 2, 0, winThickness / 2],
             stroke: frameColor, strokeWidth: 2
@@ -1434,7 +2023,6 @@ const Render = {
         });
         winGroup.add(rightJamb);
 
-        // Mullion (center divider)
         const mullion = new Konva.Line({
             points: [win.width / 2, -winThickness / 2, win.width / 2, winThickness / 2],
             stroke: frameColor, strokeWidth: 1
@@ -1452,10 +2040,14 @@ const Render = {
 
         // Add resize handles and drag-to-move when selected
         if (isSelected) {
-            const handleSize = 16;  // Mobile-friendly touch target
+            const handleSize = 16;
             const self = this;
 
-            // Left handle (adjusts offset and width)
+            // Calculate right position
+            const widthAsT = win.width / edgeLength;
+            const rightT = Math.min(1, win.tAlongEdge + widthAsT);
+            const rightPos = getPositionOnEdge(edge, rightT);
+
             const leftHandle = new Konva.Circle({
                 x: pos.x, y: pos.y,
                 radius: handleSize / 2,
@@ -1463,8 +2055,6 @@ const Render = {
                 draggable: true
             });
 
-            // Right handle (adjusts width only)
-            const rightPos = this.getPositionOnSegment(ws, win.distanceFromStart + win.width);
             const rightHandle = new Konva.Circle({
                 x: rightPos.x, y: rightPos.y,
                 radius: handleSize / 2,
@@ -1472,60 +2062,29 @@ const Render = {
                 draggable: true
             });
 
-            // Update visuals directly without full re-render
-            const updateWindowVisuals = () => {
-                const newPos = self.getPositionOnSegment(ws, win.distanceFromStart);
-                const newRightPos = self.getPositionOnSegment(ws, win.distanceFromStart + win.width);
-
-                // Update window group position
-                winGroup.x(newPos.x);
-                winGroup.y(newPos.y);
-
-                // Update rect width
-                winRect.width(win.width);
-
-                // Update frame lines
-                topSill.points([0, -winThickness / 2, win.width, -winThickness / 2]);
-                bottomSill.points([0, winThickness / 2, win.width, winThickness / 2]);
-                rightJamb.points([win.width, -winThickness / 2, win.width, winThickness / 2]);
-                mullion.points([win.width / 2, -winThickness / 2, win.width / 2, winThickness / 2]);
-
-                // Update handle positions
-                leftHandle.x(newPos.x);
-                leftHandle.y(newPos.y);
-                rightHandle.x(newRightPos.x);
-                rightHandle.y(newRightPos.y);
-
-                // Update label
-                winLabel.x(newPos.x + win.width / 2 - 15);
-                winLabel.y(newPos.y - 14);
-
-                self.layers.openings.batchDraw();
-                self.layers.labels.batchDraw();
-            };
-
             // Drag-to-move the entire window along wall
             winGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
-                self.stage.draggable(false);  // Disable stage panning
+                self.stage.draggable(false);
             });
             winGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const maxOffset = getSegmentLength(ws) - win.width;
+                const newT = getTOnEdge(edge, pointer.x, pointer.y);
+                const maxT = 1 - (win.width / edgeLength);
 
                 // Constrain to wall bounds
-                const clampedOffset = Math.max(0, Math.min(newOffset, maxOffset));
-                win.distanceFromStart = clampedOffset;
+                const clampedT = Math.max(0, Math.min(newT, maxT));
+                win.tAlongEdge = clampedT;
 
-                // Snap to wall position
-                const newPos = self.getPositionOnSegment(ws, clampedOffset);
+                // Update position
+                const newPos = getPositionOnEdge(edge, clampedT);
                 this.x(newPos.x);
                 this.y(newPos.y);
 
                 // Update handle positions
-                const newRightPos = self.getPositionOnSegment(ws, clampedOffset + win.width);
+                const newRightT = Math.min(1, clampedT + win.width / edgeLength);
+                const newRightPos = getPositionOnEdge(edge, newRightT);
                 leftHandle.x(newPos.x);
                 leftHandle.y(newPos.y);
                 rightHandle.x(newRightPos.x);
@@ -1539,7 +2098,7 @@ const Render = {
                 self.layers.labels.batchDraw();
             });
             winGroup.on('dragend', () => {
-                self.stage.draggable(true);  // Re-enable stage panning
+                self.stage.draggable(true);
                 App.saveState();
                 App.updateInspector();
             });
@@ -1551,17 +2110,27 @@ const Render = {
             leftHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const oldEnd = win.distanceFromStart + win.width;
-                const minWidth = 1 * FOOT;
+                const newT = getTOnEdge(edge, pointer.x, pointer.y);
+                const oldEndT = win.tAlongEdge + win.width / edgeLength;
+                const minWidthT = (1 * FOOT) / edgeLength;
 
-                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
-                    win.width = oldEnd - newOffset;
-                    win.distanceFromStart = newOffset;
-                    updateWindowVisuals();
+                if (newT >= 0 && (oldEndT - newT) >= minWidthT) {
+                    win.width = (oldEndT - newT) * edgeLength;
+                    win.tAlongEdge = newT;
+
+                    // Update visuals
+                    const newPos = getPositionOnEdge(edge, newT);
+                    winGroup.x(newPos.x);
+                    winGroup.y(newPos.y);
+                    winRect.width(win.width);
+                    topSill.points([0, -winThickness / 2, win.width, -winThickness / 2]);
+                    bottomSill.points([0, winThickness / 2, win.width, winThickness / 2]);
+                    rightJamb.points([win.width, -winThickness / 2, win.width, winThickness / 2]);
+                    mullion.points([win.width / 2, -winThickness / 2, win.width / 2, winThickness / 2]);
+                    leftHandle.x(newPos.x);
+                    leftHandle.y(newPos.y);
                 }
-                // Keep handle at pointer position during drag
-                const handlePos = self.getPositionOnSegment(ws, win.distanceFromStart);
+                const handlePos = getPositionOnEdge(edge, win.tAlongEdge);
                 this.x(handlePos.x);
                 this.y(handlePos.y);
             });
@@ -1573,17 +2142,19 @@ const Render = {
             rightHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
-                const newWidth = newEnd - win.distanceFromStart;
-                const maxOffset = getSegmentLength(ws);
-                const minWidth = 1 * FOOT;
+                const newEndT = getTOnEdge(edge, pointer.x, pointer.y);
+                const newWidthT = newEndT - win.tAlongEdge;
+                const minWidthT = (1 * FOOT) / edgeLength;
 
-                if (newWidth >= minWidth && newEnd <= maxOffset) {
-                    win.width = newWidth;
-                    updateWindowVisuals();
+                if (newWidthT >= minWidthT && newEndT <= 1) {
+                    win.width = newWidthT * edgeLength;
+                    winRect.width(win.width);
+                    topSill.points([0, -winThickness / 2, win.width, -winThickness / 2]);
+                    bottomSill.points([0, winThickness / 2, win.width, winThickness / 2]);
+                    rightJamb.points([win.width, -winThickness / 2, win.width, winThickness / 2]);
+                    mullion.points([win.width / 2, -winThickness / 2, win.width / 2, winThickness / 2]);
                 }
-                // Keep handle at pointer position during drag
-                const handlePos = self.getPositionOnSegment(ws, win.distanceFromStart + win.width);
+                const handlePos = getPositionOnEdge(edge, win.tAlongEdge + win.width / edgeLength);
                 this.x(handlePos.x);
                 this.y(handlePos.y);
             });
@@ -1607,16 +2178,20 @@ const Render = {
     },
 
     renderCasedOpening(op, doc) {
-        const ws = doc.wallSegments.find(s => s.id === op.parentWallSegmentId);
-        if (!ws) return;
+        // Get the parent room and edge
+        const room = doc.rooms.find(r => r.id === op.parentRoomId);
+        if (!room) return;
 
-        const pos = this.getPositionOnSegment(ws, op.distanceFromStart);
-        const angle = getSegmentAngle(ws);
+        const edges = getWallEdges(room);
+        const edge = edges[op.parentWallEdgeIndex];
+        if (!edge) return;
+
+        const pos = getPositionOnEdge(edge, op.tAlongEdge);
+        const angle = getEdgeAngle(edge);
         const isSelected = this.selection.type === 'cased' && this.selection.id === op.id;
 
         const opGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
-        // Dashed line "---------"
         opGroup.add(new Konva.Line({
             points: [0, 0, op.width, 0],
             stroke: isSelected ? '#06b6d4' : '#aaa', strokeWidth: 2, dash: [6, 3]
@@ -1632,10 +2207,15 @@ const Render = {
     },
 
     renderMEP(mep, doc) {
-        const ws = doc.wallSegments.find(s => s.id === mep.parentWallSegmentId);
-        if (!ws) return;
+        // Get the parent room and edge
+        const room = doc.rooms.find(r => r.id === mep.parentRoomId);
+        if (!room) return;
 
-        const pos = this.getPositionOnSegment(ws, mep.distanceFromStart);
+        const edges = getWallEdges(room);
+        const edge = edges[mep.parentWallEdgeIndex];
+        if (!edge) return;
+
+        const pos = getPositionOnEdge(edge, mep.tAlongEdge);
         const isSelected = this.selection.type === 'mep' && this.selection.id === mep.id;
         const color = isSelected ? '#3b82f6' : (mep.label.startsWith('GAS') ? '#f97316' : mep.label.startsWith('POE') ? '#ef4444' : '#22c55e');
 
@@ -1653,18 +2233,16 @@ const Render = {
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('RAD')) {
             // Render radiator with fins
-            const offset = this.getInteriorOffset(ws, doc);
+            const offset = this.getInteriorOffsetForEdge(edge, room);
             const radX = pos.x + offset.x * 0.5;
             const radY = pos.y + offset.y * 0.5 - mep.height / 2;
             const radGroup = new Konva.Group();
 
-            // Main housing
             radGroup.add(new Konva.Rect({
                 x: radX, y: radY, width: mep.width, height: mep.height,
                 fill: '#f9fafb', stroke: color, strokeWidth: 2, cornerRadius: 3
             }));
 
-            // Vertical fins (radiator style)
             const finCount = Math.max(3, Math.floor(mep.width / 12));
             const finSpacing = mep.width / (finCount + 1);
             const finPadding = 4;
@@ -1689,17 +2267,15 @@ const Render = {
             this.layers.mep.add(radGroup);
         } else if (mep.label.startsWith('PRSR')) {
             // Pipe Riser - concentric circles to show vertical pipe
-            const offset = this.getInteriorOffset(ws, doc);
+            const offset = this.getInteriorOffsetForEdge(edge, room);
             const riserX = pos.x + offset.x * 0.3;
             const riserY = pos.y + offset.y * 0.3;
             const riserGroup = new Konva.Group();
 
-            // Outer circle
             riserGroup.add(new Konva.Circle({
                 x: riserX, y: riserY, radius: 12,
                 fill: '#f3f4f6', stroke: color, strokeWidth: 2
             }));
-            // Inner circle (pipe)
             riserGroup.add(new Konva.Circle({
                 x: riserX, y: riserY, radius: 6,
                 fill: '#e5e7eb', stroke: color, strokeWidth: 1
@@ -1715,7 +2291,13 @@ const Render = {
         }));
     },
 
+    // Legacy function for backwards compatibility
     getPositionOnSegment(seg, distFromStart) {
+        if (seg.start && seg.end) {
+            const len = getEdgeLength(seg);
+            const t = len > 0 ? Math.min(distFromStart / len, 1) : 0;
+            return getPositionOnEdge(seg, t);
+        }
         const len = getSegmentLength(seg);
         const t = Math.min(distFromStart / len, 1);
         return {
@@ -1724,25 +2306,38 @@ const Render = {
         };
     },
 
-    // Convert a point (x,y) to an offset along a wall segment
     getOffsetOnSegment(seg, px, py) {
+        if (seg.start && seg.end) {
+            return getTOnEdge(seg, px, py) * getEdgeLength(seg);
+        }
         const dx = seg.x2 - seg.x1;
         const dy = seg.y2 - seg.y1;
         const len = getSegmentLength(seg);
         if (len === 0) return 0;
-
-        // Project point onto line segment
         const t = Math.max(0, Math.min(1, ((px - seg.x1) * dx + (py - seg.y1) * dy) / (len * len)));
         return t * len;
     },
 
     getInteriorOffset(ws, doc) {
         const room = doc.rooms.find(r => r.id === ws.roomId);
-        if (!room) return { x: 0, y: 0 };
+        if (!room || !room.vertices) return { x: 0, y: 0 };
+        const bounds = getVerticesBounds(room.vertices);
         const mid = getSegmentMidpoint(ws);
-        const g = room.geometry;
-        const cx = g.x + g.width / 2;
-        const cy = g.y + g.height / 2;
+        const cx = bounds.x + bounds.width / 2;
+        const cy = bounds.y + bounds.height / 2;
+        const dx = cx - mid.x;
+        const dy = cy - mid.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        return { x: (dx / dist) * 30, y: (dy / dist) * 30 };
+    },
+
+    // Interior offset for edge-based model
+    getInteriorOffsetForEdge(edge, room) {
+        if (!room || !room.vertices) return { x: 0, y: 0 };
+        const bounds = getVerticesBounds(room.vertices);
+        const mid = getEdgeMidpoint(edge);
+        const cx = bounds.x + bounds.width / 2;
+        const cy = bounds.y + bounds.height / 2;
         const dx = cx - mid.x;
         const dy = cy - mid.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -1785,35 +2380,65 @@ function runQA(doc) {
     // All rooms labeled
     results.push({ rule: 'All rooms labeled', pass: doc.rooms.every(r => r.label), detail: 'OK' });
 
-    // All wall segments have W1=SOUTH
-    const badWalls = doc.rooms.filter(r => {
-        const segs = doc.wallSegments.filter(ws => ws.roomId === r.id);
-        if (segs.length < 4) return true;
-        const w1 = segs.find(ws => ws.label === 'W1');
-        return !w1;
+    // All rooms have valid vertices
+    const badRooms = doc.rooms.filter(r => !r.vertices || r.vertices.length < 3);
+    results.push({ rule: 'Room vertices valid', pass: badRooms.length === 0, detail: badRooms.length > 0 ? `${badRooms.length} invalid` : 'OK' });
+
+    // All rooms have W1 (derived from vertices - south-most edge)
+    const roomsWithEdges = doc.rooms.filter(r => r.vertices && r.vertices.length >= 3);
+    const roomsWithW1 = roomsWithEdges.filter(r => {
+        const edges = getWallEdges(r);
+        return edges.length > 0 && edges[0].label === 'W1';
     });
-    results.push({ rule: 'Wall IDs (W1 exists)', pass: badWalls.length === 0, detail: badWalls.length > 0 ? `${badWalls.length} rooms` : 'OK' });
+    results.push({ rule: 'Wall IDs (W1 exists)', pass: roomsWithW1.length === roomsWithEdges.length, detail: 'OK' });
 
-    // Closets
-    results.push({ rule: 'Closets (CL-01, CL-02)', pass: doc.closets.length >= 2, detail: `${doc.closets.length} closets` });
+    // Closets with valid host rooms
+    const closetsWithValidHost = doc.closets.filter(c => {
+        if (!c.hostRoomId) return false;
+        return doc.rooms.some(r => r.id === c.hostRoomId);
+    });
+    const unlinkedClosets = doc.closets.length - closetsWithValidHost.length;
+    results.push({
+        rule: 'Closets linked to rooms',
+        pass: unlinkedClosets === 0,
+        detail: unlinkedClosets > 0 ? `${unlinkedClosets} unlinked` : `${doc.closets.length} closets`
+    });
 
-    // Doors attached to walls
-    const unattachedDoors = doc.doors.filter(d => !d.parentWallSegmentId);
+    // Doors attached to rooms (using parentRoomId + parentWallEdgeIndex)
+    const unattachedDoors = doc.doors.filter(d => {
+        if (!d.parentRoomId) return true;
+        const room = doc.rooms.find(r => r.id === d.parentRoomId);
+        if (!room || !room.vertices) return true;
+        const edgeCount = room.vertices.length;
+        return d.parentWallEdgeIndex === undefined || d.parentWallEdgeIndex >= edgeCount;
+    });
     results.push({ rule: 'Doors attached to walls', pass: unattachedDoors.length === 0, detail: unattachedDoors.length > 0 ? `${unattachedDoors.length} floating` : 'OK' });
 
-    // Windows attached to walls
-    const unattachedWindows = doc.windows.filter(w => !w.parentWallSegmentId);
+    // Windows attached to rooms
+    const unattachedWindows = doc.windows.filter(w => {
+        if (!w.parentRoomId) return true;
+        const room = doc.rooms.find(r => r.id === w.parentRoomId);
+        if (!room || !room.vertices) return true;
+        const edgeCount = room.vertices.length;
+        return w.parentWallEdgeIndex === undefined || w.parentWallEdgeIndex >= edgeCount;
+    });
     results.push({ rule: 'Windows attached to walls', pass: unattachedWindows.length === 0, detail: unattachedWindows.length > 0 ? `${unattachedWindows.length} floating` : 'OK' });
 
     // Windows must be on exterior walls only
     const windowsOnInterior = doc.windows.filter(w => {
-        const ws = doc.wallSegments.find(seg => seg.id === w.parentWallSegmentId);
-        return ws && ws.type !== 'exterior';
+        const room = doc.rooms.find(r => r.id === w.parentRoomId);
+        if (!room) return false;
+        return !isEdgeExterior(room, w.parentWallEdgeIndex);
     });
     results.push({ rule: 'Windows on exterior walls', pass: windowsOnInterior.length === 0, detail: windowsOnInterior.length > 0 ? `${windowsOnInterior.length} on interior` : 'OK' });
 
     // MEP attached (except free-placed)
-    const unattachedMEP = doc.mep.filter(m => !m.parentWallSegmentId && !m.freePlaced);
+    const unattachedMEP = doc.mep.filter(m => {
+        if (m.freePlaced) return false;
+        if (!m.parentRoomId) return true;
+        const room = doc.rooms.find(r => r.id === m.parentRoomId);
+        return !room;
+    });
     results.push({ rule: 'MEP attached to walls', pass: unattachedMEP.length === 0, detail: unattachedMEP.length > 0 ? `${unattachedMEP.length} floating` : 'OK' });
 
     // POE anchored
@@ -1930,30 +2555,32 @@ const App = {
 
             // Check if drawing is inside an existing room (create closet) or outside (create room)
             const parentRoom = this.doc.rooms.find(room => {
-                const g = room.geometry;
+                // Use vertices bounds instead of geometry
+                const bounds = getVerticesBounds(room.vertices);
                 // Check if the drawn rectangle is mostly inside this room
-                const overlapX = Math.max(0, Math.min(x + width, g.x + g.width) - Math.max(x, g.x));
-                const overlapY = Math.max(0, Math.min(y + height, g.y + g.height) - Math.max(y, g.y));
+                const overlapX = Math.max(0, Math.min(x + width, bounds.x + bounds.width) - Math.max(x, bounds.x));
+                const overlapY = Math.max(0, Math.min(y + height, bounds.y + bounds.height) - Math.max(y, bounds.y));
                 const overlapArea = overlapX * overlapY;
                 const drawnArea = width * height;
                 return overlapArea > drawnArea * 0.5; // More than 50% inside room
             });
 
+            const geometry = { x, y, width, height };
+
             if (parentRoom) {
-                // Create a closet inside the room
+                // Create a closet inside the room (with vertices and hostRoomId)
                 const closet = {
                     id: Doc.uid(),
                     label: Doc.label(this.doc, 'closet'),
                     type: 'Closet',
-                    parentRoomId: parentRoom.id,
-                    parentRoomLabel: parentRoom.label,
+                    hostRoomId: parentRoom.id,
                     isExterior: false,
-                    geometry: { x, y, width, height }
+                    vertices: geometryToVertices(geometry)
                 };
                 this.doc.closets.push(closet);
                 Render.select('closet', closet.id);
             } else {
-                // Create a new room
+                // Create a new room (with vertices, no wallSegments)
                 if (width < 4 * FOOT || height < 4 * FOOT) {
                     // Room needs to be at least 4x4
                     Render.layers.openings.batchDraw();
@@ -1964,9 +2591,8 @@ const App = {
                     label: Doc.label(this.doc, 'room'),
                     type: 'Room',
                     isExterior: true,
-                    geometry: { x, y, width, height }
+                    vertices: geometryToVertices(geometry)
                 };
-                createWallSegments(room, this.doc);
                 this.doc.rooms.push(room);
                 markExteriorWalls(this.doc);
             }
@@ -1982,23 +2608,50 @@ const App = {
 
     setupWallDrawing() {
         const stage = Render.stage;
+        let snapPoints = [];
+        let snapIndicators = [];
+
+        // Show snap point indicators when wall tool is active
+        const showSnapPoints = () => {
+            clearSnapIndicators();
+            snapPoints = findWallSnapPoints(this.doc);
+            snapPoints.forEach(pt => {
+                const indicator = new Konva.Circle({
+                    x: pt.x, y: pt.y,
+                    radius: 8,
+                    fill: 'transparent',
+                    stroke: '#3b82f6',
+                    strokeWidth: 2,
+                    dash: [3, 3],
+                    opacity: 0.6
+                });
+                Render.layers.openings.add(indicator);
+                snapIndicators.push(indicator);
+            });
+            Render.layers.openings.batchDraw();
+        };
+
+        const clearSnapIndicators = () => {
+            snapIndicators.forEach(ind => ind.destroy());
+            snapIndicators = [];
+        };
 
         stage.on('mousedown touchstart', (e) => {
             if (this.currentTool !== 'wall') return;
 
             stage.draggable(false);
+            showSnapPoints();
 
             const pos = stage.getPointerPosition();
-            // Snap start point to grid
-            const snappedX = snapToGrid(pos.x);
-            const snappedY = snapToGrid(pos.y);
+            // Snap start point to corners or grid
+            const snapped = snapWallPoint(pos.x, pos.y, snapPoints);
 
             this.isDrawingWall = true;
-            this.wallDrawStart = { x: snappedX, y: snappedY };
+            this.wallDrawStart = { x: snapped.x, y: snapped.y, snapped: snapped.snapped };
 
             // Create preview line
             this.wallPreview = new Konva.Line({
-                points: [snappedX, snappedY, snappedX, snappedY],
+                points: [snapped.x, snapped.y, snapped.x, snapped.y],
                 stroke: '#2d3748',
                 strokeWidth: 4,
                 lineCap: 'round',
@@ -2006,14 +2659,26 @@ const App = {
             });
             Render.layers.openings.add(this.wallPreview);
 
-            // Add start point indicator
+            // Add start point indicator (green if snapped, blue if grid)
             this.wallStartPoint = new Konva.Circle({
-                x: snappedX,
-                y: snappedY,
-                radius: 6,
-                fill: '#3b82f6'
+                x: snapped.x,
+                y: snapped.y,
+                radius: snapped.snapped ? 8 : 6,
+                fill: snapped.snapped ? '#22c55e' : '#3b82f6',
+                stroke: '#fff',
+                strokeWidth: 2
             });
             Render.layers.openings.add(this.wallStartPoint);
+
+            // End point indicator
+            this.wallEndPoint = new Konva.Circle({
+                x: snapped.x, y: snapped.y,
+                radius: 6,
+                fill: '#3b82f6',
+                stroke: '#fff',
+                strokeWidth: 2
+            });
+            Render.layers.openings.add(this.wallEndPoint);
         });
 
         stage.on('mousemove touchmove', (e) => {
@@ -2022,20 +2687,32 @@ const App = {
             const pos = stage.getPointerPosition();
             const start = this.wallDrawStart;
 
-            // Snap end point to grid
-            let endX = snapToGrid(pos.x);
-            let endY = snapToGrid(pos.y);
+            // Snap end point to corners or grid
+            let snapped = snapWallPoint(pos.x, pos.y, snapPoints);
+            let endX = snapped.x;
+            let endY = snapped.y;
 
-            // Constrain to horizontal or vertical (whichever is dominant)
-            const dx = Math.abs(endX - start.x);
-            const dy = Math.abs(endY - start.y);
-            if (dx > dy) {
-                endY = start.y; // Horizontal line
-            } else {
-                endX = start.x; // Vertical line
+            // If not snapped to a corner, constrain to horizontal or vertical
+            if (!snapped.snapped) {
+                const dx = Math.abs(endX - start.x);
+                const dy = Math.abs(endY - start.y);
+                if (dx > dy) {
+                    endY = start.y; // Horizontal line
+                } else {
+                    endX = start.x; // Vertical line
+                }
             }
 
             this.wallPreview.points([start.x, start.y, endX, endY]);
+
+            // Update end point indicator
+            if (this.wallEndPoint) {
+                this.wallEndPoint.x(endX);
+                this.wallEndPoint.y(endY);
+                this.wallEndPoint.radius(snapped.snapped ? 8 : 6);
+                this.wallEndPoint.fill(snapped.snapped ? '#22c55e' : '#3b82f6');
+            }
+
             Render.layers.openings.batchDraw();
         });
 
@@ -2046,25 +2723,33 @@ const App = {
             const start = this.wallDrawStart;
 
             // Snap end point
-            let endX = snapToGrid(pos.x);
-            let endY = snapToGrid(pos.y);
+            let snapped = snapWallPoint(pos.x, pos.y, snapPoints);
+            let endX = snapped.x;
+            let endY = snapped.y;
 
-            // Constrain to horizontal or vertical
-            const dx = Math.abs(endX - start.x);
-            const dy = Math.abs(endY - start.y);
-            if (dx > dy) {
-                endY = start.y;
-            } else {
-                endX = start.x;
+            // If not snapped, constrain to horizontal or vertical
+            if (!snapped.snapped) {
+                const dx = Math.abs(endX - start.x);
+                const dy = Math.abs(endY - start.y);
+                if (dx > dy) {
+                    endY = start.y;
+                } else {
+                    endX = start.x;
+                }
             }
 
-            // Remove preview
+            // Remove preview elements
             this.wallPreview.destroy();
             this.wallPreview = null;
             if (this.wallStartPoint) {
                 this.wallStartPoint.destroy();
                 this.wallStartPoint = null;
             }
+            if (this.wallEndPoint) {
+                this.wallEndPoint.destroy();
+                this.wallEndPoint = null;
+            }
+            clearSnapIndicators();
             this.isDrawingWall = false;
             stage.draggable(true);
 
@@ -2075,34 +2760,23 @@ const App = {
                 return;
             }
 
-            // Create standalone wall segment
-            const isHorizontal = Math.abs(endY - start.y) < 2;
-            const ws = {
-                id: Doc.uid(),
-                roomId: null,  // Standalone wall
-                roomLabel: null,
-                index: 0,
-                label: 'W-' + (this.doc.wallSegments.filter(w => !w.roomId).length + 1),
-                side: isHorizontal ? (start.y < 400 ? 'north' : 'south') : (start.x < 400 ? 'west' : 'east'),
-                x1: start.x, y1: start.y,
-                x2: endX, y2: endY,
-                thickness: WALL_EXT,
-                type: 'exterior',
-                attachedObjects: []
-            };
-            this.doc.wallSegments.push(ws);
+            // In the room-first model, standalone walls are not supported
+            // Walls are derived from room polygon vertices
+            // Show a hint to the user
+            alert('In the room-first model, walls are derived from room vertices.\n\nTo add a wall, create a room first, then edit its vertices.');
 
-            this.saveState();
-            this.render();
-            this.updateTree();
-            this.updateQABadge();
-            Render.select('wall', ws.id);
-            this.updateInspector();
+            Render.layers.openings.batchDraw();
+            this.setTool('select');
         });
     },
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
+            // Escape: Deselect
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.deselect();
+            }
             // Undo: Ctrl+Z or Cmd+Z
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault();
@@ -2114,6 +2788,14 @@ const App = {
                 this.redo();
             }
         });
+    },
+
+    deselect() {
+        Render.deselect();
+        this.render();
+        this.updateInspector();
+        // Remove tree item highlight
+        document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
     },
 
     saveState() {
@@ -2190,18 +2872,37 @@ const App = {
         Render.render(this.doc, { showWallIds: this.showWallIds, showDims: this.showDims });
     },
 
-    onWallTap(wallSegmentId) {
-        const ws = this.doc.wallSegments.find(s => s.id === wallSegmentId);
-        if (!ws) return;
+    // Edge-based wall tap handler (roomId + edgeIndex)
+    onWallEdgeTap(roomId, edgeIndex) {
+        const room = this.doc.rooms.find(r => r.id === roomId);
+        if (!room) return;
+
+        const edges = getWallEdges(room);
+        const edge = edges[edgeIndex];
+        if (!edge) return;
+
+        const wallKey = `${roomId}_${edgeIndex}`;
 
         if (this.currentTool === 'select') {
-            Render.select('wall', wallSegmentId);
+            Render.select('wall', wallKey);
             this.render();
             this.updateInspector();
-            this.highlightTreeItem('wall', wallSegmentId);
+            this.highlightTreeItem('wall', wallKey);
+        } else if (this.currentTool === 'editShape') {
+            // In editShape mode, clicking a wall selects the parent room for vertex editing
+            Render.select('room', roomId);
+            this.render();
+            this.updateInspector();
         } else if (['door', 'window', 'cased', 'pipe', 'gas', 'radiator', 'riser', 'poe'].includes(this.currentTool)) {
-            this.placeOnWall(ws, this.currentTool);
+            this.placeOnEdge(room, edgeIndex, this.currentTool);
         }
+    },
+
+    // Legacy wall tap handler (for backwards compatibility)
+    onWallTap(wallSegmentId) {
+        // Try to find room and edge from wallSegmentId
+        // This is for legacy support during transition
+        console.warn('onWallTap is deprecated, use onWallEdgeTap');
     },
 
     onObjectTap(type, id) {
@@ -2212,21 +2913,29 @@ const App = {
     },
 
     onRoomTap(roomId) {
-        if (this.currentTool === 'select') {
+        // Allow room selection in select mode or editShape mode
+        if (this.currentTool === 'select' || this.currentTool === 'editShape') {
             Render.select('room', roomId);
             this.render();
             this.updateInspector();
         }
     },
 
-    placeOnWall(ws, toolType) {
-        const room = this.doc.rooms.find(r => r.id === ws.roomId);
-        const segLen = getSegmentLength(ws);
-        const defaultOffset = segLen * 0.3;
+    // Place object on edge using new model (parentRoomId + parentWallEdgeIndex + tAlongEdge)
+    placeOnEdge(room, edgeIndex, toolType) {
+        const edges = getWallEdges(room);
+        const edge = edges[edgeIndex];
+        if (!edge) return;
+
+        const edgeLen = getEdgeLength(edge);
+        const defaultT = 0.3;  // 30% along edge
+
+        // Check if edge is exterior
+        const isExterior = isEdgeExterior(room, edgeIndex);
 
         // Windows can ONLY be placed on exterior walls
-        if (toolType === 'window' && ws.type !== 'exterior') {
-            alert(`Windows can only be placed on exterior walls.\n${room?.label} ${ws.label} is an interior wall.`);
+        if (toolType === 'window' && !isExterior) {
+            alert(`Windows can only be placed on exterior walls.\n${room.label} ${edge.label} is an interior wall.`);
             return;
         }
 
@@ -2235,71 +2944,83 @@ const App = {
             case 'door':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'door'), type: 'interior',
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 2.67 * FOOT, swing: 'in', swingDir: 'left'
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT,
+                    width: 2.67 * FOOT, swing: 'in', swingDir: 'left'
                 };
                 this.doc.doors.push(obj);
                 break;
             case 'window':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'window'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 4 * FOOT, sillHeight: 36 * INCH
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT,
+                    width: 4 * FOOT, sillHeight: 36 * INCH
                 };
                 this.doc.windows.push(obj);
                 break;
             case 'cased':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'cased'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 4 * FOOT
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT,
+                    width: 4 * FOOT
                 };
                 this.doc.casedOpenings.push(obj);
                 break;
             case 'pipe':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'pipe'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'gas':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'gas'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'radiator':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'radiator'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 4 * FOOT, height: 1 * FOOT, side: 'interior'
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT,
+                    width: 4 * FOOT, height: 1 * FOOT, side: 'interior'
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'riser':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'riser'),
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 0.5 * FOOT, height: 0.5 * FOOT, side: 'interior'
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT,
+                    width: 0.5 * FOOT, height: 0.5 * FOOT, side: 'interior'
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'poe':
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'poe'), type: 'entry',
-                    parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    parentRoomId: room.id,
+                    parentWallEdgeIndex: edgeIndex,
+                    tAlongEdge: defaultT
                 };
                 this.doc.mep.push(obj);
                 break;
         }
 
         if (obj) {
-            ws.attachedObjects.push({ type: toolType, id: obj.id, label: obj.label });
             Render.select(toolType === 'door' || toolType === 'window' || toolType === 'cased' ? toolType : 'mep', obj.id);
             this.saveState();
             this.render();
@@ -2308,6 +3029,11 @@ const App = {
             this.updateQABadge();
             this.setTool('select');
         }
+    },
+
+    // Legacy placeOnWall - deprecated
+    placeOnWall(ws, toolType) {
+        console.warn('placeOnWall is deprecated, use placeOnEdge');
     },
 
     setTool(tool) {
@@ -2323,7 +3049,10 @@ const App = {
             hint.textContent = 'Drag to draw room (outside) or closet (inside room)';
             hint.classList.add('show');
         } else if (tool === 'wall') {
-            hint.textContent = 'Click and drag to draw wall (snaps to grid)';
+            hint.textContent = 'Draw wall - snaps to corners (green = snapped)';
+            hint.classList.add('show');
+        } else if (tool === 'editShape') {
+            hint.textContent = 'Click room to edit: drag corners, tap green + to add vertex';
             hint.classList.add('show');
         } else if (['door', 'window', 'cased', 'pipe', 'gas', 'radiator', 'riser', 'poe'].includes(tool)) {
             const toolName = tool === 'riser' ? 'PIPE RISER' : tool.toUpperCase();
@@ -2340,14 +3069,9 @@ const App = {
         const deleteBtn = $('#deleteBtn');
         const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
 
-        // Also allow deleting standalone walls (walls without roomId)
+        // In the edge-based model, walls are derived from rooms and cannot be deleted independently
+        // Only allow deleting attachments (doors, windows, etc.)
         let canDelete = sel.type && sel.id && deletableTypes.includes(sel.type);
-        if (sel.type === 'wall' && sel.id) {
-            const wall = this.doc.wallSegments.find(ws => ws.id === sel.id);
-            if (wall && !wall.roomId) {
-                canDelete = true;  // Standalone wall can be deleted
-            }
-        }
 
         if (deleteBtn) {
             deleteBtn.disabled = !canDelete;
@@ -2363,23 +3087,9 @@ const App = {
     },
 
     deleteObject(objId, objType) {
-        // Handle standalone wall deletion
+        // In the edge-based model, walls are derived from rooms and cannot be deleted
         if (objType === 'wall') {
-            const wall = this.doc.wallSegments.find(ws => ws.id === objId);
-            if (wall && !wall.roomId) {
-                // Only delete standalone walls (not part of a room)
-                const index = this.doc.wallSegments.findIndex(ws => ws.id === objId);
-                if (index !== -1) {
-                    this.doc.wallSegments.splice(index, 1);
-                    this.saveState();
-                    Render.deselect();
-                    this.render();
-                    this.updateTree();
-                    this.updateInspector();
-                    this.updateQABadge();
-                }
-            }
-            return;
+            return;  // Walls cannot be deleted independently
         }
 
         // Only allow deleting actual objects, not rooms
@@ -2388,7 +3098,7 @@ const App = {
             return;  // Silently ignore non-deletable types
         }
 
-        let collection, index;
+        let collection;
         if (objType === 'door') {
             collection = this.doc.doors;
         } else if (objType === 'window') {
@@ -2402,16 +3112,8 @@ const App = {
         }
 
         if (collection) {
-            index = collection.findIndex(o => o.id === objId);
+            const index = collection.findIndex(o => o.id === objId);
             if (index !== -1) {
-                const obj = collection[index];
-                // Remove from wall's attachedObjects
-                if (obj.parentWallSegmentId) {
-                    const ws = this.doc.wallSegments.find(s => s.id === obj.parentWallSegmentId);
-                    if (ws) {
-                        ws.attachedObjects = ws.attachedObjects.filter(a => a.id !== objId);
-                    }
-                }
                 // Remove from collection
                 collection.splice(index, 1);
 
@@ -2447,9 +3149,10 @@ const App = {
         }
     },
 
+    // Update object offset using tAlongEdge (0-1) normalized position
     updateObjectOffset(objId, objType, newOffsetFeet) {
-        const offset = parseFloat(newOffsetFeet) * FOOT;
-        if (isNaN(offset) || offset < 0) {
+        const offsetDist = parseFloat(newOffsetFeet) * FOOT;
+        if (isNaN(offsetDist) || offsetDist < 0) {
             alert('Offset must be 0 or greater');
             return;
         }
@@ -2461,17 +3164,25 @@ const App = {
         else if (objType === 'mep') collection = this.doc.mep;
 
         const obj = collection?.find(o => o.id === objId);
-        if (obj) {
-            // Validate offset doesn't exceed wall length
-            const ws = this.doc.wallSegments.find(s => s.id === obj.parentWallSegmentId);
-            if (ws) {
-                const maxOffset = getSegmentLength(ws) - (obj.width || 0);
-                if (offset > maxOffset) {
-                    alert(`Offset too large. Max: ${(maxOffset / FOOT).toFixed(1)} ft`);
-                    return;
-                }
+        if (obj && obj.parentRoomId && typeof obj.parentWallEdgeIndex === 'number') {
+            // Get edge to calculate tAlongEdge
+            const room = this.doc.rooms.find(r => r.id === obj.parentRoomId);
+            if (!room) return;
+
+            const edges = getWallEdges(room);
+            const edge = edges[obj.parentWallEdgeIndex];
+            if (!edge) return;
+
+            const edgeLen = getEdgeLength(edge);
+            const maxOffset = edgeLen - (obj.width || 0);
+
+            if (offsetDist > maxOffset) {
+                alert(`Offset too large. Max: ${(maxOffset / FOOT).toFixed(1)} ft`);
+                return;
             }
-            obj.distanceFromStart = offset;
+
+            // Convert offset distance to tAlongEdge
+            obj.tAlongEdge = offsetDist / edgeLen;
             this.saveState();
             this.render();
             this.updateQABadge();
@@ -2480,49 +3191,111 @@ const App = {
 
     updateTree() {
         const tree = $('#objectTree');
-        tree.innerHTML = '';
+        while (tree.firstChild) tree.removeChild(tree.firstChild);
+
+        // Helper to get wall label from parentRoomId and parentWallEdgeIndex
+        const getWallLabel = (item) => {
+            if (item.parentRoomId && typeof item.parentWallEdgeIndex === 'number') {
+                const room = this.doc.rooms.find(r => r.id === item.parentRoomId);
+                if (room) {
+                    const edges = getWallEdges(room);
+                    const edge = edges[item.parentWallEdgeIndex];
+                    return edge ? ` → ${edge.label}` : '';
+                }
+            }
+            return '';
+        };
 
         const addGroup = (title, items, color, type) => {
             if (items.length === 0) return;
             const grp = document.createElement('div');
             grp.className = 'tree-group';
-            grp.innerHTML = `<div class="tree-label">${title} (${items.length})</div>`;
+            const label = document.createElement('div');
+            label.className = 'tree-label';
+            label.textContent = `${title} (${items.length})`;
+            grp.appendChild(label);
+
             items.forEach(item => {
                 const el = document.createElement('div');
                 el.className = 'tree-item';
                 el.dataset.type = type;
                 el.dataset.id = item.id;
-                const ws = this.doc.wallSegments.find(s => s.id === item.parentWallSegmentId);
-                const wallInfo = ws ? ` → ${ws.label}` : '';
-                el.innerHTML = `<div class="tree-dot" style="background:${color}"></div><span>${item.label}${item.type ? ' (' + item.type + ')' : ''}${wallInfo}</span>`;
+                const wallInfo = getWallLabel(item);
+
+                const dot = document.createElement('div');
+                dot.className = 'tree-dot';
+                dot.style.background = color;
+                el.appendChild(dot);
+
+                const span = document.createElement('span');
+                span.textContent = `${item.label}${item.type ? ' (' + item.type + ')' : ''}${wallInfo}`;
+                el.appendChild(span);
+
                 el.onclick = () => this.onObjectTap(type, item.id);
                 grp.appendChild(el);
             });
             tree.appendChild(grp);
         };
 
-        // Rooms with wall segments
+        // Rooms with derived wall edges
         if (this.doc.rooms.length > 0) {
             const roomGrp = document.createElement('div');
             roomGrp.className = 'tree-group';
-            roomGrp.innerHTML = `<div class="tree-label">ROOMS (${this.doc.rooms.length})</div>`;
+            const roomLabel = document.createElement('div');
+            roomLabel.className = 'tree-label';
+            roomLabel.textContent = `ROOMS (${this.doc.rooms.length})`;
+            roomGrp.appendChild(roomLabel);
+
             this.doc.rooms.forEach(room => {
                 const roomEl = document.createElement('div');
                 roomEl.className = 'tree-item';
-                roomEl.innerHTML = `<div class="tree-dot" style="background:#f4d03f"></div><span>${room.label} - ${room.type}</span>`;
+                roomEl.dataset.type = 'room';
+                roomEl.dataset.id = room.id;
+
+                const dot = document.createElement('div');
+                dot.className = 'tree-dot';
+                dot.style.background = '#f4d03f';
+                roomEl.appendChild(dot);
+
+                const span = document.createElement('span');
+                span.textContent = `${room.label} - ${room.type}`;
+                roomEl.appendChild(span);
+
+                roomEl.onclick = () => this.onRoomTap(room.id);
                 roomGrp.appendChild(roomEl);
 
-                // Wall segments under room
-                const segs = this.doc.wallSegments.filter(ws => ws.roomId === room.id);
-                segs.forEach(ws => {
-                    const wsEl = document.createElement('div');
-                    wsEl.className = 'tree-item';
-                    wsEl.style.paddingLeft = '20px';
-                    wsEl.dataset.type = 'wall';
-                    wsEl.dataset.id = ws.id;
-                    wsEl.innerHTML = `<div class="tree-dot" style="background:#666;width:6px;height:6px"></div><span>${ws.label} (${ws.side}) [${ws.attachedObjects.length}]</span>`;
-                    wsEl.onclick = () => this.onWallTap(ws.id);
-                    roomGrp.appendChild(wsEl);
+                // Derived wall edges under room
+                const edges = getWallEdges(room);
+                edges.forEach((edge, edgeIndex) => {
+                    const wallKey = `${room.id}_${edgeIndex}`;
+                    const isExterior = isEdgeExterior(room, edgeIndex);
+
+                    // Count attachments on this edge
+                    const attachCount =
+                        this.doc.doors.filter(d => d.parentRoomId === room.id && d.parentWallEdgeIndex === edgeIndex).length +
+                        this.doc.windows.filter(w => w.parentRoomId === room.id && w.parentWallEdgeIndex === edgeIndex).length +
+                        this.doc.casedOpenings.filter(c => c.parentRoomId === room.id && c.parentWallEdgeIndex === edgeIndex).length +
+                        this.doc.mep.filter(m => m.parentRoomId === room.id && m.parentWallEdgeIndex === edgeIndex).length;
+
+                    const edgeEl = document.createElement('div');
+                    edgeEl.className = 'tree-item';
+                    edgeEl.style.paddingLeft = '20px';
+                    edgeEl.dataset.type = 'wall';
+                    edgeEl.dataset.id = wallKey;
+
+                    const edgeDot = document.createElement('div');
+                    edgeDot.className = 'tree-dot';
+                    edgeDot.style.background = '#666';
+                    edgeDot.style.width = '6px';
+                    edgeDot.style.height = '6px';
+                    edgeEl.appendChild(edgeDot);
+
+                    const edgeSpan = document.createElement('span');
+                    edgeSpan.textContent = `${edge.label} (${isExterior ? 'ext' : 'int'}) [${attachCount}]`;
+                    edgeEl.appendChild(edgeSpan);
+
+                    edgeEl.onclick = () => this.onWallEdgeTap(room.id, edgeIndex);
+                    roomGrp.appendChild(edgeEl);
                 });
             });
             tree.appendChild(roomGrp);
@@ -2627,26 +3400,70 @@ const App = {
         const offX = isFinite(minX) ? 60 - minX : 0;
         const offY = isFinite(minY) ? 60 - minY : 0;
 
+        // First pass: create rooms
         objs.forEach(o => {
             if (o.objectType === 'RoomEquivalent') {
                 const rt = o.roomType || {};
                 const abbr = rt.abbreviation || 'ROOM';
                 const isCloset = abbr === 'CLO';
+                if (isCloset) return; // Skip closets in first pass
+
                 const x = Math.min(o.startX, o.endX) + offX;
                 const y = Math.min(o.startY, o.endY) + offY;
                 const w = Math.abs(o.endX - o.startX);
                 const h = Math.abs(o.endY - o.startY);
                 if (w < 5 || h < 5) return;
 
-                if (isCloset) {
-                    doc.closets.push({ id: Doc.uid(), label: Doc.label(doc, 'closet'), fbgName: o.name, geometry: { x, y, width: w, height: h } });
-                } else {
-                    const room = { id: Doc.uid(), label: Doc.label(doc, 'room'), type: rt.name || abbr, fbgName: o.name, isExterior: true, geometry: { x, y, width: w, height: h } };
-                    createWallSegments(room, doc);
-                    doc.rooms.push(room);
-                }
+                const geometry = { x, y, width: w, height: h };
+                const room = {
+                    id: Doc.uid(),
+                    label: Doc.label(doc, 'room'),
+                    type: rt.name || abbr,
+                    fbgName: o.name,
+                    isExterior: true,
+                    vertices: geometryToVertices(geometry)
+                };
+                doc.rooms.push(room);
             }
         });
+
+        // Second pass: create closets and link to containing rooms
+        objs.forEach(o => {
+            if (o.objectType === 'RoomEquivalent') {
+                const rt = o.roomType || {};
+                const abbr = rt.abbreviation || 'ROOM';
+                const isCloset = abbr === 'CLO';
+                if (!isCloset) return; // Only closets in second pass
+
+                const x = Math.min(o.startX, o.endX) + offX;
+                const y = Math.min(o.startY, o.endY) + offY;
+                const w = Math.abs(o.endX - o.startX);
+                const h = Math.abs(o.endY - o.startY);
+                if (w < 5 || h < 5) return;
+
+                const geometry = { x, y, width: w, height: h };
+
+                // Find host room (closet center should be inside or near a room)
+                const closetCenterX = x + w / 2;
+                const closetCenterY = y + h / 2;
+                const hostRoom = doc.rooms.find(room => {
+                    const bounds = getVerticesBounds(room.vertices);
+                    return closetCenterX >= bounds.x && closetCenterX <= bounds.x + bounds.width &&
+                           closetCenterY >= bounds.y && closetCenterY <= bounds.y + bounds.height;
+                });
+
+                doc.closets.push({
+                    id: Doc.uid(),
+                    label: Doc.label(doc, 'closet'),
+                    fbgName: o.name,
+                    hostRoomId: hostRoom ? hostRoom.id : null,
+                    vertices: geometryToVertices(geometry)
+                });
+            }
+        });
+
+        // Mark exterior walls after all rooms are added
+        markExteriorWalls(doc);
         return doc;
     },
 
@@ -2659,7 +3476,7 @@ const App = {
         const pdf = new jsPDF('landscape', 'pt', 'letter');
 
         pdf.setFontSize(14);
-        pdf.text('2BR/1BA Blueprint - Wall Segment Attachments', 40, 30);
+        pdf.text('2BR/1BA Blueprint - Wall Edge Attachments', 40, 30);
         pdf.setFontSize(9);
         pdf.text(`Address: ${this.doc.address}`, 40, 45);
         pdf.text(`Date: ${new Date().toLocaleDateString()}`, 40, 57);
@@ -2672,19 +3489,31 @@ const App = {
         pdf.setFontSize(7);
         pdf.text('Wall IDs: W1=SOUTH, W2=WEST, W3=NORTH, W4=EAST (clockwise from south-most wall)', 40, 520);
 
-        // Attachment summary
+        // Attachment summary using edge-based model
         let y = 535;
         pdf.setFontSize(8);
         pdf.text('Attachments:', 40, y);
         y += 10;
-        this.doc.wallSegments.forEach(ws => {
-            if (ws.attachedObjects.length > 0) {
-                const room = this.doc.rooms.find(r => r.id === ws.roomId);
-                const items = ws.attachedObjects.map(a => a.label).join(', ');
-                pdf.text(`${room?.label} ${ws.label}: ${items}`, 50, y);
-                y += 9;
-                if (y > 580) { y = 535; pdf.addPage(); }
-            }
+
+        // Iterate through rooms and their edges
+        this.doc.rooms.forEach(room => {
+            const edges = getWallEdges(room);
+            edges.forEach((edge, edgeIndex) => {
+                // Find all attachments on this edge
+                const attachments = [
+                    ...this.doc.doors.filter(d => d.parentRoomId === room.id && d.parentWallEdgeIndex === edgeIndex),
+                    ...this.doc.windows.filter(w => w.parentRoomId === room.id && w.parentWallEdgeIndex === edgeIndex),
+                    ...this.doc.casedOpenings.filter(c => c.parentRoomId === room.id && c.parentWallEdgeIndex === edgeIndex),
+                    ...this.doc.mep.filter(m => m.parentRoomId === room.id && m.parentWallEdgeIndex === edgeIndex)
+                ];
+
+                if (attachments.length > 0) {
+                    const items = attachments.map(a => a.label).join(', ');
+                    pdf.text(`${room.label} ${edge.label}: ${items}`, 50, y);
+                    y += 9;
+                    if (y > 580) { y = 535; pdf.addPage(); }
+                }
+            });
         });
 
         pdf.save(`Blueprint_WallAttach_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -2693,19 +3522,15 @@ const App = {
 
 document.addEventListener('DOMContentLoaded', () => App.init());
 
-// Keyboard shortcut for delete (objects and standalone walls)
+// Keyboard shortcut for delete (objects only - walls cannot be deleted)
 document.addEventListener('keydown', (e) => {
     const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
     if ((e.key === 'Delete' || e.key === 'Backspace') && Render.selection.type && Render.selection.id) {
         // Don't delete if typing in an input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-        // Check if it's a deletable type or a standalone wall
-        let canDelete = deletableTypes.includes(Render.selection.type);
-        if (Render.selection.type === 'wall') {
-            const wall = App.doc.wallSegments.find(ws => ws.id === Render.selection.id);
-            canDelete = wall && !wall.roomId;  // Only standalone walls
-        }
+        // In edge-based model, only attachments can be deleted (not walls)
+        const canDelete = deletableTypes.includes(Render.selection.type);
 
         if (!canDelete) return;
         e.preventDefault();
