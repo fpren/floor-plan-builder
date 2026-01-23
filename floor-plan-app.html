@@ -257,7 +257,7 @@ function createWallSegments(room, doc) {
             side: seg.side,
             x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
             thickness: room.isExterior ? WALL_EXT : WALL_INT,
-            type: room.isExterior ? 'exterior' : 'interior',
+            type: 'interior',  // Default to interior, will be set properly by markExteriorWalls()
             attachedObjects: []
         };
         doc.wallSegments.push(ws);
@@ -309,6 +309,51 @@ function findNearestWallSegment(x, y, doc) {
     });
 
     return { segment: nearest, distance: minDist, t: nearestT, point: nearestPoint };
+}
+
+// ========== MARK EXTERIOR WALLS ==========
+// Determines which walls are on the building perimeter (exterior) vs shared with other rooms (interior)
+function markExteriorWalls(doc) {
+    if (doc.rooms.length === 0) return;
+
+    // Find building bounding box from all rooms
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    doc.rooms.forEach(room => {
+        const g = room.geometry;
+        minX = Math.min(minX, g.x);
+        minY = Math.min(minY, g.y);
+        maxX = Math.max(maxX, g.x + g.width);
+        maxY = Math.max(maxY, g.y + g.height);
+    });
+
+    // Tolerance for edge detection (walls on perimeter)
+    const tolerance = 2;
+
+    // Mark each wall segment as exterior if it's on the building perimeter
+    doc.wallSegments.forEach(ws => {
+        const midX = (ws.x1 + ws.x2) / 2;
+        const midY = (ws.y1 + ws.y2) / 2;
+        const isVertical = Math.abs(ws.x1 - ws.x2) < tolerance;
+        const isHorizontal = Math.abs(ws.y1 - ws.y2) < tolerance;
+
+        let isExterior = false;
+
+        if (isHorizontal) {
+            // Check if on top or bottom edge
+            if (Math.abs(midY - minY) < tolerance || Math.abs(midY - maxY) < tolerance) {
+                isExterior = true;
+            }
+        }
+        if (isVertical) {
+            // Check if on left or right edge
+            if (Math.abs(midX - minX) < tolerance || Math.abs(midX - maxX) < tolerance) {
+                isExterior = true;
+            }
+        }
+
+        ws.type = isExterior ? 'exterior' : 'interior';
+        ws.thickness = isExterior ? WALL_EXT : WALL_INT;
+    });
 }
 
 // ========== GENERATE 2BR/1BA ==========
@@ -389,6 +434,9 @@ function generate2BR1BA() {
     };
     createWallSegments(bed2, doc);
     doc.rooms.push(bed2);
+
+    // Mark which walls are actually on the building exterior vs interior (shared)
+    markExteriorWalls(doc);
 
     // ========== CLOSETS (with parentRoomId and wall segments) ==========
     // CL-01: Inside Bedroom 1 (4' x 2.5')
@@ -741,16 +789,19 @@ const Render = {
     renderWallSegment(ws, doc, showWallIds) {
         const room = doc.rooms.find(r => r.id === ws.roomId);
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
+        const isExterior = ws.type === 'exterior';
 
         // Wall group
         const group = new Konva.Group({ id: ws.id });
         this.wallGroups[ws.id] = group;
 
-        // Visible wall line
+        // Visible wall line - exterior walls are thicker and different color
+        const wallColor = isSelected ? '#06b6d4' : (isExterior ? '#f4d03f' : '#888');
+        const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
         const visibleLine = new Konva.Line({
             points: [ws.x1, ws.y1, ws.x2, ws.y2],
-            stroke: isSelected ? '#06b6d4' : '#f4d03f',
-            strokeWidth: isSelected ? 4 : 3,
+            stroke: wallColor,
+            strokeWidth: wallWidth,
             lineCap: 'round',
             listening: false
         });
@@ -1036,6 +1087,13 @@ function runQA(doc) {
     const unattachedWindows = doc.windows.filter(w => !w.parentWallSegmentId);
     results.push({ rule: 'Windows attached to walls', pass: unattachedWindows.length === 0, detail: unattachedWindows.length > 0 ? `${unattachedWindows.length} floating` : 'OK' });
 
+    // Windows must be on exterior walls only
+    const windowsOnInterior = doc.windows.filter(w => {
+        const ws = doc.wallSegments.find(seg => seg.id === w.parentWallSegmentId);
+        return ws && ws.type !== 'exterior';
+    });
+    results.push({ rule: 'Windows on exterior walls', pass: windowsOnInterior.length === 0, detail: windowsOnInterior.length > 0 ? `${windowsOnInterior.length} on interior` : 'OK' });
+
     // MEP attached (except free-placed)
     const unattachedMEP = doc.mep.filter(m => !m.parentWallSegmentId && !m.freePlaced);
     results.push({ rule: 'MEP attached to walls', pass: unattachedMEP.length === 0, detail: unattachedMEP.length > 0 ? `${unattachedMEP.length} floating` : 'OK' });
@@ -1107,6 +1165,12 @@ const App = {
         const room = this.doc.rooms.find(r => r.id === ws.roomId);
         const segLen = getSegmentLength(ws);
         const defaultOffset = segLen * 0.3;
+
+        // Windows can ONLY be placed on exterior walls
+        if (toolType === 'window' && ws.type !== 'exterior') {
+            alert(`Windows can only be placed on exterior walls.\n${room?.label} ${ws.label} is an interior wall.`);
+            return;
+        }
 
         let obj;
         switch (toolType) {
