@@ -889,17 +889,26 @@ const Render = {
 
         const doorGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
-        // Door opening (gap in wall) - must cover full wall stroke width
-        const wallStroke = ws.type === 'exterior' ? 5 : 3;  // Match wall rendering stroke
+        // Door opening (gap in wall) - match room fill color
         const doorRect = new Konva.Rect({
-            x: -1, y: -(ws.thickness / 2 + wallStroke),
-            width: door.width + 2,
-            height: ws.thickness + wallStroke * 2,
-            fill: '#1a1a1a',  // Background color - creates the gap
-            stroke: 'transparent',
-            strokeWidth: 0
+            x: 0, y: -3,
+            width: door.width,
+            height: 6,
+            fill: '#252525',  // Match room fill color
+            stroke: 'transparent'
         });
         doorGroup.add(doorRect);
+
+        // Door jambs (thin lines at edges of opening)
+        const jambColor = '#666';
+        doorGroup.add(new Konva.Line({
+            points: [0, -3, 0, 3],
+            stroke: jambColor, strokeWidth: 1
+        }));
+        doorGroup.add(new Konva.Line({
+            points: [door.width, -3, door.width, 3],
+            stroke: jambColor, strokeWidth: 1
+        }));
 
         // Door geometry - hinge point and swing direction
         const swingOut = door.swing === 'out' ? -1 : 1;  // in = toward positive y, out = toward negative y
