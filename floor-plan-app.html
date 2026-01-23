@@ -889,10 +889,15 @@ const Render = {
 
         const doorGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
 
-        // Door opening (gap in wall)
+        // Door opening (gap in wall) - must cover full wall stroke width
+        const wallStroke = ws.type === 'exterior' ? 5 : 3;  // Match wall rendering stroke
         const doorRect = new Konva.Rect({
-            x: 0, y: -ws.thickness / 2, width: door.width, height: ws.thickness,
-            fill: '#1a1a1a', stroke: isSelected ? '#06b6d4' : '#fff', strokeWidth: 1
+            x: -1, y: -(ws.thickness / 2 + wallStroke),
+            width: door.width + 2,
+            height: ws.thickness + wallStroke * 2,
+            fill: '#1a1a1a',  // Background color - creates the gap
+            stroke: 'transparent',
+            strokeWidth: 0
         });
         doorGroup.add(doorRect);
 
