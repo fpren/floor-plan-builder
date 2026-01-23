@@ -1097,24 +1097,30 @@ const Render = {
 
         // Window frame lines (top and bottom sill) - thicker
         const frameColor = isSelected ? '#06b6d4' : '#87ceeb';
-        winGroup.add(new Konva.Line({
+        const topSill = new Konva.Line({
             points: [0, -winThickness / 2, win.width, -winThickness / 2],
             stroke: frameColor, strokeWidth: 3
-        }));
-        winGroup.add(new Konva.Line({
+        });
+        winGroup.add(topSill);
+
+        const bottomSill = new Konva.Line({
             points: [0, winThickness / 2, win.width, winThickness / 2],
             stroke: frameColor, strokeWidth: 3
-        }));
+        });
+        winGroup.add(bottomSill);
 
         // Window jambs (ends)
-        winGroup.add(new Konva.Line({
+        const leftJamb = new Konva.Line({
             points: [0, -winThickness / 2, 0, winThickness / 2],
             stroke: frameColor, strokeWidth: 2
-        }));
-        winGroup.add(new Konva.Line({
+        });
+        winGroup.add(leftJamb);
+
+        const rightJamb = new Konva.Line({
             points: [win.width, -winThickness / 2, win.width, winThickness / 2],
             stroke: frameColor, strokeWidth: 2
-        }));
+        });
+        winGroup.add(rightJamb);
 
         // Mullion (center divider)
         const mullion = new Konva.Line({
@@ -1159,11 +1165,18 @@ const Render = {
                 const newPos = self.getPositionOnSegment(ws, win.distanceFromStart);
                 const newRightPos = self.getPositionOnSegment(ws, win.distanceFromStart + win.width);
 
-                // Update window group position and rect width
+                // Update window group position
                 winGroup.x(newPos.x);
                 winGroup.y(newPos.y);
+
+                // Update rect width
                 winRect.width(win.width);
-                mullion.points([win.width / 2, -ws.thickness / 2, win.width / 2, ws.thickness / 2]);
+
+                // Update frame lines
+                topSill.points([0, -winThickness / 2, win.width, -winThickness / 2]);
+                bottomSill.points([0, winThickness / 2, win.width, winThickness / 2]);
+                rightJamb.points([win.width, -winThickness / 2, win.width, winThickness / 2]);
+                mullion.points([win.width / 2, -winThickness / 2, win.width / 2, winThickness / 2]);
 
                 // Update handle positions
                 leftHandle.x(newPos.x);
