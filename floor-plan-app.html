@@ -896,14 +896,24 @@ const Render = {
         });
         doorGroup.add(doorRect);
 
-        // Swing arc
+        // Swing arc (dashed/perforated)
         const arcDir = door.swingDir === 'left' ? -1 : 1;
         const swingArc = new Konva.Arc({
-            x: 0, y: arcDir * ws.thickness / 2, innerRadius: 0, outerRadius: door.width * 0.75,
+            x: 0, y: arcDir * ws.thickness / 2, innerRadius: 0, outerRadius: door.width * 0.9,
             angle: 90, rotation: arcDir > 0 ? -90 : 0,
             stroke: '#555', strokeWidth: 1, dash: [4, 4]
         });
         doorGroup.add(swingArc);
+
+        // Door leaf (solid line representing the actual door panel)
+        // Shown at 45 degrees to indicate open position
+        const doorLeaf = new Konva.Line({
+            points: [0, arcDir * ws.thickness / 2, door.width * 0.9 * 0.707, arcDir * (ws.thickness / 2 + door.width * 0.9 * 0.707)],
+            stroke: isSelected ? '#06b6d4' : '#fff',
+            strokeWidth: 2,
+            lineCap: 'round'
+        });
+        doorGroup.add(doorLeaf);
 
         doorGroup.on('tap click', () => App.onObjectTap('door', door.id));
         this.layers.openings.add(doorGroup);
@@ -946,7 +956,13 @@ const Render = {
                 doorGroup.x(newPos.x);
                 doorGroup.y(newPos.y);
                 doorRect.width(door.width);
-                swingArc.outerRadius(door.width * 0.75);
+                swingArc.outerRadius(door.width * 0.9);
+
+                // Update door leaf (solid line at 45 degrees)
+                doorLeaf.points([
+                    0, arcDir * ws.thickness / 2,
+                    door.width * 0.9 * 0.707, arcDir * (ws.thickness / 2 + door.width * 0.9 * 0.707)
+                ]);
 
                 // Update handle positions
                 leftHandle.x(newPos.x);
