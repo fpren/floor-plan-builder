@@ -92,13 +92,14 @@
         .tool-hint { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 10px 20px; border-radius: 10px; font-size: 11px; color: var(--accent); display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .tool-hint.show { display: block; }
 
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; touch-action: auto; }
         .modal.show { display: flex; }
-        .modal-box { background: white; border: none; border-radius: 16px; max-width: 420px; width: 100%; max-height: 80vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal-box { background: white; border: none; border-radius: 16px; max-width: 420px; width: 100%; max-height: 80vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); touch-action: auto; }
         .modal-head { padding: 16px 20px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
         .modal-title { font-size: 15px; font-weight: 600; color: var(--text); }
-        .modal-close { background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; }
-        .modal-body { padding: 20px; font-size: 12px; }
+        .modal-close { background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; padding: 8px; }
+        .modal-body { padding: 20px; font-size: 12px; touch-action: auto; }
+        .modal-body input { touch-action: auto; }
         .qa-item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; gap: 10px; }
         .qa-pass { color: var(--accent-green); }
         .qa-fail { color: var(--accent-red); }
@@ -353,19 +354,21 @@
     <div class="modal-box">
         <div class="modal-head">
             <div class="modal-title">Sample Sheet Number</div>
+            <button class="modal-close" onclick="App.skipSampleSheet()">&times;</button>
         </div>
         <div class="modal-body">
             <p style="margin-bottom: 12px; color: #666;">Enter the 8-digit sample sheet number for dust wipe labeling.</p>
             <div style="margin-bottom: 12px;">
                 <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Sample Sheet Number:</label>
-                <input type="text" id="sampleSheetInput1" maxlength="8" pattern="[0-9]{8}" placeholder="e.g., 99999001" style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 2px;">
+                <input type="tel" id="sampleSheetInput1" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="e.g., 99999001" autocomplete="off" style="width: 100%; padding: 14px; font-size: 18px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 3px; -webkit-appearance: none;">
             </div>
             <div style="margin-bottom: 16px;">
                 <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Confirm Number:</label>
-                <input type="text" id="sampleSheetInput2" maxlength="8" pattern="[0-9]{8}" placeholder="Enter again to confirm" style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 2px;">
+                <input type="tel" id="sampleSheetInput2" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="Enter again to confirm" autocomplete="off" style="width: 100%; padding: 14px; font-size: 18px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 3px; -webkit-appearance: none;">
             </div>
             <div id="sampleSheetError" style="color: #ef4444; font-size: 11px; margin-bottom: 12px; display: none;"></div>
-            <button onclick="App.confirmSampleSheet()" style="width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Confirm</button>
+            <button onclick="App.confirmSampleSheet()" style="width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px;">Confirm</button>
+            <button onclick="App.skipSampleSheet()" style="width: 100%; padding: 10px; background: #f3f4f6; color: #666; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; cursor: pointer;">Skip for now</button>
         </div>
     </div>
 </div>
@@ -6347,9 +6350,18 @@ const App = {
         this.showSampleSheetModal();
     },
 
+    skipSampleSheet() {
+        this.hideModal('sampleSheet');
+        // Use placeholder if no sample sheet set
+        if (!this.doc.sampleSheetNumber) {
+            this.doc.sampleSheetNumber = 'XXXXXXXX';
+            $('#sampleSheetDisplay').textContent = 'Not Set';
+        }
+    },
+
     // Place a dust wipe sample marker on a wall
     placeDustWipe(ws, clickPos) {
-        // Check if sample sheet is set
+        // If no sample sheet, prompt for it but allow skip
         if (!this.doc.sampleSheetNumber) {
             this.showSampleSheetModal();
             return;
