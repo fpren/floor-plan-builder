@@ -29,18 +29,9 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', sans-serif; background: var(--bg-canvas); color: var(--text); height: 100vh; height: 100dvh; overflow: hidden; touch-action: none; }
         .app { display: flex; flex-direction: column; height: 100%; }
 
-        .topbar { display: flex; align-items: center; padding: 6px 12px; background: var(--bg-panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: none; gap: 6px; flex-wrap: nowrap; overflow-x: auto; min-height: 44px; }
-        .topbar::-webkit-scrollbar { display: none; }
-        .btn { padding: 8px 12px; background: var(--bg-tool); border: none; color: var(--text); border-radius: 8px; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; min-height: 32px; transition: all 0.15s ease; }
-        .btn:hover { background: var(--bg-tool-hover); }
-        .btn:active { background: var(--accent-blue); color: white; }
-        .btn.active { background: var(--accent-blue); color: white; }
-        .btn.warn { background: var(--accent-red); color: white; }
-        .sep { width: 1px; height: 20px; background: #e5e7eb; margin: 0 6px; flex-shrink: 0; }
+        .main { display: flex; flex: 1; overflow: hidden; position: relative; height: 100%; }
 
-        .main { display: flex; flex: 1; overflow: hidden; position: relative; }
-
-        .sidebar-left { width: 180px; background: var(--bg-panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-right: none; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease; position: relative; z-index: 10; }
+        .sidebar-left { width: 180px; background: rgba(245, 247, 250, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-right: none; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease; position: relative; z-index: 10; }
         .sidebar-left.collapsed { width: 52px; }
         .sidebar-left.collapsed .sidebar-scroll { padding: 4px; }
         .sidebar-left.collapsed .section-header { display: none; }
@@ -110,8 +101,6 @@
         .qa-fail { color: var(--accent-red); }
 
         @media (max-width: 768px) {
-            .topbar { padding: 4px 8px; min-height: 40px; }
-            .btn { padding: 6px 10px; font-size: 10px; min-height: 28px; }
             /* Mobile: sidebar starts expanded, toggle works via .collapsed class */
             .sidebar-left { width: 160px; }
             .sidebar-left .tool-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
@@ -131,33 +120,35 @@
             .qa-badge { font-size: 9px; padding: 4px 10px; top: 8px; left: 8px; }
             .tool-hint { font-size: 10px; padding: 8px 14px; bottom: 40px; }
         }
-        @media (max-width: 480px) {
-            .topbar { flex-wrap: wrap; gap: 4px; }
-            .sep { display: none; }
-            .btn { padding: 5px 8px; font-size: 9px; }
-        }
         input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 <div class="app">
-    <div class="topbar">
-        <button class="btn" onclick="App.newDoc()">New</button>
-        <button class="btn" onclick="$('#fbgInput').click()">Load</button>
-        <input type="file" id="fbgInput" accept=".fbg,.fgs,.json" onchange="App.loadFBG(event)">
-        <button class="btn" onclick="App.exportPDF()">PDF</button>
-        <div class="sep"></div>
-        <button class="btn active" id="btnGrid" onclick="App.toggle('grid')">Grid</button>
-        <button class="btn active" id="btnWallIds" onclick="App.toggle('wallIds')">W-ID</button>
-        <button class="btn active" id="btnDims" onclick="App.toggle('dims')">Dims</button>
-        <div class="sep"></div>
-        <button class="btn" onclick="App.rotateSelected()">Rotate</button>
-        <button class="btn" onclick="App.showQA()">QA</button>
-    </div>
+    <input type="file" id="fbgInput" accept=".fbg,.fgs,.json" onchange="App.loadFBG(event)">
     <div class="main">
         <div class="sidebar-left" id="sidebarLeft">
             <button class="sidebar-toggle" onclick="App.toggleSidebar()">☰</button>
             <div class="sidebar-scroll">
+                <div class="section">
+                    <div class="section-header">File</div>
+                    <div class="section-content">
+                        <div class="tool-grid">
+                            <button class="tool-btn" onclick="App.newDoc()" title="New document">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="14,2 14,8 20,8" stroke="currentColor" fill="none" stroke-width="2"/><line x1="12" y1="18" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+                                <span>New</span>
+                            </button>
+                            <button class="tool-btn" onclick="$('#fbgInput').click()" title="Load file">
+                                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="17,8 12,3 7,8" stroke="currentColor" fill="none" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+                                <span>Load</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.exportPDF()" title="Export PDF">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="14,2 14,8 20,8" stroke="currentColor" fill="none" stroke-width="2"/><text x="8" y="17" font-size="6" fill="currentColor" stroke="none">PDF</text></svg>
+                                <span>PDF</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="section">
                     <div class="section-header">Geometry (draw)</div>
                     <div class="section-content">
@@ -173,6 +164,21 @@
                             <button class="tool-btn" onclick="App.setTool('door')"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/></svg><span>Door</span></button>
                             <button class="tool-btn" onclick="App.setTool('window')"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><line x1="12" y1="7" x2="12" y2="17"/></svg><span>Window</span></button>
                             <button class="tool-btn" onclick="App.setTool('cased')"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="3,2"/></svg><span>Cased</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-header">Display</div>
+                    <div class="section-content">
+                        <div class="tool-grid">
+                            <button class="tool-btn active" id="btnDims" onclick="App.toggle('dims')" title="Toggle dimensions">
+                                <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2"/><line x1="3" y1="8" x2="3" y2="16" stroke="currentColor" stroke-width="2"/><line x1="21" y1="8" x2="21" y2="16" stroke="currentColor" stroke-width="2"/><text x="9" y="10" font-size="6" fill="currentColor" stroke="none">12'</text></svg>
+                                <span>Dims</span>
+                            </button>
+                            <button class="tool-btn active" id="btnGrid" onclick="App.toggle('grid')" title="Toggle grid">
+                                <svg viewBox="0 0 24 24"><line x1="3" y1="3" x2="3" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="3" x2="15" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="21" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="3" x2="21" y2="3" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="21" x2="21" y2="21" stroke="currentColor" stroke-width="1.5"/></svg>
+                                <span>Grid</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -231,6 +237,14 @@
                             <button class="tool-btn" onclick="App.selectAll()" title="Select All (Ctrl+A)">
                                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 <span>All</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.rotateSelected()" title="Rotate selected">
+                                <svg viewBox="0 0 24 24"><path d="M23 4v6h-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>Rotate</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.showQA()" title="QA Validation">
+                                <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                                <span>QA</span>
                             </button>
                             <button class="tool-btn" onclick="App.copySelected()" title="Copy (Ctrl+C)">
                                 <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" fill="none" stroke-width="2"/></svg>
@@ -3919,15 +3933,26 @@ const App = {
         switch (what) {
             case 'grid':
                 this.showGrid = !this.showGrid;
-                $('#btnGrid').classList.toggle('active', this.showGrid);
+                const btnGrid = $('#btnGrid');
+                if (btnGrid) btnGrid.classList.toggle('active', this.showGrid);
                 // Toggle CSS grid background on canvas-wrap
                 const canvasWrap = document.querySelector('.canvas-wrap');
                 if (canvasWrap) {
                     canvasWrap.style.backgroundImage = this.showGrid ? '' : 'none';
                 }
                 break;
-            case 'wallIds': this.showWallIds = !this.showWallIds; $('#btnWallIds').classList.toggle('active', this.showWallIds); this.render(); break;
-            case 'dims': this.showDims = !this.showDims; $('#btnDims').classList.toggle('active', this.showDims); this.render(); break;
+            case 'wallIds':
+                this.showWallIds = !this.showWallIds;
+                const btnWallIds = $('#btnWallIds');
+                if (btnWallIds) btnWallIds.classList.toggle('active', this.showWallIds);
+                this.render();
+                break;
+            case 'dims':
+                this.showDims = !this.showDims;
+                const btnDims = $('#btnDims');
+                if (btnDims) btnDims.classList.toggle('active', this.showDims);
+                this.render();
+                break;
         }
         Render.stage.batchDraw();
     },
