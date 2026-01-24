@@ -181,6 +181,18 @@
                     <div class="section-header">Actions</div>
                     <div class="section-content">
                         <div class="tool-grid">
+                            <button class="tool-btn" onclick="App.selectAll()" title="Select All (Ctrl+A)">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>All</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.copySelected()" title="Copy (Ctrl+C)">
+                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                                <span>Copy</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.paste()" title="Paste (Ctrl+V)">
+                                <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" stroke="currentColor" fill="none" stroke-width="2"/><rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                                <span>Paste</span>
+                            </button>
                             <button class="tool-btn" id="btnUndo" onclick="App.undo()" title="Undo (Ctrl+Z)" style="opacity: 0.4;">
                                 <svg viewBox="0 0 24 24"><path d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 <span>Undo</span>
@@ -759,6 +771,7 @@ const Render = {
     layers: {},
     wallGroups: {},
     selection: { type: null, id: null },
+    multiSelection: [],  // Array of {type, id} for multi-select
 
     init(containerId) {
         const c = document.getElementById(containerId);
@@ -910,7 +923,7 @@ const Render = {
 
     renderRoomFill(room, doc) {
         const g = room.geometry;
-        const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
+        const isSelected = this.isSelected('room', room.id);
         const self = this;
 
         // Find closets that belong to this room
@@ -1143,7 +1156,7 @@ const Render = {
 
     renderCloset(closet, doc) {
         const g = closet.geometry;
-        const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
+        const isSelected = this.isSelected('closet', closet.id);
         const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
         const pg = parentRoom ? parentRoom.geometry : null;
 
@@ -1923,10 +1936,50 @@ const Render = {
 
     select(type, id) {
         this.selection = { type, id };
+        this.multiSelection = []; // Clear multi-selection when single selecting
     },
 
     deselect() {
         this.selection = { type: null, id: null };
+        this.multiSelection = [];
+    },
+
+    // Add to multi-selection
+    addToSelection(type, id) {
+        if (!this.isInMultiSelection(type, id)) {
+            this.multiSelection.push({ type, id });
+        }
+    },
+
+    // Remove from multi-selection
+    removeFromSelection(type, id) {
+        this.multiSelection = this.multiSelection.filter(s => !(s.type === type && s.id === id));
+    },
+
+    // Check if object is in multi-selection
+    isInMultiSelection(type, id) {
+        return this.multiSelection.some(s => s.type === type && s.id === id);
+    },
+
+    // Check if object is selected (single or multi)
+    isSelected(type, id) {
+        return (this.selection.type === type && this.selection.id === id) ||
+               this.isInMultiSelection(type, id);
+    },
+
+    // Select all rooms
+    selectAllRooms(doc) {
+        this.selection = { type: null, id: null };
+        this.multiSelection = doc.rooms.map(r => ({ type: 'room', id: r.id }));
+    },
+
+    // Select all objects
+    selectAll(doc) {
+        this.selection = { type: null, id: null };
+        this.multiSelection = [
+            ...doc.rooms.map(r => ({ type: 'room', id: r.id })),
+            ...doc.closets.map(c => ({ type: 'closet', id: c.id }))
+        ];
     },
 
     getImage() { return this.stage ? this.stage.toDataURL({ pixelRatio: 2 }) : null; }
@@ -1997,6 +2050,7 @@ const App = {
     isDrawingWall: false,
     wallDrawStart: null,
     wallPreview: null,
+    clipboard: [],  // For copy/paste
 
     init() {
         if (!Render.init('stage')) { alert('Init failed'); return; }
@@ -2269,6 +2323,21 @@ const App = {
             if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
                 e.preventDefault();
                 this.redo();
+            }
+            // Select All: Ctrl+A or Cmd+A
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                e.preventDefault();
+                this.selectAll();
+            }
+            // Copy: Ctrl+C or Cmd+C
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                e.preventDefault();
+                this.copySelected();
+            }
+            // Paste: Ctrl+V or Cmd+V
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                e.preventDefault();
+                this.paste();
             }
         });
     },
@@ -2754,6 +2823,94 @@ const App = {
         Render.stage.scale({ x: 1, y: 1 });
         Render.stage.position({ x: 0, y: 0 });
         Render.stage.batchDraw();
+    },
+
+    // Select all rooms and closets
+    selectAll() {
+        Render.selectAll(this.doc);
+        this.render();
+        this.updateInspector();
+    },
+
+    // Copy selected objects to clipboard
+    copySelected() {
+        this.clipboard = [];
+
+        // Get all selected items (single or multi)
+        const selected = Render.multiSelection.length > 0
+            ? Render.multiSelection
+            : (Render.selection.type ? [Render.selection] : []);
+
+        if (selected.length === 0) {
+            alert('Nothing selected to copy');
+            return;
+        }
+
+        selected.forEach(sel => {
+            if (sel.type === 'room') {
+                const room = this.doc.rooms.find(r => r.id === sel.id);
+                if (room) {
+                    this.clipboard.push({
+                        type: 'room',
+                        data: JSON.parse(JSON.stringify(room))
+                    });
+                }
+            } else if (sel.type === 'closet') {
+                const closet = this.doc.closets.find(c => c.id === sel.id);
+                if (closet) {
+                    this.clipboard.push({
+                        type: 'closet',
+                        data: JSON.parse(JSON.stringify(closet))
+                    });
+                }
+            }
+        });
+
+        const hint = $('#toolHint');
+        hint.textContent = `Copied ${this.clipboard.length} item(s). Press Ctrl+V to paste.`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 2000);
+    },
+
+    // Paste from clipboard
+    paste() {
+        if (this.clipboard.length === 0) {
+            alert('Nothing to paste');
+            return;
+        }
+
+        const offset = 2 * FOOT; // Offset pasted items
+
+        this.clipboard.forEach(item => {
+            if (item.type === 'room') {
+                const newRoom = JSON.parse(JSON.stringify(item.data));
+                newRoom.id = Doc.uid();
+                newRoom.label = Doc.label(this.doc, 'room');
+                newRoom.geometry.x += offset;
+                newRoom.geometry.y += offset;
+                createWallSegments(newRoom, this.doc);
+                this.doc.rooms.push(newRoom);
+                markExteriorWalls(this.doc);
+            } else if (item.type === 'closet') {
+                const newCloset = JSON.parse(JSON.stringify(item.data));
+                newCloset.id = Doc.uid();
+                newCloset.label = Doc.label(this.doc, 'closet');
+                newCloset.geometry.x += offset;
+                newCloset.geometry.y += offset;
+                createWallSegments(newCloset, this.doc);
+                this.doc.closets.push(newCloset);
+            }
+        });
+
+        this.saveState();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Pasted ${this.clipboard.length} item(s)`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 2000);
     },
 
     updateQABadge() {
