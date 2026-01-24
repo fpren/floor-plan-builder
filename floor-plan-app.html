@@ -1072,23 +1072,28 @@ const Render = {
 
         this.layers.rooms.add(roomGroup);
 
-        // Room label (inside)
-        this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 16, width: g.width,
-            text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
-        }));
-        this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 + 2, width: g.width,
-            text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
-        }));
-
-        // Room dimensions (outside) - L x W format
+        // Room dimensions - calculate first for use in labels
         const widthFt = Math.round(g.width / FOOT);
         const heightFt = Math.round(g.height / FOOT);
         const dimText = `${widthFt}' x ${heightFt}'`;
 
         // Dimension color: blue for exterior rooms, orange for interior rooms
         const dimColor = room.isExterior ? DIM_COLOR_EXTERIOR : DIM_COLOR_INTERIOR;
+
+        // Room label (inside)
+        this.layers.labels.add(new Konva.Text({
+            x: g.x, y: g.y + g.height / 2 - 20, width: g.width,
+            text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+        }));
+        this.layers.labels.add(new Konva.Text({
+            x: g.x, y: g.y + g.height / 2 - 4, width: g.width,
+            text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+        }));
+        // Room size inside (L x W)
+        this.layers.labels.add(new Konva.Text({
+            x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
+            text: dimText, fontSize: 9, fill: dimColor, align: 'center', listening: false
+        }));
 
         // Width dimension (below room)
         this.layers.dims.add(new Konva.Text({
