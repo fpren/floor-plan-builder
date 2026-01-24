@@ -42,6 +42,18 @@
         .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
         .sidebar-left.collapsed #objectSection { display: none; }
         .sidebar-left.collapsed .sidebar-toggle { writing-mode: vertical-rl; text-orientation: mixed; padding: 12px 8px; }
+        .sidebar-left.collapsed .helper-text { display: none; }
+        .sidebar-left.collapsed .tool-select { display: none; }
+        .sidebar-left.collapsed #roomTypeSection { display: none; }
+        .sidebar-left.collapsed #wallSection { display: none; }
+        .sidebar-left.collapsed #sampleListContainer { display: none !important; }
+        .helper-text { padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+        .tool-select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-tool); color: var(--text); font-size: 11px; cursor: pointer; }
+        .door-type-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.15s ease; min-height: 80px; }
+        .door-type-btn:hover { background: #eff6ff; border-color: #3b82f6; transform: translateY(-2px); }
+        .door-type-btn:active { background: #dbeafe; transform: translateY(0); }
+        .door-type-btn svg { width: 40px; height: 40px; margin-bottom: 6px; color: #334155; }
+        .door-type-btn span { font-size: 10px; font-weight: 600; color: #475569; }
         .sidebar-toggle { padding: 10px; background: transparent; border: none; color: var(--accent); font-size: 16px; cursor: pointer; border-bottom: none; }
         .sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px; scrollbar-width: none; -ms-overflow-style: none; }
         .sidebar-scroll::-webkit-scrollbar { display: none; }
@@ -87,8 +99,26 @@
         .north-arrow .arrow-s { fill: #666; }
         .north-arrow:hover { transform: scale(1.05); }
         .scale-label { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 6px; font-size: 10px; color: var(--text-dim); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .qa-badge { position: absolute; top: 12px; left: 12px; background: var(--accent-green); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .badge-container { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; align-items: center; z-index: 50; }
+        .qa-badge { background: var(--accent-green); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; white-space: nowrap; }
         .qa-badge.error { background: var(--accent-red); }
+        .floor-badge { background: var(--accent-blue); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; position: relative; }
+        .floor-badge:hover { background: #2563eb; }
+        .floor-badge svg { width: 10px; height: 10px; }
+        .floor-dropdown { position: absolute; top: 28px; left: 0; background: white; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); min-width: 140px; display: none; z-index: 200; overflow: hidden; }
+        .floor-dropdown.show { display: block; }
+        .floor-dropdown-item { padding: 10px 14px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; color: #333; }
+        .floor-dropdown-scroll { max-height: 240px; overflow-y: auto; }
+        .floor-dropdown-add { padding: 10px 14px; font-size: 11px; cursor: pointer; color: var(--accent-blue); font-weight: 600; display: flex; align-items: center; gap: 6px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+        .floor-dropdown-add:hover { background: #eff6ff; }
+        .floor-dropdown-nav { display: flex; justify-content: space-between; padding: 6px 10px; background: #f5f5f5; border-top: 1px solid #e5e7eb; }
+        .floor-dropdown-nav button { background: none; border: none; color: var(--accent-blue); font-size: 10px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .floor-dropdown-nav button:hover { background: #e5e7eb; }
+        .floor-dropdown-nav button:disabled { color: #ccc; cursor: not-allowed; }
+        .floor-dropdown-item:last-child { border-bottom: none; }
+        .floor-dropdown-item:hover { background: #f5f5f5; }
+        .floor-dropdown-item.active { background: #eff6ff; color: var(--accent-blue); font-weight: 600; }
+        .floor-dropdown-item .check { color: var(--accent-green); font-weight: bold; }
         .tool-hint { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 10px 20px; border-radius: 10px; font-size: 11px; color: var(--accent); display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
         .tool-hint.show { display: block; }
 
@@ -118,11 +148,18 @@
             .sidebar-left.collapsed .section-content { padding: 2px; }
             .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr; }
             .sidebar-left.collapsed .tool-btn span { display: none; }
+            .sidebar-left.collapsed .helper-text { display: none; }
+            .sidebar-left.collapsed .tool-select { display: none; }
+            .sidebar-left.collapsed #roomTypeSection { display: none !important; }
+            .sidebar-left.collapsed #wallSection { display: none !important; }
             .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
             .north-arrow { width: 36px; height: 36px; top: 8px; right: 8px; }
             .north-arrow svg { width: 22px; height: 22px; }
             .scale-label { font-size: 9px; padding: 4px 8px; bottom: 8px; left: 8px; }
-            .qa-badge { font-size: 9px; padding: 4px 10px; top: 8px; left: 8px; }
+            .badge-container { top: 8px; left: 8px; gap: 6px; }
+            .qa-badge { font-size: 9px; padding: 4px 10px; }
+            .floor-badge { font-size: 9px; padding: 4px 10px; }
+            .floor-dropdown { top: 26px; }
             .tool-hint { font-size: 10px; padding: 8px 14px; bottom: 40px; }
         }
         input[type="file"] { display: none; }
@@ -130,7 +167,7 @@
 </head>
 <body>
 <div class="app">
-    <input type="file" id="fbgInput" accept=".fbg,.fgs,.json" onchange="App.loadFBG(event)">
+    <input type="file" id="fbgInput" accept=".fbg,.fgs,.json,.html" onchange="App.loadFBG(event)">
     <div class="main">
         <div class="sidebar-left" id="sidebarLeft">
             <button class="sidebar-toggle" onclick="App.toggleSidebar()">☰</button>
@@ -138,10 +175,14 @@
                 <div class="section">
                     <div class="section-header">File</div>
                     <div class="section-content">
-                        <div class="tool-grid">
+                        <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
                             <button class="tool-btn" onclick="App.newDoc()" title="New document">
                                 <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="14,2 14,8 20,8" stroke="currentColor" fill="none" stroke-width="2"/><line x1="12" y1="18" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>
                                 <span>New</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.saveProject()" title="Save project (choose format)">
+                                <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="17,21 17,13 7,13 7,21" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="7,3 7,8 15,8" stroke="currentColor" fill="none" stroke-width="2"/></svg>
+                                <span>Save</span>
                             </button>
                             <button class="tool-btn" onclick="$('#fbgInput').click()" title="Load file">
                                 <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="17,8 12,3 7,8" stroke="currentColor" fill="none" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2"/></svg>
@@ -158,18 +199,18 @@
                     <div class="section-header">Tools</div>
                     <div class="section-content">
                         <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
-                            <button class="tool-btn active" id="btnSelect" onclick="App.setTool('select')"><svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></svg><span>Select</span></button>
-                            <button class="tool-btn" onclick="App.setTool('room')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3,2"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke-width="2"/></svg><span>Room</span></button>
+                            <button class="tool-btn active" id="btnSelect" onclick="App.setTool('select')" title="Select and move objects"><svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></svg><span>Select</span></button>
+                            <button class="tool-btn" onclick="App.setTool('room')" title="Draw a new room"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3,2"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke-width="2"/></svg><span>Room</span></button>
                         </div>
                     </div>
                 </div>
                 <div class="section">
-                    <div class="section-header">Openings (tap wall)</div>
+                    <div class="section-header">Openings</div>
                     <div class="section-content">
                         <div class="tool-grid">
-                            <button class="tool-btn" onclick="App.setTool('door')"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/></svg><span>Door</span></button>
-                            <button class="tool-btn" onclick="App.setTool('window')"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><line x1="12" y1="7" x2="12" y2="17"/></svg><span>Window</span></button>
-                            <button class="tool-btn" onclick="App.setTool('cased')"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="3,2"/></svg><span>Cased</span></button>
+                            <button class="tool-btn" onclick="App.showDoorTypeSelector()" title="Select door type to place"><svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="1"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/></svg><span>Door</span></button>
+                            <button class="tool-btn" onclick="App.setTool('window')" title="Tap a wall to place window"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><line x1="12" y1="7" x2="12" y2="17"/></svg><span>Window</span></button>
+                            <button class="tool-btn" onclick="App.setTool('cased')" title="Cased opening (no door)"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="3,2"/></svg><span>Cased</span></button>
                         </div>
                     </div>
                 </div>
@@ -189,29 +230,35 @@
                     </div>
                 </div>
                 <div class="section">
-                    <div class="section-header">MEP (tap wall)</div>
+                    <div class="section-header">MEP</div>
                     <div class="section-content">
                         <div class="tool-grid">
-                            <button class="tool-btn" onclick="App.setTool('pipe')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Pipe</span></button>
-                            <button class="tool-btn filled" onclick="App.setTool('gas')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Gas</span></button>
-                            <button class="tool-btn" onclick="App.setTool('radiator')"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="1"/><line x1="6" y1="9" x2="6" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="12" y1="9" x2="12" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg><span>Rad</span></button>
-                            <button class="tool-btn" onclick="App.setTool('riser')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3"/></svg><span>Riser</span></button>
-                            <button class="tool-btn" onclick="App.setTool('poe')"><svg viewBox="0 0 24 24"><polygon points="12,2 22,12 17,12 17,22 7,22 7,12 2,12" fill="currentColor"/></svg><span>POE</span></button>
+                            <button class="tool-btn" onclick="App.setTool('pipe')" title="Tap wall to place pipe"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Pipe</span></button>
+                            <button class="tool-btn filled" onclick="App.setTool('gas')" title="Tap wall to place gas line"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Gas</span></button>
+                            <button class="tool-btn" onclick="App.setTool('radiator')" title="Tap wall to place radiator"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="1"/><line x1="6" y1="9" x2="6" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="12" y1="9" x2="12" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg><span>Rad</span></button>
+                            <button class="tool-btn" onclick="App.setTool('riser')" title="Tap wall to place riser"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3"/></svg><span>Riser</span></button>
+                            <button class="tool-btn" onclick="App.setTool('poe')" title="Tap door to place Point of Entry"><svg viewBox="0 0 24 24"><polygon points="12,2 22,12 17,12 17,22 7,22 7,12 2,12" fill="currentColor"/></svg><span>POE</span></button>
                         </div>
                     </div>
                 </div>
                 <div class="section">
                     <div class="section-header">Dust Wipes</div>
                     <div class="section-content">
-                        <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-bottom: 4px;">
+                        <div class="helper-text" style="margin-bottom: 4px;">
                             Sheet: <strong id="sampleSheetDisplay">Not Set</strong>
                             <button onclick="App.changeSampleSheet()" style="margin-left: 8px; padding: 2px 6px; font-size: 9px; cursor: pointer;">Change</button>
                         </div>
                         <div class="tool-grid">
-                            <button class="tool-btn" onclick="App.setTool('dustwipe')" style="font-weight: bold;">
+                            <button class="tool-btn" onclick="App.setTool('dustwipe')" style="font-weight: bold;" title="Tap floor, wall, window, or door to place dust wipe sample">
                                 <svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-size="16" font-weight="bold" fill="currentColor" stroke="currentColor" stroke-width="0.5">X</text></svg>
                                 <span>Sample</span>
                             </button>
+                        </div>
+                        <div id="sampleListContainer" class="helper-text" style="margin-top: 8px; display: none; padding: 0;">
+                            <div style="padding: 2px 8px; font-size: 9px; color: var(--text-dim);">Placed Samples:</div>
+                            <select id="sampleList" class="tool-select" onchange="App.selectSampleFromList(this.value)">
+                                <option value="">-- Select --</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -222,8 +269,7 @@
                 <div class="section" id="roomTypeSection" style="display: none;">
                     <div class="section-header">Room Settings</div>
                     <div class="section-content">
-                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">Room Type</div>
-                        <select id="roomTypeSelect" onchange="App.changeRoomType(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; margin-bottom: 12px;">
+                        <select id="roomTypeSelect" class="tool-select" onchange="App.changeRoomType(this.value)" title="Select room type" style="margin-bottom: 8px;">
                             <option value="Room">Room</option>
                             <option value="Closet">Closet</option>
                             <option value="Bedroom 1">Bedroom 1</option>
@@ -251,26 +297,20 @@
                             <option value="Sunroom">Sunroom</option>
                             <option value="Other">Other</option>
                         </select>
-                        <div style="margin: 12px 0;">
-                            <button class="tool-btn" id="addJointBtn" onclick="App.toggleAddJointMode()" style="width: 100%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 36px;">
+                        <div style="margin: 8px 0;">
+                            <button class="tool-btn" id="addJointBtn" onclick="App.toggleAddJointMode()" title="Click wall to add a draggable joint" style="width: 100%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 36px;">
                                 <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M4 12h4M16 12h4M12 4v4M12 16v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                                 <span id="addJointLabel">Add Joint</span>
                             </button>
-                            <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px;">Click wall to add a draggable joint</div>
                         </div>
-                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px; margin-top: 12px;">Set Wall as W1</div>
-                        <select id="wallStartSelect" onchange="App.setWallAsW1(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;">
-                            <option value="">-- Select wall --</option>
+                        <select id="wallStartSelect" class="tool-select" onchange="App.setWallAsW1(this.value)" title="Set selected wall as W1 - others renumber clockwise">
+                            <option value="">Set as W1...</option>
                         </select>
-                        <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px;">Others will renumber clockwise</div>
                     </div>
                 </div>
                 <div class="section" id="wallSection" style="display: none;">
-                    <div class="section-header">Wall Settings</div>
+                    <div class="section-header"><span id="selectedWallLabel">W1</span></div>
                     <div class="section-content">
-                        <div style="padding: 4px 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 8px;">
-                            Selected: <strong id="selectedWallLabel">W1</strong>
-                        </div>
                         <div class="tool-grid" style="grid-template-columns: 1fr;">
                             <button class="tool-btn" onclick="App.setAsW1()" title="Set this wall as W1 (others renumber clockwise)">
                                 <svg viewBox="0 0 24 24"><path d="M12 2L12 22M12 2L8 6M12 2L16 6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="18" text-anchor="middle" font-size="8" fill="currentColor" stroke="none">W1</text></svg>
@@ -323,10 +363,6 @@
                                 <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14M10 11v6M14 11v6" stroke="currentColor" fill="none" stroke-width="2"/></svg>
                                 <span>Delete</span>
                             </button>
-                            <button class="tool-btn" onclick="App.demoMakeH()" title="Demo: Rectangle to H-shape" style="background: #fef3c7;">
-                                <svg viewBox="0 0 24 24"><path d="M4 4v16M20 4v16M4 12h16" stroke="currentColor" fill="none" stroke-width="3" stroke-linecap="round"/></svg>
-                                <span>Demo H</span>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -342,7 +378,26 @@
                 </svg>
             </div>
             <div class="scale-label">1/4" = 1'-0"</div>
-            <div class="qa-badge" id="qaBadge">QA: --</div>
+            <div class="badge-container">
+                <div class="qa-badge" id="qaBadge">QA: --</div>
+                <div class="floor-badge" id="floorBadge" onclick="App.toggleFloorDropdown(event)">
+                    <span id="floorLabel">Location | Floor 1</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+                    <div class="floor-dropdown" id="floorDropdown" onclick="event.stopPropagation()">
+                        <div class="floor-dropdown-scroll" id="floorDropdownList">
+                            <!-- Dynamic floor list rendered by App.renderFloorList() -->
+                        </div>
+                        <div class="floor-dropdown-nav" id="floorDropdownNav" style="display: none;">
+                            <button onclick="App.floorListPrev()" id="floorPrevBtn" disabled>← Previous</button>
+                            <button onclick="App.floorListNext()" id="floorNextBtn">Next →</button>
+                        </div>
+                        <div class="floor-dropdown-add" onclick="App.addNewFloor()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+                            Add Floor
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="tool-hint" id="toolHint">Tap a wall segment to place</div>
         </div>
     </div>
@@ -448,6 +503,80 @@
                 <button onclick="App.placeDoorSample('door threshold')" style="padding: 14px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Door Threshold</button>
                 <button onclick="App.placeDoorSample('door')" style="padding: 14px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Door Surface</button>
                 <button onclick="App.hideModal('doorSample')" style="padding: 10px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; font-size: 12px; cursor: pointer; color: #666;">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="doorTypeModal">
+    <div class="modal-box" style="max-width: 360px;">
+        <div class="modal-head">
+            <div class="modal-title">Select Door Type</div>
+            <button class="modal-close" onclick="App.hideModal('doorType')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 12px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <button class="door-type-btn" onclick="App.selectDoorType('regular')">
+                    <svg viewBox="0 0 48 48"><rect x="12" y="4" width="24" height="40" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="30" cy="24" r="2" fill="currentColor"/><path d="M12 24 Q12 8, 36 24" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/></svg>
+                    <span>Regular</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('double')">
+                    <svg viewBox="0 0 48 48"><path d="M4 8 Q4 40, 22 40" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/><line x1="4" y1="8" x2="4" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M44 8 Q44 40, 26 40" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="3,2"/><line x1="44" y1="8" x2="44" y2="40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    <span>Double</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('sliding')">
+                    <svg viewBox="0 0 48 48"><line x1="4" y1="24" x2="44" y2="24" stroke="#999" stroke-width="2" stroke-dasharray="4,3"/><rect x="12" y="18" width="24" height="12" rx="2" fill="currentColor" stroke="currentColor" stroke-width="1"/></svg>
+                    <span>Sliding</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('bifold')">
+                    <svg viewBox="0 0 48 48"><line x1="4" y1="12" x2="24" y2="36" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line x1="24" y1="36" x2="44" y2="12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="36" r="3" fill="#999"/></svg>
+                    <span>Bifold</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('bifold-double')">
+                    <svg viewBox="0 0 48 48"><line x1="2" y1="12" x2="12" y2="32" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="12" y1="32" x2="24" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="12" x2="36" y2="32" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="36" y1="32" x2="46" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="32" r="2.5" fill="#999"/><circle cx="36" cy="32" r="2.5" fill="#999"/></svg>
+                    <span>Bifold 2x</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('pocket')">
+                    <svg viewBox="0 0 48 48"><rect x="4" y="8" width="18" height="32" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="22" y="4" width="22" height="40" fill="none" stroke="#ccc" stroke-width="2" stroke-dasharray="4,2"/><path d="M14 24 L8 24" stroke="#666" stroke-width="2"/><path d="M10 20 L6 24 L10 28" stroke="#666" stroke-width="1.5" fill="none"/></svg>
+                    <span>Pocket</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('overhead')">
+                    <svg viewBox="0 0 48 48"><rect x="6" y="28" width="36" height="12" rx="2" fill="currentColor" stroke="currentColor" stroke-width="1"/><line x1="4" y1="20" x2="44" y2="20" stroke="#999" stroke-width="2.5" stroke-dasharray="5,4"/></svg>
+                    <span>Overhead</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('elevator')">
+                    <svg viewBox="0 0 48 48"><rect x="6" y="4" width="36" height="40" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="24" y1="4" x2="24" y2="44" stroke="currentColor" stroke-width="2"/><path d="M14 20 L18 14 L22 20" stroke="currentColor" stroke-width="2" fill="none"/><path d="M26 28 L30 34 L34 28" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                    <span>Elevator</span>
+                </button>
+                <button class="door-type-btn" onclick="App.selectDoorType('revolving')">
+                    <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="2"/><line x1="24" y1="6" x2="24" y2="42" stroke="currentColor" stroke-width="2"/><line x1="6" y1="24" x2="42" y2="24" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" fill="currentColor"/></svg>
+                    <span>Revolving</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="saveFormatModal">
+    <div class="modal-box" style="max-width: 320px;">
+        <div class="modal-head">
+            <div class="modal-title">Save Project As</div>
+            <button class="modal-close" onclick="App.hideModal('saveFormat')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="door-type-btn" onclick="App.saveAs('fbg')" style="flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 50px;">
+                    <svg viewBox="0 0 24 24" style="width: 24px; height: 24px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><text x="8" y="17" font-size="5" fill="currentColor" stroke="none">.fbg</text></svg>
+                    <div style="text-align: left;"><strong>Floor Plan (.fbg)</strong><br><span style="font-size: 9px; color: #666;">Recommended - Full project file</span></div>
+                </button>
+                <button class="door-type-btn" onclick="App.saveAs('json')" style="flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 50px;">
+                    <svg viewBox="0 0 24 24" style="width: 24px; height: 24px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><text x="6" y="17" font-size="5" fill="currentColor" stroke="none">.json</text></svg>
+                    <div style="text-align: left;"><strong>JSON (.json)</strong><br><span style="font-size: 9px; color: #666;">Standard data format</span></div>
+                </button>
+                <button class="door-type-btn" onclick="App.saveAs('html')" style="flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 50px;">
+                    <svg viewBox="0 0 24 24" style="width: 24px; height: 24px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" fill="none" stroke-width="2"/><text x="6" y="17" font-size="5" fill="currentColor" stroke="none">.html</text></svg>
+                    <div style="text-align: left;"><strong>Standalone HTML (.html)</strong><br><span style="font-size: 9px; color: #666;">View in any browser (no app needed)</span></div>
+                </button>
             </div>
         </div>
     </div>
@@ -1465,7 +1594,13 @@ const Render = {
 
         // Re-render room labels (dimensions now handled by renderInteriorDimensions)
         doc.rooms.forEach(room => {
-            const g = room.geometry;
+            // Ensure geometry exists
+            let g = room.geometry;
+            if (!g && room.vertices) {
+                g = getGeometryFromVertices(room.vertices);
+                room.geometry = g;
+            }
+            if (!g) return;
             const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
 
             // Room label (inside) - show type as main label, ID underneath
@@ -1483,7 +1618,13 @@ const Render = {
 
         // Re-render closet labels
         doc.closets.forEach(closet => {
-            const g = closet.geometry;
+            // Ensure geometry exists
+            let g = closet.geometry;
+            if (!g && closet.vertices) {
+                g = getGeometryFromVertices(closet.vertices);
+                closet.geometry = g;
+            }
+            if (!g) return;
             const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
             const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
 
@@ -1567,7 +1708,14 @@ const Render = {
     },
 
     renderRoomFill(room, doc) {
-        const g = room.geometry;
+        // Ensure both geometry and vertices exist
+        let g = room.geometry;
+        if (!g && room.vertices) {
+            g = getGeometryFromVertices(room.vertices);
+            room.geometry = g;
+        }
+        if (!g) return; // Can't render without geometry
+
         const isSelected = this.isSelected('room', room.id);
         const self = this;
 
@@ -1593,17 +1741,17 @@ const Render = {
         const roomFill = isSelected ? '#dbeafe' : '#fafbfc';
         const roomBorder = isSelected ? '#2563eb' : '#e5e7eb';
 
-        // Shadow properties - bright blue glow when selected, subtle shadow when not
+        // Shadow properties - subtle glow when selected, very light shadow when not
         const shadowProps = isSelected ? {
             shadowColor: '#3b82f6',
-            shadowBlur: 20,
+            shadowBlur: 12,
             shadowOffset: { x: 0, y: 0 },
-            shadowOpacity: 0.8
+            shadowOpacity: 0.5
         } : {
-            shadowColor: 'black',
-            shadowBlur: 8,
-            shadowOffset: { x: 4, y: 4 },
-            shadowOpacity: 0.4
+            shadowColor: 'rgba(0,0,0,0.15)',
+            shadowBlur: 4,
+            shadowOffset: { x: 2, y: 2 },
+            shadowOpacity: 0.2
         };
 
         if (isPolygon) {
@@ -1613,7 +1761,7 @@ const Render = {
                 points: points,
                 fill: roomFill,
                 stroke: roomBorder,
-                strokeWidth: isSelected ? 3 : 1,
+                strokeWidth: isSelected ? 2 : 1,
                 closed: true,
                 ...shadowProps
             });
@@ -1629,7 +1777,7 @@ const Render = {
                     x: 0, y: 0, width: g.width, height: g.height,
                     fill: roomFill,
                     stroke: roomBorder,
-                    strokeWidth: isSelected ? 3 : 1,
+                    strokeWidth: isSelected ? 2 : 1,
                     ...shadowProps
                 }));
             } else {
@@ -1653,7 +1801,7 @@ const Render = {
                     },
                     fill: roomFill,
                     stroke: roomBorder,
-                    strokeWidth: isSelected ? 3 : 1,
+                    strokeWidth: isSelected ? 2 : 1,
                     ...shadowProps
                 });
                 roomGroup.add(roomShape);
@@ -2449,14 +2597,14 @@ const Render = {
 
         const shadowProps = isSelected ? {
             shadowColor: '#3b82f6',
-            shadowBlur: 20,
+            shadowBlur: 12,
             shadowOffset: { x: 0, y: 0 },
-            shadowOpacity: 0.8
+            shadowOpacity: 0.5
         } : {
-            shadowColor: 'black',
-            shadowBlur: 8,
-            shadowOffset: { x: 4, y: 4 },
-            shadowOpacity: 0.4
+            shadowColor: 'rgba(0,0,0,0.15)',
+            shadowBlur: 4,
+            shadowOffset: { x: 2, y: 2 },
+            shadowOpacity: 0.2
         };
 
         // Render as closed polygon
@@ -2465,7 +2613,7 @@ const Render = {
             points: points,
             fill: roomFill,
             stroke: roomBorder,
-            strokeWidth: isSelected ? 3 : 1,
+            strokeWidth: isSelected ? 2 : 1,
             closed: true,
             ...shadowProps
         });
@@ -2636,14 +2784,14 @@ const Render = {
         // Blue glow when selected, dark shadow when not
         const closetShadowProps = isSelected ? {
             shadowColor: '#3b82f6',
-            shadowBlur: 15,
+            shadowBlur: 10,
             shadowOffset: { x: 0, y: 0 },
-            shadowOpacity: 0.6
-        } : {
-            shadowColor: 'black',
-            shadowBlur: 8,
-            shadowOffset: { x: 4, y: 4 },
             shadowOpacity: 0.4
+        } : {
+            shadowColor: 'rgba(0,0,0,0.15)',
+            shadowBlur: 3,
+            shadowOffset: { x: 2, y: 2 },
+            shadowOpacity: 0.15
         };
         // Closet is a room - render in rooms layer so shadow shows properly
         const closetGroup = new Konva.Group({
@@ -3141,50 +3289,138 @@ const Render = {
             stroke: jambColor, strokeWidth: 2
         }));
 
-        // Door geometry - hinge point and swing direction
-        const swingOut = door.swing === 'out' ? -1 : 1;  // in = toward positive y, out = toward negative y
-        const hingeLeft = door.swingDir === 'left';      // hinge on left or right side
+        // Different rendering based on door type
+        let swingArc, doorLeaf, hingeY = 0, leafEndY = 0;
+        const doorColor = isSelected ? '#3b82f6' : '#2d3748';
+        const swingOut = door.swing === 'out' ? -1 : 1;
 
-        // Hinge position (at corner of door opening)
-        const hingeX = hingeLeft ? 0 : door.width;
-        const hingeY = swingOut * ws.thickness / 2;
+        if (door.type === 'sliding') {
+            // Sliding door - door panel halfway in front of perforated line
+            hingeY = 0; leafEndY = 0;
+            const panelWidth = door.width * 0.55;
+            // Perforated/dashed line (track) behind
+            doorGroup.add(new Konva.Line({
+                points: [0, 0, door.width, 0],
+                stroke: '#9ca3af', strokeWidth: 1.5, dash: [4, 3]
+            }));
+            // Door panel in front (shifted to show it's halfway open)
+            doorGroup.add(new Konva.Rect({
+                x: door.width * 0.25, y: -4,
+                width: panelWidth, height: 8,
+                fill: doorColor, stroke: doorColor, strokeWidth: 1, cornerRadius: 1
+            }));
+        } else if (door.type === 'double' || door.swingDir === 'both') {
+            // Double door - two leaves swinging forward (like regular but mirrored)
+            const halfWidth = door.width / 2;
+            const leafLength = halfWidth * 0.9;
+            hingeY = swingOut * ws.thickness / 2;
+            leafEndY = hingeY + swingOut * leafLength;
+            // Left door - hinged on left, swings right
+            doorGroup.add(new Konva.Arc({ x: 0, y: hingeY, innerRadius: leafLength - 1, outerRadius: leafLength, angle: 90, rotation: swingOut > 0 ? 0 : -90, stroke: '#9ca3af', strokeWidth: 1, dash: [4, 3] }));
+            doorGroup.add(new Konva.Line({ points: [0, hingeY, 0, leafEndY], stroke: doorColor, strokeWidth: 3, lineCap: 'round' }));
+            // Right door - hinged on right, swings left
+            doorGroup.add(new Konva.Arc({ x: door.width, y: hingeY, innerRadius: leafLength - 1, outerRadius: leafLength, angle: 90, rotation: swingOut > 0 ? 90 : 180, stroke: '#9ca3af', strokeWidth: 1, dash: [4, 3] }));
+            doorGroup.add(new Konva.Line({ points: [door.width, hingeY, door.width, leafEndY], stroke: doorColor, strokeWidth: 3, lineCap: 'round' }));
+        } else if (door.type === 'bifold') {
+            // Single bifold - V shape (two panels meeting at a point)
+            hingeY = swingOut * ws.thickness / 2;
+            const vDepth = door.width * 0.4 * swingOut;
+            leafEndY = hingeY + vDepth;
+            const midX = door.width / 2;
+            // Left panel (from left jamb to center point)
+            doorGroup.add(new Konva.Line({ points: [0, hingeY, midX, leafEndY], stroke: doorColor, strokeWidth: 3, lineCap: 'round' }));
+            // Right panel (from center point to right jamb)
+            doorGroup.add(new Konva.Line({ points: [midX, leafEndY, door.width, hingeY], stroke: doorColor, strokeWidth: 3, lineCap: 'round' }));
+            // Fold point indicator
+            doorGroup.add(new Konva.Circle({ x: midX, y: leafEndY, radius: 3, fill: '#9ca3af' }));
+        } else if (door.type === 'bifold-double') {
+            // Double bifold - W shape (two V's side by side)
+            hingeY = swingOut * ws.thickness / 2;
+            const vDepth = door.width * 0.25 * swingOut;
+            leafEndY = hingeY + vDepth;
+            const quarterX = door.width / 4;
+            const threeQuarterX = door.width * 3 / 4;
+            // Left V
+            doorGroup.add(new Konva.Line({ points: [0, hingeY, quarterX, leafEndY], stroke: doorColor, strokeWidth: 2.5, lineCap: 'round' }));
+            doorGroup.add(new Konva.Line({ points: [quarterX, leafEndY, door.width / 2, hingeY], stroke: doorColor, strokeWidth: 2.5, lineCap: 'round' }));
+            doorGroup.add(new Konva.Circle({ x: quarterX, y: leafEndY, radius: 2.5, fill: '#9ca3af' }));
+            // Right V
+            doorGroup.add(new Konva.Line({ points: [door.width / 2, hingeY, threeQuarterX, leafEndY], stroke: doorColor, strokeWidth: 2.5, lineCap: 'round' }));
+            doorGroup.add(new Konva.Line({ points: [threeQuarterX, leafEndY, door.width, hingeY], stroke: doorColor, strokeWidth: 2.5, lineCap: 'round' }));
+            doorGroup.add(new Konva.Circle({ x: threeQuarterX, y: leafEndY, radius: 2.5, fill: '#9ca3af' }));
+        } else if (door.type === 'pocket') {
+            // Pocket door - panel slides into wall
+            hingeY = 0; leafEndY = 0;
+            // Panel (partially hidden)
+            doorGroup.add(new Konva.Rect({ x: -door.width * 0.3, y: -3, width: door.width * 0.8, height: 6, fill: doorColor, cornerRadius: 1 }));
+            // Wall pocket indicator (dashed)
+            doorGroup.add(new Konva.Rect({ x: -door.width * 0.5, y: -5, width: door.width * 0.5, height: 10, stroke: '#9ca3af', strokeWidth: 1, dash: [3, 2], fill: 'transparent' }));
+            // Arrow
+            doorGroup.add(new Konva.Line({ points: [door.width * 0.3, -8, door.width * 0.3 - 10, -8], stroke: '#9ca3af', strokeWidth: 1.5 }));
+            doorGroup.add(new Konva.Line({ points: [door.width * 0.3 - 7, -11, door.width * 0.3 - 10, -8, door.width * 0.3 - 7, -5], stroke: '#9ca3af', strokeWidth: 1.5, lineCap: 'round' }));
+        } else if (door.type === 'overhead') {
+            // Overhead door - door behind perforated line (door in back, dashed line in front)
+            hingeY = 0; leafEndY = 0;
+            const panelOffset = swingOut * 12; // Door panel offset behind the wall line
+            // Door panel behind (solid rectangle)
+            doorGroup.add(new Konva.Rect({
+                x: 2, y: panelOffset - 4,
+                width: door.width - 4, height: 8,
+                fill: doorColor, stroke: doorColor, strokeWidth: 1, cornerRadius: 1
+            }));
+            // Perforated/dashed line in front (at wall line)
+            doorGroup.add(new Konva.Line({
+                points: [0, 0, door.width, 0],
+                stroke: '#9ca3af', strokeWidth: 2, dash: [6, 4]
+            }));
+        } else if (door.type === 'elevator') {
+            // Elevator door - center opening
+            hingeY = 0; leafEndY = 0;
+            const panelWidth = door.width / 2;
+            // Left panel
+            doorGroup.add(new Konva.Rect({ x: 2, y: -4, width: panelWidth - 4, height: 8, stroke: doorColor, strokeWidth: 2, fill: 'transparent' }));
+            // Right panel
+            doorGroup.add(new Konva.Rect({ x: panelWidth + 2, y: -4, width: panelWidth - 4, height: 8, stroke: doorColor, strokeWidth: 2, fill: 'transparent' }));
+            // Center arrows
+            doorGroup.add(new Konva.Line({ points: [panelWidth - 4, 0, panelWidth - 10, 0], stroke: '#9ca3af', strokeWidth: 1.5 }));
+            doorGroup.add(new Konva.Line({ points: [panelWidth - 7, -3, panelWidth - 10, 0, panelWidth - 7, 3], stroke: '#9ca3af', strokeWidth: 1.5, lineCap: 'round' }));
+            doorGroup.add(new Konva.Line({ points: [panelWidth + 4, 0, panelWidth + 10, 0], stroke: '#9ca3af', strokeWidth: 1.5 }));
+            doorGroup.add(new Konva.Line({ points: [panelWidth + 7, -3, panelWidth + 10, 0, panelWidth + 7, 3], stroke: '#9ca3af', strokeWidth: 1.5, lineCap: 'round' }));
+        } else if (door.type === 'revolving') {
+            // Revolving door - circular with cross
+            hingeY = 0; leafEndY = 0;
+            const radius = Math.min(door.width / 2, 20);
+            const centerX = door.width / 2;
+            doorGroup.add(new Konva.Circle({ x: centerX, y: 0, radius: radius, stroke: doorColor, strokeWidth: 2, fill: 'transparent' }));
+            // Cross panels
+            doorGroup.add(new Konva.Line({ points: [centerX - radius + 2, 0, centerX + radius - 2, 0], stroke: doorColor, strokeWidth: 2 }));
+            doorGroup.add(new Konva.Line({ points: [centerX, -radius + 2, centerX, radius - 2], stroke: doorColor, strokeWidth: 2 }));
+            // Center hub
+            doorGroup.add(new Konva.Circle({ x: centerX, y: 0, radius: 3, fill: doorColor }));
+        } else {
+            // Regular single door
+            const hingeLeft = door.swingDir === 'left';
+            const hingeX = hingeLeft ? 0 : door.width;
+            hingeY = swingOut * ws.thickness / 2;
+            const leafLength = door.width * 0.9;
+            leafEndY = hingeY + swingOut * leafLength;
+            swingArc = new Konva.Arc({
+                x: hingeX, y: hingeY, innerRadius: leafLength - 1, outerRadius: leafLength,
+                angle: 90, rotation: hingeLeft ? (swingOut > 0 ? 0 : -90) : (swingOut > 0 ? 90 : 180),
+                stroke: '#9ca3af', strokeWidth: 1, dash: [4, 3]
+            });
+            doorGroup.add(swingArc);
+            doorLeaf = new Konva.Line({ points: [hingeX, hingeY, hingeX, leafEndY], stroke: doorColor, strokeWidth: 3, lineCap: 'round' });
+            doorGroup.add(doorLeaf);
+        }
 
-        // Door leaf length (slightly less than full width for visual clarity)
-        const leafLength = door.width * 0.9;
-
-        // Door leaf end point at 90 degrees (perpendicular to wall, fully open)
-        const leafEndX = hingeX;  // Straight perpendicular, no x movement
-        const leafEndY = hingeY + swingOut * leafLength;
-
-        // Swing arc (dashed/perforated) - from hinge, showing door swing path
-        const swingArc = new Konva.Arc({
-            x: hingeX,
-            y: hingeY,
-            innerRadius: leafLength - 1,
-            outerRadius: leafLength,
-            angle: 90,
-            rotation: hingeLeft ? (swingOut > 0 ? 0 : -90) : (swingOut > 0 ? 90 : 180),
-            stroke: '#9ca3af',
-            strokeWidth: 1,
-            dash: [4, 3]
-        });
-        doorGroup.add(swingArc);
-
-        // Door leaf (solid line representing the actual door panel)
-        const doorLeaf = new Konva.Line({
-            points: [hingeX, hingeY, leafEndX, leafEndY],
-            stroke: isSelected ? '#3b82f6' : '#2d3748',
-            strokeWidth: 3,
-            lineCap: 'round'
-        });
-        doorGroup.add(doorLeaf);
-
-        // Large invisible hit area for easier selection (covers door opening + swing)
+        // Large invisible hit area for easier selection
+        const hitHeight = Math.max(Math.abs(leafEndY - hingeY), 20) + 15;
         const hitArea = new Konva.Rect({
             x: -5,
-            y: Math.min(hingeY, leafEndY) - 5,
+            y: Math.min(hingeY, leafEndY, -10) - 5,
             width: door.width + 10,
-            height: Math.abs(leafEndY - hingeY) + 15,
+            height: hitHeight,
             fill: 'transparent',
             stroke: 'transparent'
         });
@@ -4001,7 +4237,13 @@ const Render = {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
         doc.rooms.forEach(room => {
-            const g = room.geometry;
+            // Ensure geometry exists (compute from vertices if needed)
+            let g = room.geometry;
+            if (!g && room.vertices) {
+                g = getGeometryFromVertices(room.vertices);
+                room.geometry = g;
+            }
+            if (!g) return;
             xCoords.add(g.x);
             xCoords.add(g.x + g.width);
             yCoords.add(g.y);
@@ -4321,7 +4563,13 @@ const Render = {
         };
 
         doc.rooms.forEach(room => {
-            const g = room.geometry;
+            // Ensure geometry exists (compute from vertices if needed)
+            let g = room.geometry;
+            if (!g && room.vertices) {
+                g = getGeometryFromVertices(room.vertices);
+                room.geometry = g;
+            }
+            if (!g) return;
             const w = g.width;
             const h = g.height;
 
@@ -4537,24 +4785,57 @@ const App = {
     addPointRoomId: null,  // ID of room to add points to
     pushableSegment: null, // Legacy - kept for compatibility
     newVertexInfo: null,   // Tracks newly added vertex {roomId, vertexIdx} for special rendering
+    // Multi-floor support
+    floors: {},           // Stores all floor documents: { floor1: doc, floor2: doc, ... }
+    currentFloor: 'floor1',  // Currently active floor
+    floorList: ['floor1'],   // Ordered list of floor IDs
+    floorLabels: {
+        floor1: 'Floor 1'
+    },
+    floorListPage: 0,        // Current page for floor dropdown pagination
+    floorsPerPage: 6,        // Number of floors to show per page
 
     init() {
         if (!Render.init('stage')) { alert('Init failed'); return; }
-        this.doc = generate2BR1BA();
+
+        // Load saved floors from localStorage
+        this.loadAllFloors();
+
+        // Load current floor or create default
+        if (this.floors[this.currentFloor]) {
+            this.doc = JSON.parse(JSON.stringify(this.floors[this.currentFloor]));
+        } else {
+            this.doc = generate2BR1BA();
+            this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
+        }
+
         this.saveState(); // Save initial state
         this.render();
         this.updateTree();
         this.updateQABadge();
         this.updateUndoRedoButtons();
+        this.updateFloorBadge();
         this.setupKeyboardShortcuts();
         this.setupRoomDrawing();
         this.setupWallDrawing();
         this.setupMarqueeSelection();
+        this.setupFloorDropdownClose();
         console.log('App ready - tap walls to select');
 
         // Show sample sheet modal on startup for dust wipe labeling
         this.updateSampleSheetDisplay();
         setTimeout(() => this.showSampleSheetModal(), 500);
+    },
+
+    setupFloorDropdownClose() {
+        // Close floor dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const badge = $('#floorBadge');
+            const dropdown = $('#floorDropdown');
+            if (badge && dropdown && !badge.contains(e.target) && !dropdown.contains(e.target)) {
+                this.hideFloorDropdown();
+            }
+        });
     },
 
     updateSampleSheetDisplay() {
@@ -5032,6 +5313,9 @@ const App = {
         // Clear redo stack when new action is performed
         this.redoStack = [];
         this.updateUndoRedoButtons();
+
+        // Save all floors to localStorage
+        this.saveAllFloors();
     },
 
     undo() {
@@ -5079,8 +5363,9 @@ const App = {
     },
 
     newDoc() {
-        // Create an empty document - allows drawing rooms from scratch
+        // Create an empty document for current floor
         this.doc = Doc.create();
+        this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
         this.undoStack = [];
         this.redoStack = [];
         this.saveState();
@@ -5090,6 +5375,24 @@ const App = {
         this.updateQABadge();
         this.updateInspector();
         this.updateUndoRedoButtons();
+    },
+
+    newAllFloors() {
+        // Reset all floors - start completely fresh
+        this.floors = {};
+        this.currentFloor = 'floor1';
+        this.doc = Doc.create();
+        this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
+        this.undoStack = [];
+        this.redoStack = [];
+        this.saveState();
+        Render.deselect();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+        this.updateInspector();
+        this.updateUndoRedoButtons();
+        this.updateFloorBadge();
     },
 
     loadDemo() {
@@ -5149,7 +5452,12 @@ const App = {
     },
 
     onObjectTap(type, id) {
-        Render.select(type, id);
+        // Toggle selection: deselect if already selected
+        if (Render.selection.type === type && Render.selection.id === id) {
+            Render.deselect();
+        } else {
+            Render.select(type, id);
+        }
         this.render();
         this.updateInspector();
         this.highlightTreeItem(type, id);
@@ -5182,10 +5490,25 @@ const App = {
         let obj;
         switch (toolType) {
             case 'door':
+                // Use selected door type from the selector
+                const doorType = this.selectedDoorType || 'regular';
+                const doorConfigs = {
+                    'regular':       { width: 2.67 * FOOT, swing: 'in', swingDir: 'left' },
+                    'double':        { width: 5 * FOOT, swing: 'in', swingDir: 'both' },
+                    'sliding':       { width: 6 * FOOT, swing: 'none', swingDir: 'none' },
+                    'bifold':        { width: 3 * FOOT, swing: 'none', swingDir: 'none' },
+                    'bifold-double': { width: 6 * FOOT, swing: 'none', swingDir: 'none' },
+                    'pocket':        { width: 3 * FOOT, swing: 'none', swingDir: 'left' },
+                    'overhead':      { width: 8 * FOOT, swing: 'none', swingDir: 'none' },
+                    'elevator':      { width: 4 * FOOT, swing: 'none', swingDir: 'none' },
+                    'revolving':     { width: 6 * FOOT, swing: 'none', swingDir: 'none' }
+                };
+                const config = doorConfigs[doorType] || doorConfigs['regular'];
                 obj = {
-                    id: Doc.uid(), label: Doc.label(this.doc, 'door'), type: 'interior',
+                    id: Doc.uid(), label: Doc.label(this.doc, 'door'), type: doorType,
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 2.67 * FOOT, swing: 'in', swingDir: 'left'
+                    distanceFromStart: defaultOffset, width: config.width,
+                    swing: config.swing, swingDir: config.swingDir
                 };
                 this.doc.doors.push(obj);
                 break;
@@ -5310,15 +5633,28 @@ const App = {
 
         // Show hint for placement tools
         const hint = $('#toolHint');
+        const placementTools = ['door', 'window', 'cased', 'pipe', 'gas', 'radiator', 'riser', 'poe'];
         if (tool === 'room') {
             hint.textContent = 'Drag to draw room (outside) or closet (inside room)';
             hint.classList.add('show');
         } else if (tool === 'wall') {
             hint.textContent = 'Click and drag to draw wall (snaps to grid)';
             hint.classList.add('show');
-        } else if (['door', 'window', 'cased', 'pipe', 'gas', 'radiator', 'riser', 'poe'].includes(tool)) {
-            const toolName = tool === 'riser' ? 'PIPE RISER' : tool.toUpperCase();
-            hint.textContent = `Tap a wall to place ${toolName}`;
+        } else if (tool === 'door') {
+            // Door type is set via selector, show selected type
+            const typeNames = {
+                'regular': 'REGULAR DOOR', 'double': 'DOUBLE DOOR', 'sliding': 'SLIDING DOOR',
+                'bifold': 'BIFOLD DOOR', 'bifold-double': 'DOUBLE BIFOLD', 'pocket': 'POCKET DOOR',
+                'overhead': 'OVERHEAD DOOR', 'elevator': 'ELEVATOR DOOR', 'revolving': 'REVOLVING DOOR'
+            };
+            hint.textContent = `Tap a wall to place ${typeNames[this.selectedDoorType] || 'DOOR'}`;
+            hint.classList.add('show');
+        } else if (placementTools.includes(tool)) {
+            const toolNames = {
+                'window': 'WINDOW', 'cased': 'CASED OPENING', 'pipe': 'PIPE',
+                'gas': 'GAS LINE', 'radiator': 'RADIATOR', 'riser': 'PIPE RISER', 'poe': 'POINT OF ENTRY'
+            };
+            hint.textContent = `Tap a wall to place ${toolNames[tool] || tool.toUpperCase()}`;
             hint.classList.add('show');
         } else if (tool === 'dustwipe') {
             hint.textContent = 'Tap floor, wall, door, or window to place SAMPLE marker';
@@ -5861,84 +6197,6 @@ const App = {
         this.render();
     },
 
-    // Demo: Create a rectangle and transform it into an H shape step by step
-    demoMakeH() {
-        const hint = $('#toolHint');
-        const self = this;
-
-        // Step 1: Create a rectangle room
-        hint.textContent = 'Step 1: Creating rectangle (12x16 feet)...';
-        hint.classList.add('show');
-
-        const x = 500, y = 100;
-        const width = 12 * FOOT, height = 16 * FOOT;
-        const legWidth = 3 * FOOT;  // Width of H legs
-        const notchDepth = 5 * FOOT; // How deep the notches go
-
-        const room = {
-            id: Doc.uid(),
-            label: Doc.label(this.doc, 'room'),
-            type: 'Demo Room',
-            isExterior: true,
-            geometry: { x, y, width, height },
-            vertices: [
-                { x: x, y: y },
-                { x: x + width, y: y },
-                { x: x + width, y: y + height },
-                { x: x, y: y + height }
-            ]
-        };
-        createWallSegments(room, this.doc);
-        this.doc.rooms.push(room);
-        markExteriorWalls(this.doc);
-        Render.select('room', room.id);
-        this.render();
-        this.updateTree();
-
-        // Step 2: Add point on left wall (for top notch corner)
-        setTimeout(() => {
-            hint.textContent = 'Step 2: Adding point on left wall...';
-
-            // Add point at 1/4 down the left wall (west side - index 1 from south)
-            const edges = getWallEdgesFromVertices(room);
-            // Find left (west) edge
-            let leftEdgeIdx = edges.findIndex(e => e.side === 'west');
-            if (leftEdgeIdx < 0) leftEdgeIdx = 1;
-
-            self.addVertexOnEdge(room, leftEdgeIdx, 0.25);
-
-            // Step 3: Add more points to form the H
-            setTimeout(() => {
-                hint.textContent = 'Step 3: Adding more points to form H shape...';
-
-                // Now we have 5 vertices, add the rest to form an H
-                // We need to add points strategically and then move them
-                // For simplicity, let's just set the final H vertices directly
-
-                const hVerts = createHShapeVertices(x, y, width, height, legWidth, height - 2 * notchDepth);
-                room.vertices = hVerts;
-                self.syncGeometryFromVertices(room);
-                regenerateWallSegments(room, self.doc);
-                markExteriorWalls(self.doc);
-                self.render();
-
-                // Step 4: Done!
-                setTimeout(() => {
-                    hint.textContent = 'Done! H has 12 vertices. Drag orange points to reshape.';
-                    self.saveState();
-                    self.updateTree();
-                    self.updateQABadge();
-
-                    setTimeout(() => {
-                        hint.classList.remove('show');
-                    }, 3000);
-                }, 800);
-
-            }, 1000);
-
-        }, 1000);
-    },
-
     // Set selected wall as W1, renumber others clockwise
     setAsW1() {
         const sel = Render.selection;
@@ -6296,6 +6554,9 @@ const App = {
         addGroup('WINDOWS', this.doc.windows, '#87ceeb', 'window');
         addGroup('OPENINGS', this.doc.casedOpenings, '#aaa', 'cased');
         addGroup('MEP', this.doc.mep, '#22c55e', 'mep');
+
+        // Update sample list dropdown
+        this.updateSampleList();
     },
 
     highlightTreeItem(type, id) {
@@ -6340,6 +6601,194 @@ const App = {
         const arrow = $('#compassArrow');
         if (arrow) {
             arrow.style.transform = `rotate(${this.northRotation}deg)`;
+        }
+    },
+
+    // Floor management
+    toggleFloorDropdown(e) {
+        if (e) e.stopPropagation();
+        const dropdown = $('#floorDropdown');
+        if (dropdown) {
+            const isShowing = dropdown.classList.toggle('show');
+            if (isShowing) {
+                this.floorListPage = 0;
+                this.renderFloorList();
+            }
+        }
+    },
+
+    hideFloorDropdown() {
+        const dropdown = $('#floorDropdown');
+        if (dropdown) {
+            dropdown.classList.remove('show');
+        }
+    },
+
+    renderFloorList() {
+        const container = $('#floorDropdownList');
+        if (!container) return;
+
+        const start = this.floorListPage * this.floorsPerPage;
+        const end = Math.min(start + this.floorsPerPage, this.floorList.length);
+        const floorsToShow = this.floorList.slice(start, end);
+
+        container.innerHTML = floorsToShow.map(floorId => {
+            const isActive = floorId === this.currentFloor;
+            const label = this.floorLabels[floorId] || floorId;
+            return `<div class="floor-dropdown-item${isActive ? ' active' : ''}" data-floor="${floorId}" onclick="App.switchFloor('${floorId}', event)">${label}${isActive ? ' <span class="check">✓</span>' : ''}</div>`;
+        }).join('');
+
+        // Show/hide navigation
+        const nav = $('#floorDropdownNav');
+        if (nav) {
+            const totalPages = Math.ceil(this.floorList.length / this.floorsPerPage);
+            nav.style.display = totalPages > 1 ? 'flex' : 'none';
+
+            const prevBtn = $('#floorPrevBtn');
+            const nextBtn = $('#floorNextBtn');
+            if (prevBtn) prevBtn.disabled = this.floorListPage === 0;
+            if (nextBtn) nextBtn.disabled = this.floorListPage >= totalPages - 1;
+        }
+    },
+
+    floorListPrev() {
+        if (this.floorListPage > 0) {
+            this.floorListPage--;
+            this.renderFloorList();
+        }
+    },
+
+    floorListNext() {
+        const totalPages = Math.ceil(this.floorList.length / this.floorsPerPage);
+        if (this.floorListPage < totalPages - 1) {
+            this.floorListPage++;
+            this.renderFloorList();
+        }
+    },
+
+    addNewFloor() {
+        // Find next available floor number
+        let nextNum = 1;
+        while (this.floorLabels['floor' + nextNum]) {
+            nextNum++;
+        }
+
+        const newFloorId = 'floor' + nextNum;
+        const newLabel = 'Floor ' + nextNum;
+
+        // Prompt for custom name
+        const customName = prompt('Enter floor name:', newLabel);
+        if (customName === null) return; // Cancelled
+
+        const finalLabel = customName.trim() || newLabel;
+
+        // Add to floor list and labels
+        this.floorList.push(newFloorId);
+        this.floorLabels[newFloorId] = finalLabel;
+
+        // Create empty document for this floor
+        this.floors[newFloorId] = Doc.create();
+        this.floors[newFloorId].address = finalLabel + ' Blueprint';
+
+        // Jump to page with new floor and switch to it
+        this.floorListPage = Math.floor((this.floorList.length - 1) / this.floorsPerPage);
+        this.renderFloorList();
+        this.switchFloor(newFloorId);
+
+        // Save
+        this.saveAllFloors();
+    },
+
+    switchFloor(floorId, e) {
+        if (e) e.stopPropagation();
+        // Save current floor's document
+        this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
+
+        // Switch to new floor
+        this.currentFloor = floorId;
+
+        // Load or create floor document
+        if (this.floors[floorId]) {
+            this.doc = JSON.parse(JSON.stringify(this.floors[floorId]));
+        } else {
+            // Create fresh document for new floor
+            this.doc = Doc.create();
+            this.doc.address = this.floorLabels[floorId] + ' Blueprint';
+            this.floors[floorId] = JSON.parse(JSON.stringify(this.doc));
+        }
+
+        // Update UI
+        this.updateFloorBadge();
+        this.hideFloorDropdown();
+
+        // Reset undo/redo for this floor
+        this.undoStack = [];
+        this.redoStack = [];
+
+        // Clear selection
+        Render.deselect();
+
+        // Re-render
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+        this.updateSampleSheetDisplay();
+    },
+
+    updateFloorBadge() {
+        const label = $('#floorLabel');
+        if (label) {
+            label.textContent = 'Location | ' + (this.floorLabels[this.currentFloor] || this.currentFloor);
+        }
+        // Re-render floor list if visible
+        const dropdown = $('#floorDropdown');
+        if (dropdown && dropdown.classList.contains('show')) {
+            this.renderFloorList();
+        }
+    },
+
+    // Save all floors to localStorage
+    saveAllFloors() {
+        // Make sure current floor is saved
+        this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
+
+        try {
+            localStorage.setItem('floorPlanFloors', JSON.stringify(this.floors));
+            localStorage.setItem('floorPlanCurrentFloor', this.currentFloor);
+            localStorage.setItem('floorPlanFloorList', JSON.stringify(this.floorList));
+            localStorage.setItem('floorPlanFloorLabels', JSON.stringify(this.floorLabels));
+        } catch (e) {
+            console.warn('Could not save floors to localStorage:', e);
+        }
+    },
+
+    // Load all floors from localStorage
+    loadAllFloors() {
+        try {
+            const savedFloors = localStorage.getItem('floorPlanFloors');
+            const savedCurrentFloor = localStorage.getItem('floorPlanCurrentFloor');
+            const savedFloorList = localStorage.getItem('floorPlanFloorList');
+            const savedFloorLabels = localStorage.getItem('floorPlanFloorLabels');
+
+            if (savedFloors) {
+                this.floors = JSON.parse(savedFloors);
+            }
+            if (savedFloorList) {
+                this.floorList = JSON.parse(savedFloorList);
+            }
+            if (savedFloorLabels) {
+                this.floorLabels = JSON.parse(savedFloorLabels);
+            }
+            if (savedCurrentFloor && this.floorList.includes(savedCurrentFloor)) {
+                this.currentFloor = savedCurrentFloor;
+            }
+            // Ensure at least floor1 exists
+            if (this.floorList.length === 0) {
+                this.floorList = ['floor1'];
+                this.floorLabels = { floor1: 'Floor 1' };
+            }
+        } catch (e) {
+            console.warn('Could not load floors from localStorage:', e);
         }
     },
 
@@ -6546,15 +6995,21 @@ const App = {
             return;
         }
 
+        // Check for duplicate sample number
+        const sheetNum = this.doc.sampleSheetNumber || 'XXXXX';
+        const fullLabel = sheetNum + '-' + input;
+        const duplicate = this.doc.dustWipes.find(dw => dw.label === fullLabel);
+        if (duplicate) {
+            errorEl.textContent = `Sample ${input} already exists`;
+            errorEl.style.display = 'block';
+            return;
+        }
+
         const pending = this.pendingDustWipe;
         if (!pending) {
             this.hideModal('sampleNumber');
             return;
         }
-
-        // Create the full label
-        const sheetNum = this.doc.sampleSheetNumber || 'XXXXX';
-        const fullLabel = sheetNum + '-' + input;
 
         // Create dust wipe
         const dw = {
@@ -6575,6 +7030,7 @@ const App = {
         this.saveState();
         this.render();
         this.updateTree();
+        this.updateSampleList();
 
         const hint = $('#toolHint');
         hint.textContent = `Sample ${fullLabel} placed`;
@@ -6585,6 +7041,58 @@ const App = {
     cancelSampleNumber() {
         this.pendingDustWipe = null;
         this.hideModal('sampleNumber');
+    },
+
+    // Update the sample list dropdown
+    updateSampleList() {
+        const list = $('#sampleList');
+        const container = $('#sampleListContainer');
+        if (!list || !container) return;
+
+        const samples = this.doc.dustWipes || [];
+
+        // Show/hide container based on samples
+        container.style.display = samples.length > 0 ? 'block' : 'none';
+
+        // Clear and rebuild options
+        list.innerHTML = '<option value="">-- Select sample --</option>';
+
+        // Sort samples by label number
+        const sorted = [...samples].sort((a, b) => a.label.localeCompare(b.label));
+
+        sorted.forEach(dw => {
+            const opt = document.createElement('option');
+            opt.value = dw.id;
+            // Format: num|location (e.g., "001|wall" or "002|trough")
+            const num = dw.label.split('-')[1] || dw.label;
+            const loc = dw.locationType || 'unknown';
+            opt.textContent = `${num}|${loc}`;
+            list.appendChild(opt);
+        });
+    },
+
+    // Select a sample from the list and highlight it
+    selectSampleFromList(sampleId) {
+        if (!sampleId) return;
+
+        const dw = this.doc.dustWipes.find(d => d.id === sampleId);
+        if (!dw) return;
+
+        // Select the dust wipe
+        Render.selection = { type: 'dustwipe', id: sampleId };
+        this.render();
+
+        // Pan to center on the sample
+        const stage = Render.stage;
+        const scale = stage.scaleX();
+        const stageWidth = stage.width();
+        const stageHeight = stage.height();
+
+        stage.position({
+            x: stageWidth / 2 - dw.x * scale,
+            y: stageHeight / 2 - dw.y * scale
+        });
+        stage.batchDraw();
     },
 
     // Place a dust wipe sample marker on a wall
@@ -6707,6 +7215,36 @@ const App = {
     // Pending door sample placement
     pendingDoorSample: null,
 
+    // Selected door type for placement
+    selectedDoorType: 'regular',
+
+    // Show door type selector modal
+    showDoorTypeSelector() {
+        $('#doorTypeModal').classList.add('show');
+    },
+
+    // Select door type and activate door tool
+    selectDoorType(doorType) {
+        this.selectedDoorType = doorType;
+        this.hideModal('doorType');
+        this.setTool('door');
+
+        const hint = $('#toolHint');
+        const typeNames = {
+            'regular': 'REGULAR DOOR',
+            'double': 'DOUBLE DOOR',
+            'sliding': 'SLIDING DOOR',
+            'bifold': 'BIFOLD DOOR',
+            'bifold-double': 'DOUBLE BIFOLD DOOR',
+            'pocket': 'POCKET DOOR',
+            'overhead': 'OVERHEAD DOOR',
+            'elevator': 'ELEVATOR DOOR',
+            'revolving': 'REVOLVING DOOR'
+        };
+        hint.textContent = `Tap a wall to place ${typeNames[doorType] || 'DOOR'}`;
+        hint.classList.add('show');
+    },
+
     // Show door sample modal when clicking on a door with dust wipe tool
     showDoorSampleModal(doorId) {
         this.pendingDoorSample = doorId;
@@ -6756,6 +7294,108 @@ const App = {
         });
     },
 
+    // Save project to .fbg file
+    saveProject() {
+        // Show format selection modal
+        $('#saveFormatModal').classList.add('show');
+    },
+
+    saveAs(format) {
+        // Hide the modal
+        this.hideModal('saveFormat');
+
+        // Save current floor first
+        this.floors[this.currentFloor] = JSON.parse(JSON.stringify(this.doc));
+
+        // Create project data structure
+        const projectData = {
+            version: '1.0',
+            savedAt: new Date().toISOString(),
+            currentFloor: this.currentFloor,
+            floorList: this.floorList,
+            floorLabels: this.floorLabels,
+            floors: this.floors
+        };
+
+        // Generate filename from address or date
+        const address = this.doc.address || 'floor-plan';
+        const safeName = address.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 30);
+        const date = new Date().toISOString().split('T')[0];
+
+        let blob, filename, mimeType;
+
+        if (format === 'fbg' || format === 'json') {
+            // JSON-based formats
+            const jsonStr = JSON.stringify(projectData, null, 2);
+            mimeType = 'application/json';
+            filename = `${safeName}_${date}.${format}`;
+            blob = new Blob([jsonStr], { type: mimeType });
+        } else if (format === 'html') {
+            // Standalone HTML - embed data in the current page HTML
+            const htmlContent = this.generateStandaloneHTML(projectData);
+            mimeType = 'text/html';
+            filename = `${safeName}_${date}.html`;
+            blob = new Blob([htmlContent], { type: mimeType });
+        }
+
+        // Download file
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Show confirmation
+        const hint = $('#toolHint');
+        hint.textContent = `Saved: ${filename}`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 3000);
+    },
+
+    generateStandaloneHTML(projectData) {
+        // Get the current page HTML and embed the project data
+        const currentHTML = document.documentElement.outerHTML;
+
+        // Create a script that will load the project data on startup
+        const dataScript = `
+<script>
+// Embedded project data - loaded automatically on startup
+window.EMBEDDED_PROJECT_DATA = ${JSON.stringify(projectData)};
+<\/script>`;
+
+        // Insert the data script before the closing </head> tag
+        let modifiedHTML = currentHTML.replace('</head>', dataScript + '\n</head>');
+
+        // Also modify the init function to load embedded data
+        // We'll add a check at the start of init()
+        const initLoadCode = `
+        // Check for embedded project data (standalone HTML)
+        if (window.EMBEDDED_PROJECT_DATA) {
+            const data = window.EMBEDDED_PROJECT_DATA;
+            this.floors = data.floors || {};
+            this.floorList = data.floorList || ['floor1'];
+            this.floorLabels = data.floorLabels || { floor1: 'Floor 1' };
+            this.currentFloor = data.currentFloor || 'floor1';
+            if (this.floors[this.currentFloor]) {
+                this.doc = JSON.parse(JSON.stringify(this.floors[this.currentFloor]));
+            } else {
+                this.doc = Doc.create();
+            }
+            this.updateFloorBadge();
+        } else {`;
+
+        // Find and modify the init function to check for embedded data
+        modifiedHTML = modifiedHTML.replace(
+            "// Load saved floors from localStorage\n        this.loadAllFloors();",
+            initLoadCode + "\n            // Load saved floors from localStorage\n            this.loadAllFloors();\n        }"
+        );
+
+        return '<!DOCTYPE html>\n<html lang="en">' + modifiedHTML.substring(modifiedHTML.indexOf('<head>'));
+    },
+
     loadFBG(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -6763,7 +7403,41 @@ const App = {
         reader.onload = e => {
             try {
                 const data = JSON.parse(e.target.result);
-                this.doc = this.importFBG(data);
+
+                // Check if this is our new multi-floor project format
+                if (data.version && data.floors) {
+                    // New project format
+                    this.floors = data.floors;
+                    this.floorList = data.floorList || Object.keys(data.floors);
+                    this.floorLabels = data.floorLabels || {};
+                    this.currentFloor = data.currentFloor || this.floorList[0];
+
+                    // Ensure floorLabels has entries for all floors
+                    this.floorList.forEach((id, idx) => {
+                        if (!this.floorLabels[id]) {
+                            this.floorLabels[id] = 'Floor ' + (idx + 1);
+                        }
+                    });
+
+                    // Load current floor document
+                    if (this.floors[this.currentFloor]) {
+                        this.doc = JSON.parse(JSON.stringify(this.floors[this.currentFloor]));
+                    } else {
+                        this.doc = Doc.create();
+                    }
+
+                    this.updateFloorBadge();
+                } else {
+                    // Old FBG format (single level)
+                    this.doc = this.importFBG(data);
+                    // Reset to single floor
+                    this.floors = { floor1: JSON.parse(JSON.stringify(this.doc)) };
+                    this.floorList = ['floor1'];
+                    this.floorLabels = { floor1: 'Floor 1' };
+                    this.currentFloor = 'floor1';
+                    this.updateFloorBadge();
+                }
+
                 this.undoStack = [];
                 this.redoStack = [];
                 this.saveState();
@@ -6774,6 +7448,12 @@ const App = {
                 this.updateInspector();
                 this.updateUndoRedoButtons();
                 this.updateSampleSheetDisplay();
+
+                // Show success message
+                const hint = $('#toolHint');
+                hint.textContent = `Loaded: ${file.name}`;
+                hint.classList.add('show');
+                setTimeout(() => hint.classList.remove('show'), 2000);
             } catch (err) { alert('Load error: ' + err.message); }
         };
         reader.readAsText(file);
