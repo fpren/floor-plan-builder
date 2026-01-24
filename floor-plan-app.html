@@ -2043,27 +2043,40 @@ const Render = {
         const ws = doc.wallSegments.find(s => s.id === mep.parentWallSegmentId);
         if (!ws) return;
 
-        const pos = this.getPositionOnSegment(ws, mep.distanceFromStart);
         const isSelected = this.selection.type === 'mep' && this.selection.id === mep.id;
         const color = isSelected ? '#3b82f6' : (mep.label.startsWith('GAS') ? '#f97316' : mep.label.startsWith('POE') ? '#ef4444' : '#22c55e');
 
+        // Use free x,y position if available, otherwise calculate from wall
+        let posX, posY;
+        if (mep.x !== undefined && mep.y !== undefined) {
+            posX = mep.x;
+            posY = mep.y;
+        } else {
+            // Legacy: calculate from wall position
+            const wallPos = this.getPositionOnSegment(ws, mep.distanceFromStart || 0);
+            posX = wallPos.x;
+            posY = wallPos.y;
+        }
+
         if (mep.label.startsWith('PIPE')) {
-            const shape = new Konva.Circle({ x: pos.x, y: pos.y, radius: 8, stroke: color, strokeWidth: 2, fill: '#fff' });
-            shape.on('tap click', () => App.onObjectTap('mep', mep.id));
+            const shape = new Konva.Circle({ x: posX, y: posY, radius: 8, stroke: color, strokeWidth: 2, fill: '#fff', draggable: isSelected });
+            shape.on('tap click', (e) => { e.cancelBubble = true; App.onObjectTap('mep', mep.id); });
+            if (isSelected) this.addMEPDragHandlers(shape, mep, ws);
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('GAS')) {
-            const shape = new Konva.Circle({ x: pos.x, y: pos.y, radius: 8, fill: color });
-            shape.on('tap click', () => App.onObjectTap('mep', mep.id));
+            const shape = new Konva.Circle({ x: posX, y: posY, radius: 8, fill: color, draggable: isSelected });
+            shape.on('tap click', (e) => { e.cancelBubble = true; App.onObjectTap('mep', mep.id); });
+            if (isSelected) this.addMEPDragHandlers(shape, mep, ws);
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('POE')) {
-            const shape = new Konva.RegularPolygon({ x: pos.x, y: pos.y, sides: 3, radius: 12, fill: color, rotation: 0 });
-            shape.on('tap click', () => App.onObjectTap('mep', mep.id));
+            const shape = new Konva.RegularPolygon({ x: posX, y: posY, sides: 3, radius: 12, fill: color, rotation: 0, draggable: isSelected });
+            shape.on('tap click', (e) => { e.cancelBubble = true; App.onObjectTap('mep', mep.id); });
+            if (isSelected) this.addMEPDragHandlers(shape, mep, ws);
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('RAD')) {
-            // Render radiator with fins
-            const offset = this.getInteriorOffset(ws, doc);
-            const centerX = pos.x + offset.x * 0.5;
-            const centerY = pos.y + offset.y * 0.5;
+            // Radiators use free positioning
+            const centerX = posX;
+            const centerY = posY;
             const self = this;
             const radGroup = new Konva.Group({
                 x: centerX,
@@ -2113,7 +2126,7 @@ const Render = {
                 e.cancelBubble = true;
             });
 
-            // Drag handling for radiator
+            // Drag handling for radiator - free positioning
             if (isSelected) {
                 radGroup.on('dragstart', function(e) {
                     e.cancelBubble = true;
@@ -2126,12 +2139,9 @@ const Render = {
 
                 radGroup.on('dragend', function(e) {
                     self.stage.draggable(true);
-                    // Update mep position based on new location
-                    const newX = this.x();
-                    const newY = this.y();
-                    // Calculate new distance along wall
-                    const newDist = self.getOffsetOnSegment(ws, newX, newY);
-                    mep.distanceFromStart = Math.max(0, Math.min(newDist, getSegmentLength(ws)));
+                    // Save free x,y position (wall registration stays the same)
+                    mep.x = this.x();
+                    mep.y = this.y();
                     App.saveState();
                     App.render();
                 });
@@ -2139,31 +2149,62 @@ const Render = {
 
             this.layers.mep.add(radGroup);
         } else if (mep.label.startsWith('PRSR')) {
-            // Pipe Riser - concentric circles to show vertical pipe
-            const offset = this.getInteriorOffset(ws, doc);
-            const riserX = pos.x + offset.x * 0.3;
-            const riserY = pos.y + offset.y * 0.3;
-            const riserGroup = new Konva.Group();
+            // Pipe Riser - uses free positioning
+            const self = this;
+            const riserGroup = new Konva.Group({
+                x: posX,
+                y: posY,
+                draggable: isSelected
+            });
 
             // Outer circle
             riserGroup.add(new Konva.Circle({
-                x: riserX, y: riserY, radius: 12,
+                x: 0, y: 0, radius: 12,
                 fill: '#f3f4f6', stroke: color, strokeWidth: 2
             }));
             // Inner circle (pipe)
             riserGroup.add(new Konva.Circle({
-                x: riserX, y: riserY, radius: 6,
+                x: 0, y: 0, radius: 6,
                 fill: '#e5e7eb', stroke: color, strokeWidth: 1
             }));
 
-            riserGroup.on('tap click', () => App.onObjectTap('mep', mep.id));
+            riserGroup.on('tap click', (e) => { e.cancelBubble = true; App.onObjectTap('mep', mep.id); });
+            riserGroup.on('mousedown touchstart', (e) => { e.cancelBubble = true; });
+
+            if (isSelected) {
+                riserGroup.on('dragstart', function(e) { e.cancelBubble = true; self.stage.draggable(false); });
+                riserGroup.on('dragmove', function(e) { e.cancelBubble = true; });
+                riserGroup.on('dragend', function(e) {
+                    self.stage.draggable(true);
+                    mep.x = this.x();
+                    mep.y = this.y();
+                    App.saveState();
+                    App.render();
+                });
+            }
             this.layers.mep.add(riserGroup);
         }
 
+        // Label uses the mep's x,y position
         this.layers.labels.add(new Konva.Text({
-            x: pos.x + 14, y: pos.y - 5,
+            x: posX + 14, y: posY - 5,
             text: mep.label, fontSize: 8, fill: color, listening: false
         }));
+    },
+
+    // Helper to add drag handlers for simple MEP shapes (PIPE, GAS, POE)
+    addMEPDragHandlers(shape, mep, ws) {
+        const self = this;
+        shape.on('mousedown touchstart', (e) => { e.cancelBubble = true; });
+        shape.on('dragstart', function(e) { e.cancelBubble = true; self.stage.draggable(false); });
+        shape.on('dragmove', function(e) { e.cancelBubble = true; });
+        shape.on('dragend', function(e) {
+            self.stage.draggable(true);
+            mep.x = this.x();
+            mep.y = this.y();
+            App.saveState();
+            App.render();
+        });
     },
 
     getPositionOnSegment(seg, distFromStart) {
@@ -3394,42 +3435,59 @@ const App = {
                 this.doc.casedOpenings.push(obj);
                 break;
             case 'pipe':
+                // Calculate initial position with interior offset
+                var pipePos = Render.getPositionOnSegment(ws, defaultOffset);
+                var pipeOffset = Render.getInteriorOffset(ws, this.doc);
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'pipe'),
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    x: pipePos.x + pipeOffset.x * 0.5,
+                    y: pipePos.y + pipeOffset.y * 0.5
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'gas':
+                var gasPos = Render.getPositionOnSegment(ws, defaultOffset);
+                var gasOffset = Render.getInteriorOffset(ws, this.doc);
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'gas'),
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    x: gasPos.x + gasOffset.x * 0.5,
+                    y: gasPos.y + gasOffset.y * 0.5
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'radiator':
+                var radPos = Render.getPositionOnSegment(ws, defaultOffset);
+                var radOffset = Render.getInteriorOffset(ws, this.doc);
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'radiator'),
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 4 * FOOT, height: 1 * FOOT, side: 'interior'
+                    x: radPos.x + radOffset.x * 0.5,
+                    y: radPos.y + radOffset.y * 0.5,
+                    width: 4 * FOOT, height: 1 * FOOT, side: 'interior'
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'riser':
+                var riserPos = Render.getPositionOnSegment(ws, defaultOffset);
+                var riserOffset = Render.getInteriorOffset(ws, this.doc);
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'riser'),
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset, width: 0.5 * FOOT, height: 0.5 * FOOT, side: 'interior'
+                    x: riserPos.x + riserOffset.x * 0.5,
+                    y: riserPos.y + riserOffset.y * 0.5,
+                    width: 0.5 * FOOT, height: 0.5 * FOOT, side: 'interior'
                 };
                 this.doc.mep.push(obj);
                 break;
             case 'poe':
+                var poePos = Render.getPositionOnSegment(ws, defaultOffset);
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'poe'), type: 'entry',
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
-                    distanceFromStart: defaultOffset
+                    x: poePos.x,
+                    y: poePos.y
                 };
                 this.doc.mep.push(obj);
                 break;
