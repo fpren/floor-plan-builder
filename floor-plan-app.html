@@ -943,8 +943,13 @@ const Render = {
         const roomFill = '#fafbfc';
         const roomBorder = isSelected ? '#3b82f6' : '#e5e7eb';
 
-        // Shadow properties for room
-        const shadowProps = {
+        // Shadow properties - blue glow when selected, dark shadow when not
+        const shadowProps = isSelected ? {
+            shadowColor: '#3b82f6',
+            shadowBlur: 15,
+            shadowOffset: { x: 0, y: 0 },
+            shadowOpacity: 0.6
+        } : {
             shadowColor: 'black',
             shadowBlur: 8,
             shadowOffset: { x: 4, y: 4 },
@@ -1225,13 +1230,22 @@ const Render = {
         const pg = parentRoom ? parentRoom.geometry : null;
 
         // Closet fill with light grey and shadow (closets are rooms too)
-        const rect = new Konva.Rect({
-            x: g.x, y: g.y, width: g.width, height: g.height,
-            fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1,
+        // Blue glow when selected, dark shadow when not
+        const closetShadowProps = isSelected ? {
+            shadowColor: '#3b82f6',
+            shadowBlur: 15,
+            shadowOffset: { x: 0, y: 0 },
+            shadowOpacity: 0.6
+        } : {
             shadowColor: 'black',
             shadowBlur: 8,
             shadowOffset: { x: 4, y: 4 },
             shadowOpacity: 0.4
+        };
+        const rect = new Konva.Rect({
+            x: g.x, y: g.y, width: g.width, height: g.height,
+            fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1,
+            ...closetShadowProps
         });
         rect.on('tap click', () => App.onObjectTap('closet', closet.id));
         this.layers.openings.add(rect);
