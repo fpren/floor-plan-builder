@@ -353,22 +353,40 @@
 <div class="modal" id="sampleSheetModal">
     <div class="modal-box">
         <div class="modal-head">
-            <div class="modal-title">Sample Sheet Number</div>
+            <div class="modal-title">Sample Sheet Label</div>
             <button class="modal-close" onclick="App.skipSampleSheet()">&times;</button>
         </div>
         <div class="modal-body">
-            <p style="margin-bottom: 12px; color: #666;">Enter the 8-digit sample sheet number for dust wipe labeling.</p>
+            <p style="margin-bottom: 12px; color: #666;">Enter the 5-digit sample sheet label (first part of sample numbers).</p>
             <div style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Sample Sheet Number:</label>
-                <input type="tel" id="sampleSheetInput1" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="e.g., 99999001" autocomplete="off" style="width: 100%; padding: 14px; font-size: 18px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 3px; -webkit-appearance: none;">
+                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Sample Sheet Label:</label>
+                <input type="tel" id="sampleSheetInput1" maxlength="5" inputmode="numeric" pattern="[0-9]*" placeholder="e.g., 12345" autocomplete="off" style="width: 100%; padding: 14px; font-size: 20px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 4px; -webkit-appearance: none;">
             </div>
             <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Confirm Number:</label>
-                <input type="tel" id="sampleSheetInput2" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="Enter again to confirm" autocomplete="off" style="width: 100%; padding: 14px; font-size: 18px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 3px; -webkit-appearance: none;">
+                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Confirm Label:</label>
+                <input type="tel" id="sampleSheetInput2" maxlength="5" inputmode="numeric" pattern="[0-9]*" placeholder="Enter again to confirm" autocomplete="off" style="width: 100%; padding: 14px; font-size: 20px; border: 2px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 4px; -webkit-appearance: none;">
             </div>
             <div id="sampleSheetError" style="color: #ef4444; font-size: 11px; margin-bottom: 12px; display: none;"></div>
             <button onclick="App.confirmSampleSheet()" style="width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px;">Confirm</button>
             <button onclick="App.skipSampleSheet()" style="width: 100%; padding: 10px; background: #f3f4f6; color: #666; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; cursor: pointer;">Skip for now</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="sampleNumberModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">Sample Number</div>
+            <button class="modal-close" onclick="App.cancelSampleNumber()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 8px; color: #666;">Enter the 3-digit sample number:</p>
+            <p style="margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #3b82f6;" id="sampleNumberPreview">12345-___</p>
+            <div style="margin-bottom: 16px;">
+                <input type="tel" id="sampleNumberInput" maxlength="3" inputmode="numeric" pattern="[0-9]*" placeholder="001" autocomplete="off" style="width: 100%; padding: 16px; font-size: 24px; border: 2px solid #3b82f6; border-radius: 6px; text-align: center; letter-spacing: 6px; -webkit-appearance: none;">
+            </div>
+            <div id="sampleNumberError" style="color: #ef4444; font-size: 11px; margin-bottom: 12px; display: none;"></div>
+            <button onclick="App.confirmSampleNumber()" style="width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;">Place Sample</button>
         </div>
     </div>
 </div>
@@ -6320,9 +6338,9 @@ const App = {
         const input2 = $('#sampleSheetInput2').value.trim();
         const errorEl = $('#sampleSheetError');
 
-        // Validate 8-digit number
-        if (!/^\d{8}$/.test(input1)) {
-            errorEl.textContent = 'Please enter exactly 8 digits';
+        // Validate 5-digit number
+        if (!/^\d{5}$/.test(input1)) {
+            errorEl.textContent = 'Please enter exactly 5 digits';
             errorEl.style.display = 'block';
             return;
         }
@@ -6354,14 +6372,79 @@ const App = {
         this.hideModal('sampleSheet');
         // Use placeholder if no sample sheet set
         if (!this.doc.sampleSheetNumber) {
-            this.doc.sampleSheetNumber = 'XXXXXXXX';
+            this.doc.sampleSheetNumber = 'XXXXX';
             $('#sampleSheetDisplay').textContent = 'Not Set';
         }
     },
 
+    // Pending dust wipe placement info
+    pendingDustWipe: null,
+
+    // Show sample number modal for dust wipe placement
+    showSampleNumberModal(placementInfo) {
+        this.pendingDustWipe = placementInfo;
+        const sheetNum = this.doc.sampleSheetNumber || 'XXXXX';
+        $('#sampleNumberPreview').textContent = sheetNum + '-___';
+        $('#sampleNumberInput').value = '';
+        $('#sampleNumberError').style.display = 'none';
+        $('#sampleNumberModal').classList.add('show');
+        setTimeout(() => $('#sampleNumberInput').focus(), 100);
+    },
+
+    confirmSampleNumber() {
+        const input = $('#sampleNumberInput').value.trim();
+        const errorEl = $('#sampleNumberError');
+
+        // Validate 3-digit number
+        if (!/^\d{3}$/.test(input)) {
+            errorEl.textContent = 'Please enter exactly 3 digits';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        const pending = this.pendingDustWipe;
+        if (!pending) {
+            this.hideModal('sampleNumber');
+            return;
+        }
+
+        // Create the full label
+        const sheetNum = this.doc.sampleSheetNumber || 'XXXXX';
+        const fullLabel = sheetNum + '-' + input;
+
+        // Create dust wipe
+        const dw = {
+            id: Doc.uid(),
+            label: fullLabel,
+            x: pending.x,
+            y: pending.y,
+            parentWallSegmentId: pending.wallSegmentId || null,
+            parentWindowId: pending.windowId || null,
+            parentRoomId: pending.roomId || null,
+            locationType: pending.locationType || null
+        };
+
+        this.doc.dustWipes.push(dw);
+        this.pendingDustWipe = null;
+        this.hideModal('sampleNumber');
+        this.saveState();
+        this.render();
+        this.updateTree();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Sample ${fullLabel} placed`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 1500);
+    },
+
+    cancelSampleNumber() {
+        this.pendingDustWipe = null;
+        this.hideModal('sampleNumber');
+    },
+
     // Place a dust wipe sample marker on a wall
     placeDustWipe(ws, clickPos) {
-        // If no sample sheet, prompt for it but allow skip
+        // If no sample sheet, prompt for it
         if (!this.doc.sampleSheetNumber) {
             this.showSampleSheetModal();
             return;
@@ -6378,26 +6461,14 @@ const App = {
             y = (ws.y1 + ws.y2) / 2;
         }
 
-        const label = Doc.dustWipeLabel(this.doc);
-        const dw = {
-            id: Doc.uid(),
-            label: label,
+        // Show sample number modal
+        this.showSampleNumberModal({
             x: x,
             y: y,
-            parentWallSegmentId: ws.id,
-            parentRoomId: ws.roomId,
-            locationType: null  // wall, trough, sill, well
-        };
-
-        this.doc.dustWipes.push(dw);
-        this.saveState();
-        this.render();
-        this.updateTree();
-
-        const hint = $('#toolHint');
-        hint.textContent = `Sample ${label} placed`;
-        hint.classList.add('show');
-        setTimeout(() => hint.classList.remove('show'), 1500);
+            wallSegmentId: ws.id,
+            roomId: ws.roomId,
+            locationType: 'wall'
+        });
     },
 
     // Pending window sample placement (stores window id while modal is open)
@@ -6439,28 +6510,17 @@ const App = {
             y = pos.y - 20; // Offset from window
         }
 
-        const label = Doc.dustWipeLabel(this.doc);
-        const dw = {
-            id: Doc.uid(),
-            label: label,
-            x: x,
-            y: y,
-            parentWindowId: windowId,
-            parentRoomId: win.parentRoomId,
-            locationType: locationType  // trough, sill, or well
-        };
-
-        this.doc.dustWipes.push(dw);
         this.pendingWindowSample = null;
         this.hideModal('windowSample');
-        this.saveState();
-        this.render();
-        this.updateTree();
 
-        const hint = $('#toolHint');
-        hint.textContent = `Sample ${label} (${locationType}) placed on window`;
-        hint.classList.add('show');
-        setTimeout(() => hint.classList.remove('show'), 1500);
+        // Show sample number modal
+        this.showSampleNumberModal({
+            x: x,
+            y: y,
+            windowId: windowId,
+            roomId: win.parentRoomId,
+            locationType: locationType  // trough, stool, or well
+        });
     },
 
     // Pending floor sample placement (stores click position while modal is open)
@@ -6487,27 +6547,16 @@ const App = {
             return;
         }
 
-        const label = Doc.dustWipeLabel(this.doc);
-        const dw = {
-            id: Doc.uid(),
-            label: label,
-            x: pending.x,
-            y: pending.y,
-            parentRoomId: pending.roomId,
-            locationType: surfaceType  // floor, entryway, other
-        };
-
-        this.doc.dustWipes.push(dw);
         this.pendingFloorSample = null;
         this.hideModal('floorSample');
-        this.saveState();
-        this.render();
-        this.updateTree();
 
-        const hint = $('#toolHint');
-        hint.textContent = `Sample ${label} (${surfaceType}) placed`;
-        hint.classList.add('show');
-        setTimeout(() => hint.classList.remove('show'), 1500);
+        // Show sample number modal
+        this.showSampleNumberModal({
+            x: pending.x,
+            y: pending.y,
+            roomId: pending.roomId,
+            locationType: surfaceType  // floor, entryway, other
+        });
     },
 
     loadFBG(event) {
