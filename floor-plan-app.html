@@ -291,6 +291,14 @@
                                 <svg viewBox="0 0 24 24"><path d="M23 4v6h-6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 <span>Rotate</span>
                             </button>
+                            <button class="tool-btn" onclick="App.flipHorizontal()" title="Flip horizontal (mirror left/right)">
+                                <svg viewBox="0 0 24 24"><path d="M12 3v18" stroke="currentColor" stroke-width="2" stroke-dasharray="2,2"/><path d="M16 7l4 5-4 5" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7l-4 5 4 5" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>Flip H</span>
+                            </button>
+                            <button class="tool-btn" onclick="App.flipVertical()" title="Flip vertical (mirror up/down)">
+                                <svg viewBox="0 0 24 24"><path d="M3 12h18" stroke="currentColor" stroke-width="2" stroke-dasharray="2,2"/><path d="M7 8l5-4 5 4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16l5 4 5-4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <span>Flip V</span>
+                            </button>
                             <button class="tool-btn" onclick="App.showQA()" title="QA Validation">
                                 <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" fill="none" stroke-width="2"/></svg>
                                 <span>QA</span>
@@ -5387,6 +5395,92 @@ const App = {
             const mep = this.doc.mep.find(m => m.id === sel.id);
             if (mep && mep.label.startsWith('RAD')) {
                 mep.rotation = ((mep.rotation || 0) + 90) % 360;
+                this.saveState();
+                this.render();
+            }
+        }
+    },
+
+    // Flip selected object horizontally (mirror left/right)
+    flipHorizontal() {
+        const sel = Render.selection;
+        if (!sel.type || !sel.id) return;
+
+        if (sel.type === 'door') {
+            // Doors: flip swing direction (left <-> right)
+            const door = this.doc.doors.find(d => d.id === sel.id);
+            if (door) {
+                door.swingDir = door.swingDir === 'left' ? 'right' : 'left';
+                this.saveState();
+                this.render();
+            }
+        } else if (sel.type === 'room' || sel.type === 'closet') {
+            // Rooms/Closets: mirror vertices horizontally around center
+            let item = this.doc.rooms.find(r => r.id === sel.id);
+            if (!item) item = this.doc.closets.find(c => c.id === sel.id);
+            if (item && item.vertices) {
+                const g = item.geometry;
+                const centerX = g.x + g.width / 2;
+                // Mirror each vertex around center X
+                item.vertices = item.vertices.map(v => ({
+                    x: centerX + (centerX - v.x),
+                    y: v.y
+                }));
+                // Regenerate wall segments
+                regenerateWallSegments(item, this.doc);
+                this.saveState();
+                this.render();
+                this.updateTree();
+            }
+        } else if (sel.type === 'mep') {
+            // Radiators: flip rotation horizontally
+            const mep = this.doc.mep.find(m => m.id === sel.id);
+            if (mep && mep.label.startsWith('RAD')) {
+                // Flip by mirroring rotation angle
+                mep.rotation = (360 - (mep.rotation || 0)) % 360;
+                this.saveState();
+                this.render();
+            }
+        }
+    },
+
+    // Flip selected object vertically (mirror up/down)
+    flipVertical() {
+        const sel = Render.selection;
+        if (!sel.type || !sel.id) return;
+
+        if (sel.type === 'door') {
+            // Doors: flip swing in/out
+            const door = this.doc.doors.find(d => d.id === sel.id);
+            if (door) {
+                door.swing = door.swing === 'in' ? 'out' : 'in';
+                this.saveState();
+                this.render();
+            }
+        } else if (sel.type === 'room' || sel.type === 'closet') {
+            // Rooms/Closets: mirror vertices vertically around center
+            let item = this.doc.rooms.find(r => r.id === sel.id);
+            if (!item) item = this.doc.closets.find(c => c.id === sel.id);
+            if (item && item.vertices) {
+                const g = item.geometry;
+                const centerY = g.y + g.height / 2;
+                // Mirror each vertex around center Y
+                item.vertices = item.vertices.map(v => ({
+                    x: v.x,
+                    y: centerY + (centerY - v.y)
+                }));
+                // Regenerate wall segments
+                regenerateWallSegments(item, this.doc);
+                this.saveState();
+                this.render();
+                this.updateTree();
+            }
+        } else if (sel.type === 'mep') {
+            // Radiators: flip rotation vertically
+            const mep = this.doc.mep.find(m => m.id === sel.id);
+            if (mep && mep.label.startsWith('RAD')) {
+                // Flip by mirroring rotation angle vertically
+                mep.rotation = (180 - (mep.rotation || 0) + 360) % 360;
                 this.saveState();
                 this.render();
             }
