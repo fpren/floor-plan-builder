@@ -1080,6 +1080,12 @@ const Render = {
                         closet.geometry.y = startPos.y + actualDy;
                     }
                 });
+
+                // Snap the visual position - set group to show snapped offset
+                const snappedDx = g.x - startRoomX;
+                const snappedDy = g.y - startRoomY;
+                this.x(snappedDx);
+                this.y(snappedDy);
             });
 
             roomGroup.on('dragend', function(e) {
