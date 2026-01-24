@@ -235,6 +235,20 @@
                         </select>
                     </div>
                 </div>
+                <div class="section" id="wallSection" style="display: none;">
+                    <div class="section-header">Wall Settings</div>
+                    <div class="section-content">
+                        <div style="padding: 4px 8px; font-size: 11px; color: var(--text-dim); margin-bottom: 8px;">
+                            Selected: <strong id="selectedWallLabel">W1</strong>
+                        </div>
+                        <div class="tool-grid" style="grid-template-columns: 1fr;">
+                            <button class="tool-btn" onclick="App.setAsW1()" title="Set this wall as W1 (others renumber clockwise)">
+                                <svg viewBox="0 0 24 24"><path d="M12 2L12 22M12 2L8 6M12 2L16 6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="18" text-anchor="middle" font-size="8" fill="currentColor" stroke="none">W1</text></svg>
+                                <span>Set as W1</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 <div class="section">
                     <div class="section-header">Actions</div>
                     <div class="section-content">
@@ -3624,6 +3638,25 @@ const App = {
                 roomTypeSection.style.display = 'none';
             }
         }
+
+        // Show/hide wall section based on wall selection
+        const wallSection = $('#wallSection');
+        const selectedWallLabel = $('#selectedWallLabel');
+        if (wallSection) {
+            if (sel.type === 'wall' && sel.id) {
+                const wall = this.doc.wallSegments.find(ws => ws.id === sel.id);
+                if (wall && wall.roomId) {
+                    wallSection.style.display = 'block';
+                    if (selectedWallLabel) {
+                        selectedWallLabel.textContent = wall.label;
+                    }
+                } else {
+                    wallSection.style.display = 'none';
+                }
+            } else {
+                wallSection.style.display = 'none';
+            }
+        }
     },
 
     deleteSelected() {
@@ -3683,6 +3716,40 @@ const App = {
         this.saveState();
         this.render();
         this.updateTree();
+    },
+
+    // Set selected wall as W1, renumber others clockwise
+    setAsW1() {
+        const sel = Render.selection;
+        if (sel.type !== 'wall' || !sel.id) return;
+
+        const selectedWall = this.doc.wallSegments.find(ws => ws.id === sel.id);
+        if (!selectedWall || !selectedWall.roomId) return;
+
+        // Get all walls for this room
+        const roomWalls = this.doc.wallSegments.filter(ws => ws.roomId === selectedWall.roomId);
+        if (roomWalls.length === 0) return;
+
+        // Find the current index of the selected wall
+        const currentIndex = selectedWall.index;
+
+        // Renumber walls: selected becomes W1, then clockwise
+        roomWalls.forEach(wall => {
+            // Calculate new index: offset from selected wall's position
+            let newIndex = wall.index - currentIndex + 1;
+            if (newIndex <= 0) newIndex += roomWalls.length;
+
+            wall.index = newIndex;
+            wall.label = 'W' + newIndex;
+        });
+
+        // Sort walls by new index to ensure consistent order
+        roomWalls.sort((a, b) => a.index - b.index);
+
+        this.saveState();
+        this.render();
+        this.updateTree();
+        this.updateInspector();
     },
 
     deleteObject(objId, objType) {
