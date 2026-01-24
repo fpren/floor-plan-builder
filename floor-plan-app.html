@@ -2056,19 +2056,27 @@ const Render = {
             shape.on('tap click', () => App.onObjectTap('mep', mep.id));
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('POE')) {
-            const shape = new Konva.RegularPolygon({ x: pos.x, y: pos.y, sides: 3, radius: 12, fill: color, rotation: mep.rotation || 0 });
+            const shape = new Konva.RegularPolygon({ x: pos.x, y: pos.y, sides: 3, radius: 12, fill: color, rotation: 0 });
             shape.on('tap click', () => App.onObjectTap('mep', mep.id));
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('RAD')) {
             // Render radiator with fins
             const offset = this.getInteriorOffset(ws, doc);
-            const radX = pos.x + offset.x * 0.5;
-            const radY = pos.y + offset.y * 0.5 - mep.height / 2;
-            const radGroup = new Konva.Group();
+            const centerX = pos.x + offset.x * 0.5;
+            const centerY = pos.y + offset.y * 0.5;
+            const radGroup = new Konva.Group({
+                x: centerX,
+                y: centerY,
+                rotation: mep.rotation || 0
+            });
+
+            // Draw radiator centered at origin (0,0) so rotation works correctly
+            const halfW = mep.width / 2;
+            const halfH = mep.height / 2;
 
             // Main housing
             radGroup.add(new Konva.Rect({
-                x: radX, y: radY, width: mep.width, height: mep.height,
+                x: -halfW, y: -halfH, width: mep.width, height: mep.height,
                 fill: '#f9fafb', stroke: color, strokeWidth: 2, cornerRadius: 3
             }));
 
@@ -2078,18 +2086,18 @@ const Render = {
             const finPadding = 4;
             for (let i = 1; i <= finCount; i++) {
                 radGroup.add(new Konva.Line({
-                    points: [radX + i * finSpacing, radY + finPadding, radX + i * finSpacing, radY + mep.height - finPadding],
+                    points: [-halfW + i * finSpacing, -halfH + finPadding, -halfW + i * finSpacing, halfH - finPadding],
                     stroke: color, strokeWidth: 1.5, opacity: 0.7
                 }));
             }
 
             // Top and bottom horizontal pipes
             radGroup.add(new Konva.Line({
-                points: [radX + 4, radY + 6, radX + mep.width - 4, radY + 6],
+                points: [-halfW + 4, -halfH + 6, halfW - 4, -halfH + 6],
                 stroke: color, strokeWidth: 2, lineCap: 'round'
             }));
             radGroup.add(new Konva.Line({
-                points: [radX + 4, radY + mep.height - 6, radX + mep.width - 4, radY + mep.height - 6],
+                points: [-halfW + 4, halfH - 6, halfW - 4, halfH - 6],
                 stroke: color, strokeWidth: 2, lineCap: 'round'
             }));
 
@@ -3314,51 +3322,38 @@ const App = {
         }
     },
 
-    // Rotate selected object by 90 degrees
+    // Rotate selected object by 90 degrees (rooms and radiators only)
     rotateSelected() {
         const sel = Render.selection;
         if (!sel.type || !sel.id) return;
 
-        if (sel.type === 'door') {
-            // Doors: cycle through swing configurations (4 states)
-            const door = this.doc.doors.find(d => d.id === sel.id);
-            if (door) {
-                // Current state -> next state
-                // left-in -> left-out -> right-out -> right-in -> left-in
-                if (door.swingDir === 'left' && door.swing === 'in') {
-                    door.swing = 'out';
-                } else if (door.swingDir === 'left' && door.swing === 'out') {
-                    door.swingDir = 'right';
-                } else if (door.swingDir === 'right' && door.swing === 'out') {
-                    door.swing = 'in';
-                } else {
-                    door.swingDir = 'left';
-                    door.swing = 'in';
-                }
+        if (sel.type === 'room') {
+            // Rooms: rotate 90 degrees (swap width/height)
+            const room = this.doc.rooms.find(r => r.id === sel.id);
+            if (room) {
+                const g = room.geometry;
+                const oldW = g.width;
+                const oldH = g.height;
+                // Swap dimensions
+                g.width = oldH;
+                g.height = oldW;
+                // Recreate wall segments for new dimensions
+                const segs = this.doc.wallSegments.filter(ws => ws.roomId === room.id);
+                segs.forEach(ws => {
+                    if (ws.label === 'W1') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                    if (ws.label === 'W2') { ws.x1 = g.x + g.width; ws.y1 = g.y + g.height; ws.x2 = g.x + g.width; ws.y2 = g.y; }
+                    if (ws.label === 'W3') { ws.x1 = g.x + g.width; ws.y1 = g.y; ws.x2 = g.x; ws.y2 = g.y; }
+                    if (ws.label === 'W4') { ws.x1 = g.x; ws.y1 = g.y; ws.x2 = g.x; ws.y2 = g.y + g.height; }
+                });
                 this.saveState();
                 this.render();
-            }
-        } else if (sel.type === 'window') {
-            // Windows: rotate 180 degrees (flip sides)
-            const win = this.doc.windows.find(w => w.id === sel.id);
-            if (win) {
-                win.rotation = ((win.rotation || 0) + 180) % 360;
-                this.saveState();
-                this.render();
+                this.updateTree();
             }
         } else if (sel.type === 'mep') {
-            // MEP: rotate 90 degrees
+            // Only radiators can rotate
             const mep = this.doc.mep.find(m => m.id === sel.id);
-            if (mep) {
+            if (mep && mep.label.startsWith('RAD')) {
                 mep.rotation = ((mep.rotation || 0) + 90) % 360;
-                this.saveState();
-                this.render();
-            }
-        } else if (sel.type === 'cased') {
-            // Cased openings: rotate 180 degrees
-            const op = this.doc.casedOpenings.find(o => o.id === sel.id);
-            if (op) {
-                op.rotation = ((op.rotation || 0) + 180) % 360;
                 this.saveState();
                 this.render();
             }
