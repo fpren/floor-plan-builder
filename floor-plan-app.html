@@ -1095,15 +1095,8 @@ const Render = {
         // Outside dimension lines with shadow effect - BLUE for exterior
         const dimOffset = 20;
         const extLineLen = 8;
-        const shadowOffset = 1;
 
-        // Width dimension line (below room) with shadow
-        // Shadow line first
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x, g.y + g.height + dimOffset + shadowOffset, g.x + g.width, g.y + g.height + dimOffset + shadowOffset],
-            stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false
-        }));
-        // Main dimension line
+        // Width dimension line (below room) - BLUE
         this.layers.dims.add(new Konva.Line({
             points: [g.x, g.y + g.height + dimOffset, g.x + g.width, g.y + g.height + dimOffset],
             stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
@@ -1123,13 +1116,7 @@ const Render = {
             text: `${widthFt}'-0"`, fontSize: 9, fill: DIM_COLOR_EXTERIOR, align: 'center', listening: false
         }));
 
-        // Height dimension line (right of room) with shadow
-        // Shadow line first
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x + g.width + dimOffset + shadowOffset, g.y, g.x + g.width + dimOffset + shadowOffset, g.y + g.height],
-            stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false
-        }));
-        // Main dimension line
+        // Height dimension line (right of room) - BLUE
         this.layers.dims.add(new Konva.Line({
             points: [g.x + g.width + dimOffset, g.y, g.x + g.width + dimOffset, g.y + g.height],
             stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
@@ -1162,6 +1149,19 @@ const Render = {
         // Visible wall line - dark grey, exterior walls thicker
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
         const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
+        const shadowOffset = 2;
+
+        // Shadow line behind wall (offset down-right)
+        const shadowLine = new Konva.Line({
+            points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
+            stroke: 'rgba(0,0,0,0.25)',
+            strokeWidth: wallWidth + 1,
+            lineCap: 'round',
+            listening: false
+        });
+        group.add(shadowLine);
+
+        // Main wall line
         const visibleLine = new Konva.Line({
             points: [ws.x1, ws.y1, ws.x2, ws.y2],
             stroke: wallColor,
@@ -1327,12 +1327,23 @@ const Render = {
     // Render a closet wall with hit detection for placing doors
     renderClosetWall(ws, wallColor, wallWidth) {
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
+        const shadowOffset = 2;
+        const finalWidth = isSelected ? 4 : wallWidth;
+
+        // Shadow line behind wall
+        this.layers.walls.add(new Konva.Line({
+            points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
+            stroke: 'rgba(0,0,0,0.25)',
+            strokeWidth: finalWidth + 1,
+            lineCap: 'round',
+            listening: false
+        }));
 
         // Visible wall line
         this.layers.walls.add(new Konva.Line({
             points: [ws.x1, ws.y1, ws.x2, ws.y2],
             stroke: isSelected ? '#3b82f6' : wallColor,
-            strokeWidth: isSelected ? 4 : wallWidth,
+            strokeWidth: finalWidth,
             lineCap: 'round',
             listening: false
         }));
@@ -1973,16 +1984,8 @@ const Render = {
     renderDimension(dim) {
         const layer = this.layers.dims;
         const isVert = dim.vertical;
-        // Overall building dimensions use exterior (blue) color with shadow
+        // Overall building dimensions use exterior (blue) color
         const dimLineColor = DIM_COLOR_EXTERIOR;
-        const shadowOffset = 1;
-
-        // Shadow line first
-        if (isVert) {
-            layer.add(new Konva.Line({ points: [dim.x1 + shadowOffset, dim.y1, dim.x2 + shadowOffset, dim.y2], stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false }));
-        } else {
-            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 + shadowOffset, dim.x2, dim.y2 + shadowOffset], stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false }));
-        }
 
         // Main dimension line
         layer.add(new Konva.Line({ points: [dim.x1, dim.y1, dim.x2, dim.y2], stroke: dimLineColor, strokeWidth: 1.5, listening: false }));
