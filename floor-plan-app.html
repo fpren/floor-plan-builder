@@ -2507,8 +2507,8 @@ const Render = {
     renderInteriorDimensions(doc) {
         const layer = this.layers.dims;
         const dimColor = DIM_COLOR_INTERIOR;
-        const dimOffset = 15;    // Distance from wall for dimension line
-        const tickLen = 3;       // Tick mark length
+        const dimOffset = 35;    // Distance from wall for dimension line
+        const tickLen = 5;       // Tick mark length
 
         // Format dimension text (feet and inches)
         const formatDim = (pixels) => {
@@ -2533,22 +2533,22 @@ const Render = {
             // Dimension line
             layer.add(new Konva.Line({
                 points: [g.x + dimOffset, widthY, g.x + g.width - dimOffset, widthY],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Left tick
             layer.add(new Konva.Line({
                 points: [g.x + dimOffset, widthY - tickLen, g.x + dimOffset, widthY + tickLen],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Right tick
             layer.add(new Konva.Line({
                 points: [g.x + g.width - dimOffset, widthY - tickLen, g.x + g.width - dimOffset, widthY + tickLen],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Width label
             layer.add(new Konva.Text({
-                x: g.x + g.width / 2 - 18, y: widthY - 12,
-                text: formatDim(w), fontSize: 9, fill: dimColor, listening: false
+                x: g.x + g.width / 2 - 20, y: widthY - 14,
+                text: formatDim(w), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
             }));
 
             // === HEIGHT dimension (vertical, near right) ===
@@ -2557,22 +2557,22 @@ const Render = {
             // Dimension line
             layer.add(new Konva.Line({
                 points: [heightX, g.y + dimOffset, heightX, g.y + g.height - dimOffset],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Top tick
             layer.add(new Konva.Line({
                 points: [heightX - tickLen, g.y + dimOffset, heightX + tickLen, g.y + dimOffset],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Bottom tick
             layer.add(new Konva.Line({
                 points: [heightX - tickLen, g.y + g.height - dimOffset, heightX + tickLen, g.y + g.height - dimOffset],
-                stroke: dimColor, strokeWidth: 1, listening: false
+                stroke: dimColor, strokeWidth: 1.5, listening: false
             }));
             // Height label (rotated for vertical reading)
             layer.add(new Konva.Text({
-                x: heightX - 8, y: g.y + g.height / 2 - 18,
-                text: formatDim(h), fontSize: 9, fill: dimColor, rotation: -90, listening: false
+                x: heightX - 10, y: g.y + g.height / 2 - 20,
+                text: formatDim(h), fontSize: 10, fontStyle: 'bold', fill: dimColor, rotation: -90, listening: false
             }));
         });
 
