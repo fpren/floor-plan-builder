@@ -2205,31 +2205,24 @@ const Render = {
     renderChainDimensions(doc) {
         const layer = this.layers.dims;
         const dimColor = DIM_COLOR_EXTERIOR;
-        const chainOffset = 45;  // Distance from building edge
-        const totalOffset = 70;  // Distance for total dimension
-        const extLineLen = 6;    // Extension line length
-        const tickLen = 4;       // Tick mark length
+        const dimOffset = 35;    // Distance from building edge
+        const tickLen = 5;       // Tick mark length
 
-        // Collect all unique X and Y coordinates from room boundaries
-        const xCoords = new Set();
-        const yCoords = new Set();
+        // Find building bounding box (corner to corner)
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
         doc.rooms.forEach(room => {
             const g = room.geometry;
-            xCoords.add(g.x);
-            xCoords.add(g.x + g.width);
-            yCoords.add(g.y);
-            yCoords.add(g.y + g.height);
             minX = Math.min(minX, g.x);
             minY = Math.min(minY, g.y);
             maxX = Math.max(maxX, g.x + g.width);
             maxY = Math.max(maxY, g.y + g.height);
         });
 
-        // Sort coordinates
-        const sortedX = Array.from(xCoords).sort((a, b) => a - b);
-        const sortedY = Array.from(yCoords).sort((a, b) => a - b);
+        if (minX === Infinity) return; // No rooms
+
+        const totalW = maxX - minX;
+        const totalH = maxY - minY;
 
         // Format dimension text (feet and inches)
         const formatDim = (pixels) => {
@@ -2240,131 +2233,73 @@ const Render = {
             return `${feet}'-${inches}"`;
         };
 
-        // === HORIZONTAL CHAIN (above building) ===
-        const chainY = minY - chainOffset;
+        // === TOTAL WIDTH (above building, corner to corner) ===
+        const dimY = minY - dimOffset;
 
-        // Draw extension lines from each room corner down to chain
-        sortedX.forEach(x => {
-            layer.add(new Konva.Line({
-                points: [x, minY - 8, x, chainY + extLineLen],
-                stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
-            }));
-        });
-
-        // Draw horizontal chain line
+        // Extension lines from corners
         layer.add(new Konva.Line({
-            points: [sortedX[0], chainY, sortedX[sortedX.length - 1], chainY],
+            points: [minX, minY - 8, minX, dimY + tickLen],
+            stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [maxX, minY - 8, maxX, dimY + tickLen],
+            stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
+        }));
+
+        // Dimension line
+        layer.add(new Konva.Line({
+            points: [minX, dimY, maxX, dimY],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
 
-        // Draw tick marks and segment dimensions
-        for (let i = 0; i < sortedX.length; i++) {
-            const x = sortedX[i];
-            // Tick mark
-            layer.add(new Konva.Line({
-                points: [x, chainY - tickLen, x, chainY + tickLen],
-                stroke: dimColor, strokeWidth: 1.5, listening: false
-            }));
-
-            // Segment dimension label (between this tick and next)
-            if (i < sortedX.length - 1) {
-                const nextX = sortedX[i + 1];
-                const segWidth = nextX - x;
-                const midX = (x + nextX) / 2;
-
-                // Only show dimension if segment is wide enough
-                if (segWidth >= FOOT) {
-                    const label = formatDim(segWidth);
-                    layer.add(new Konva.Text({
-                        x: midX - 15, y: chainY - 14,
-                        text: label, fontSize: 8, fill: dimColor, listening: false
-                    }));
-                }
-            }
-        }
-
-        // === VERTICAL CHAIN (left of building) ===
-        const chainX = minX - chainOffset;
-
-        // Draw extension lines from each room corner to chain
-        sortedY.forEach(y => {
-            layer.add(new Konva.Line({
-                points: [minX - 8, y, chainX + extLineLen, y],
-                stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
-            }));
-        });
-
-        // Draw vertical chain line
+        // Tick marks at corners
         layer.add(new Konva.Line({
-            points: [chainX, sortedY[0], chainX, sortedY[sortedY.length - 1]],
+            points: [minX, dimY - tickLen, minX, dimY + tickLen],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [maxX, dimY - tickLen, maxX, dimY + tickLen],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
 
-        // Draw tick marks and segment dimensions
-        for (let i = 0; i < sortedY.length; i++) {
-            const y = sortedY[i];
-            // Tick mark
-            layer.add(new Konva.Line({
-                points: [chainX - tickLen, y, chainX + tickLen, y],
-                stroke: dimColor, strokeWidth: 1.5, listening: false
-            }));
-
-            // Segment dimension label (between this tick and next)
-            if (i < sortedY.length - 1) {
-                const nextY = sortedY[i + 1];
-                const segHeight = nextY - y;
-                const midY = (y + nextY) / 2;
-
-                // Only show dimension if segment is tall enough
-                if (segHeight >= FOOT) {
-                    const label = formatDim(segHeight);
-                    layer.add(new Konva.Text({
-                        x: chainX - 32, y: midY - 4,
-                        text: label, fontSize: 8, fill: dimColor, listening: false
-                    }));
-                }
-            }
-        }
-
-        // === TOTAL DIMENSIONS (further out) ===
-        const totalW = maxX - minX;
-        const totalH = maxY - minY;
-
-        // Total width (above chain)
-        const totalChainY = minY - totalOffset;
-        layer.add(new Konva.Line({
-            points: [minX, totalChainY, maxX, totalChainY],
-            stroke: dimColor, strokeWidth: 2, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [minX, totalChainY - 5, minX, totalChainY + 5],
-            stroke: dimColor, strokeWidth: 2, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [maxX, totalChainY - 5, maxX, totalChainY + 5],
-            stroke: dimColor, strokeWidth: 2, listening: false
-        }));
+        // Total width label
         layer.add(new Konva.Text({
-            x: (minX + maxX) / 2 - 20, y: totalChainY - 14,
+            x: (minX + maxX) / 2 - 20, y: dimY - 16,
             text: formatDim(totalW), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
 
-        // Total height (left of chain)
-        const totalChainX = minX - totalOffset;
+        // === TOTAL HEIGHT (left of building, corner to corner) ===
+        const dimX = minX - dimOffset;
+
+        // Extension lines from corners
         layer.add(new Konva.Line({
-            points: [totalChainX, minY, totalChainX, maxY],
-            stroke: dimColor, strokeWidth: 2, listening: false
+            points: [minX - 8, minY, dimX + tickLen, minY],
+            stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
         }));
         layer.add(new Konva.Line({
-            points: [totalChainX - 5, minY, totalChainX + 5, minY],
-            stroke: dimColor, strokeWidth: 2, listening: false
+            points: [minX - 8, maxY, dimX + tickLen, maxY],
+            stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
+        }));
+
+        // Dimension line
+        layer.add(new Konva.Line({
+            points: [dimX, minY, dimX, maxY],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
+        }));
+
+        // Tick marks at corners
+        layer.add(new Konva.Line({
+            points: [dimX - tickLen, minY, dimX + tickLen, minY],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Line({
-            points: [totalChainX - 5, maxY, totalChainX + 5, maxY],
-            stroke: dimColor, strokeWidth: 2, listening: false
+            points: [dimX - tickLen, maxY, dimX + tickLen, maxY],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
+
+        // Total height label
         layer.add(new Konva.Text({
-            x: totalChainX - 38, y: (minY + maxY) / 2 - 5,
+            x: dimX - 38, y: (minY + maxY) / 2 - 5,
             text: formatDim(totalH), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
     },
