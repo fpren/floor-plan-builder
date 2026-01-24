@@ -244,6 +244,14 @@ const SNAP_DISTANCE = 24; // Mobile-friendly snap distance in pixels
 const HIT_WIDTH = 28; // Hit region width for wall segments
 const GRID_SNAP = FOOT; // Snap to 1-foot grid
 
+// Wall colors
+const WALL_COLOR_EXTERIOR = '#2d3748';       // Dark grey for exterior walls
+const WALL_COLOR_INTERIOR = '#4a5568';       // Medium grey for interior non-shared walls
+const WALL_COLOR_SHARED_A = '#6366f1';       // Indigo for shared wall side A
+const WALL_COLOR_SHARED_B = '#8b5cf6';       // Purple for shared wall side B
+const WALL_COLOR_SELECTED = '#3b82f6';       // Blue for selected walls
+const SHARED_WALL_GAP = 2;                   // Gap between dual strokes
+
 // ========== SNAPPING FUNCTIONS ==========
 function snapToGrid(value) {
     return Math.round(value / GRID_SNAP) * GRID_SNAP;
@@ -282,6 +290,67 @@ function snapRoomPosition(x, y, width, height, snapPoints) {
     if (snappedY === y) snappedY = snapToGrid(y);
 
     return { x: snappedX, y: snappedY };
+}
+
+// ========== SHARED WALL DETECTION ==========
+// Check if two line segments overlap (for detecting shared walls)
+function segmentsOverlap(ws1, ws2, tolerance = 2) {
+    // Check if segments are collinear and overlapping
+    const isHorizontal1 = Math.abs(ws1.y1 - ws1.y2) < tolerance;
+    const isHorizontal2 = Math.abs(ws2.y1 - ws2.y2) < tolerance;
+    const isVertical1 = Math.abs(ws1.x1 - ws1.x2) < tolerance;
+    const isVertical2 = Math.abs(ws2.x1 - ws2.x2) < tolerance;
+
+    // Both horizontal and at same Y level
+    if (isHorizontal1 && isHorizontal2 && Math.abs(ws1.y1 - ws2.y1) < tolerance) {
+        const minX1 = Math.min(ws1.x1, ws1.x2), maxX1 = Math.max(ws1.x1, ws1.x2);
+        const minX2 = Math.min(ws2.x1, ws2.x2), maxX2 = Math.max(ws2.x1, ws2.x2);
+        // Check for overlap
+        return maxX1 > minX2 + tolerance && maxX2 > minX1 + tolerance;
+    }
+
+    // Both vertical and at same X level
+    if (isVertical1 && isVertical2 && Math.abs(ws1.x1 - ws2.x1) < tolerance) {
+        const minY1 = Math.min(ws1.y1, ws1.y2), maxY1 = Math.max(ws1.y1, ws1.y2);
+        const minY2 = Math.min(ws2.y1, ws2.y2), maxY2 = Math.max(ws2.y1, ws2.y2);
+        // Check for overlap
+        return maxY1 > minY2 + tolerance && maxY2 > minY1 + tolerance;
+    }
+
+    return false;
+}
+
+// Find the other room that shares this wall segment
+function findSharedWallInfo(ws, doc) {
+    if (!ws.roomId) return null;
+
+    const thisRoom = doc.rooms.find(r => r.id === ws.roomId);
+    if (!thisRoom) return null;
+
+    // Look for walls from other rooms that overlap this one
+    for (const otherWs of doc.wallSegments) {
+        if (otherWs.id === ws.id) continue;
+        if (otherWs.roomId === ws.roomId) continue;
+        if (!otherWs.roomId) continue;
+
+        const otherRoom = doc.rooms.find(r => r.id === otherWs.roomId);
+        if (!otherRoom) continue;
+
+        if (segmentsOverlap(ws, otherWs)) {
+            // Determine which room is "first" (consistent ordering for color assignment)
+            const roomIndex = doc.rooms.findIndex(r => r.id === ws.roomId);
+            const otherRoomIndex = doc.rooms.findIndex(r => r.id === otherWs.roomId);
+
+            return {
+                isShared: true,
+                otherRoom: otherRoom,
+                otherWallSegment: otherWs,
+                isFirstRoom: roomIndex < otherRoomIndex
+            };
+        }
+    }
+
+    return { isShared: false };
 }
 
 // ========== DOCUMENT MODEL ==========
@@ -1105,17 +1174,75 @@ const Render = {
         const group = new Konva.Group({ id: ws.id });
         this.wallGroups[ws.id] = group;
 
-        // Visible wall line - dark grey, exterior walls thicker
-        const wallColor = isSelected ? '#3b82f6' : '#2d3748';
+        // Check if this wall is shared with another room
+        const sharedInfo = ws.roomId ? findSharedWallInfo(ws, doc) : null;
+        const isShared = sharedInfo && sharedInfo.isShared;
+
+        // Determine wall width
         const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
-        const visibleLine = new Konva.Line({
-            points: [ws.x1, ws.y1, ws.x2, ws.y2],
-            stroke: wallColor,
-            strokeWidth: wallWidth,
-            lineCap: 'round',
-            listening: false
-        });
-        group.add(visibleLine);
+
+        if (isSelected) {
+            // Selected state overrides all other colors
+            const visibleLine = new Konva.Line({
+                points: [ws.x1, ws.y1, ws.x2, ws.y2],
+                stroke: WALL_COLOR_SELECTED,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            });
+            group.add(visibleLine);
+        } else if (isShared) {
+            // Dual-stroke rendering for shared walls
+            const dx = ws.x2 - ws.x1;
+            const dy = ws.y2 - ws.y1;
+            const length = Math.sqrt(dx * dx + dy * dy) || 1;
+
+            // Perpendicular unit vector for offset
+            const perpX = -dy / length;
+            const perpY = dx / length;
+            const offset = SHARED_WALL_GAP / 2;
+
+            // Determine colors based on room order (consistent coloring)
+            const colorA = sharedInfo.isFirstRoom ? WALL_COLOR_SHARED_A : WALL_COLOR_SHARED_B;
+            const colorB = sharedInfo.isFirstRoom ? WALL_COLOR_SHARED_B : WALL_COLOR_SHARED_A;
+
+            // First stroke (offset toward room interior)
+            const line1 = new Konva.Line({
+                points: [
+                    ws.x1 + perpX * offset, ws.y1 + perpY * offset,
+                    ws.x2 + perpX * offset, ws.y2 + perpY * offset
+                ],
+                stroke: colorA,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            });
+            group.add(line1);
+
+            // Second stroke (offset away from room interior)
+            const line2 = new Konva.Line({
+                points: [
+                    ws.x1 - perpX * offset, ws.y1 - perpY * offset,
+                    ws.x2 - perpX * offset, ws.y2 - perpY * offset
+                ],
+                stroke: colorB,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            });
+            group.add(line2);
+        } else {
+            // Single stroke for exterior and non-shared interior walls
+            const wallColor = isExterior ? WALL_COLOR_EXTERIOR : WALL_COLOR_INTERIOR;
+            const visibleLine = new Konva.Line({
+                points: [ws.x1, ws.y1, ws.x2, ws.y2],
+                stroke: wallColor,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            });
+            group.add(visibleLine);
+        }
 
         // HIT REGION (invisible, wide stroke for mobile tapping)
         const hitLine = new Konva.Line({
@@ -1135,7 +1262,7 @@ const Render = {
             const labelOffset = this.getLabelOffset(ws, room);
             this.layers.labels.add(new Konva.Text({
                 x: mid.x + labelOffset.x - 8, y: mid.y + labelOffset.y - 5,
-                text: ws.label, fontSize: 9, fill: isSelected ? '#3b82f6' : '#9ca3af', fontStyle: 'bold', listening: false
+                text: ws.label, fontSize: 9, fill: isSelected ? WALL_COLOR_SELECTED : '#9ca3af', fontStyle: 'bold', listening: false
             }));
         }
 
@@ -1181,7 +1308,7 @@ const Render = {
         this.layers.openings.add(hatchGroup);
 
         // Draw closet walls and make them clickable for placing doors
-        const wallColor = isSelected ? '#3b82f6' : '#2d3748';
+        const wallColor = isSelected ? WALL_COLOR_SELECTED : WALL_COLOR_INTERIOR;
         const wallWidth = 2;
 
         // Get closet's wall segments for hit detection
@@ -1277,7 +1404,7 @@ const Render = {
         // Visible wall line
         this.layers.walls.add(new Konva.Line({
             points: [ws.x1, ws.y1, ws.x2, ws.y2],
-            stroke: isSelected ? '#3b82f6' : wallColor,
+            stroke: isSelected ? WALL_COLOR_SELECTED : wallColor,
             strokeWidth: isSelected ? 4 : wallWidth,
             lineCap: 'round',
             listening: false
@@ -1321,7 +1448,7 @@ const Render = {
         doorGroup.add(doorRect);
 
         // Door jambs (thin lines at edges of opening)
-        const jambColor = '#2d3748';
+        const jambColor = WALL_COLOR_EXTERIOR;
         doorGroup.add(new Konva.Line({
             points: [0, -3, 0, 3],
             stroke: jambColor, strokeWidth: 1
@@ -1363,7 +1490,7 @@ const Render = {
         // Door leaf (solid line representing the actual door panel)
         const doorLeaf = new Konva.Line({
             points: [hingeX, hingeY, leafEndX, leafEndY],
-            stroke: isSelected ? '#3b82f6' : '#2d3748',
+            stroke: isSelected ? WALL_COLOR_SELECTED : WALL_COLOR_EXTERIOR,
             strokeWidth: 3,
             lineCap: 'round'
         });
@@ -2210,7 +2337,7 @@ const App = {
             // Create preview line
             this.wallPreview = new Konva.Line({
                 points: [snappedX, snappedY, snappedX, snappedY],
-                stroke: '#2d3748',
+                stroke: WALL_COLOR_EXTERIOR,
                 strokeWidth: 4,
                 lineCap: 'round',
                 dash: [8, 4]
