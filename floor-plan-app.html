@@ -2205,8 +2205,7 @@ const Render = {
     renderChainDimensions(doc) {
         const layer = this.layers.dims;
         const dimColor = DIM_COLOR_EXTERIOR;
-        const chainOffset = 30;  // Distance for segment chain
-        const totalOffset = 55;  // Distance for total dimension
+        const dimOffset = 25;    // Distance for dimensions from edge
         const tickLen = 4;       // Tick mark length
 
         // Collect all unique X and Y coordinates from room boundaries
@@ -2232,9 +2231,6 @@ const Render = {
         const sortedX = Array.from(xCoords).sort((a, b) => a - b);
         const sortedY = Array.from(yCoords).sort((a, b) => a - b);
 
-        const totalW = maxX - minX;
-        const totalH = maxY - minY;
-
         // Format dimension text (feet and inches)
         const formatDim = (pixels) => {
             const totalInches = pixels / INCH;
@@ -2244,312 +2240,281 @@ const Render = {
             return `${feet}'-${inches}"`;
         };
 
-        // Helper: find exterior edge segments for a side
-        // For TOP: find the minimum Y for each X range
-        // For BOTTOM: find the maximum Y for each X range
-        // For LEFT: find the minimum X for each Y range
-        // For RIGHT: find the maximum X for each Y range
-
-        const findTopEdgeSegments = () => {
-            const segments = [];
-            for (let i = 0; i < sortedX.length - 1; i++) {
-                const x1 = sortedX[i], x2 = sortedX[i + 1];
-                const midX = (x1 + x2) / 2;
-                // Find rooms that cover this X range and get the minimum Y (top edge)
-                let topY = Infinity;
-                doc.rooms.forEach(r => {
-                    const g = r.geometry;
-                    if (g.x <= midX && g.x + g.width >= midX) {
-                        topY = Math.min(topY, g.y);
-                    }
-                });
-                if (topY !== Infinity) {
-                    segments.push({ x1, x2, y: topY, width: x2 - x1 });
-                }
-            }
-            return segments;
+        // Helper to check if a point is inside any room
+        const isInsideBuilding = (x, y) => {
+            return doc.rooms.some(r => {
+                const g = r.geometry;
+                return x >= g.x && x <= g.x + g.width && y >= g.y && y <= g.y + g.height;
+            });
         };
 
-        const findBottomEdgeSegments = () => {
-            const segments = [];
-            for (let i = 0; i < sortedX.length - 1; i++) {
-                const x1 = sortedX[i], x2 = sortedX[i + 1];
-                const midX = (x1 + x2) / 2;
-                let bottomY = -Infinity;
-                doc.rooms.forEach(r => {
-                    const g = r.geometry;
-                    if (g.x <= midX && g.x + g.width >= midX) {
-                        bottomY = Math.max(bottomY, g.y + g.height);
-                    }
-                });
-                if (bottomY !== -Infinity) {
-                    segments.push({ x1, x2, y: bottomY, width: x2 - x1 });
+        // Trace the exterior outline and collect all edges
+        // We'll trace clockwise starting from top-left corner
+        const outline = [];
+
+        // For each Y level, find the leftmost and rightmost X that's part of the building
+        const leftEdgeByY = new Map();  // Y -> leftmost X
+        const rightEdgeByY = new Map(); // Y -> rightmost X
+
+        sortedY.forEach(y => {
+            const midY = y + 0.5; // Check just below this Y line
+            let leftX = Infinity, rightX = -Infinity;
+            doc.rooms.forEach(r => {
+                const g = r.geometry;
+                if (g.y <= midY && g.y + g.height > midY) {
+                    leftX = Math.min(leftX, g.x);
+                    rightX = Math.max(rightX, g.x + g.width);
                 }
+            });
+            if (leftX !== Infinity) {
+                leftEdgeByY.set(y, leftX);
+                rightEdgeByY.set(y, rightX);
             }
-            return segments;
-        };
+        });
 
-        const findLeftEdgeSegments = () => {
-            const segments = [];
-            for (let i = 0; i < sortedY.length - 1; i++) {
-                const y1 = sortedY[i], y2 = sortedY[i + 1];
-                const midY = (y1 + y2) / 2;
-                let leftX = Infinity;
-                doc.rooms.forEach(r => {
-                    const g = r.geometry;
-                    if (g.y <= midY && g.y + g.height >= midY) {
-                        leftX = Math.min(leftX, g.x);
-                    }
-                });
-                if (leftX !== Infinity) {
-                    segments.push({ y1, y2, x: leftX, height: y2 - y1 });
+        // For each X level, find the topmost and bottommost Y that's part of the building
+        const topEdgeByX = new Map();    // X -> topmost Y
+        const bottomEdgeByX = new Map(); // X -> bottommost Y
+
+        sortedX.forEach(x => {
+            const midX = x + 0.5; // Check just right of this X line
+            let topY = Infinity, bottomY = -Infinity;
+            doc.rooms.forEach(r => {
+                const g = r.geometry;
+                if (g.x <= midX && g.x + g.width > midX) {
+                    topY = Math.min(topY, g.y);
+                    bottomY = Math.max(bottomY, g.y + g.height);
                 }
+            });
+            if (topY !== Infinity) {
+                topEdgeByX.set(x, topY);
+                bottomEdgeByX.set(x, bottomY);
             }
-            return segments;
-        };
+        });
 
-        const findRightEdgeSegments = () => {
-            const segments = [];
-            for (let i = 0; i < sortedY.length - 1; i++) {
-                const y1 = sortedY[i], y2 = sortedY[i + 1];
-                const midY = (y1 + y2) / 2;
-                let rightX = -Infinity;
-                doc.rooms.forEach(r => {
-                    const g = r.geometry;
-                    if (g.y <= midY && g.y + g.height >= midY) {
-                        rightX = Math.max(rightX, g.x + g.width);
-                    }
-                });
-                if (rightX !== -Infinity) {
-                    segments.push({ y1, y2, x: rightX, height: y2 - y1 });
-                }
-            }
-            return segments;
-        };
+        // Draw dimension for a horizontal edge
+        const drawHorizDim = (x1, x2, y, side) => {
+            const width = Math.abs(x2 - x1);
+            if (width < FOOT / 4) return; // Skip very small segments
 
-        // === TOP EDGE DIMENSIONS (above building) ===
-        const topSegs = findTopEdgeSegments();
-        const topChainY = minY - chainOffset;
+            const dimY = side === 'top' ? y - dimOffset : y + dimOffset;
+            const midX = (x1 + x2) / 2;
+            const labelY = side === 'top' ? dimY - 10 : dimY + 4;
 
-        topSegs.forEach(seg => {
-            // Extension lines
-            layer.add(new Konva.Line({
-                points: [seg.x1, seg.y - 4, seg.x1, topChainY + tickLen],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [seg.x2, seg.y - 4, seg.x2, topChainY + tickLen],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
             // Dimension line
             layer.add(new Konva.Line({
-                points: [seg.x1, topChainY, seg.x2, topChainY],
+                points: [x1, dimY, x2, dimY],
                 stroke: dimColor, strokeWidth: 1, listening: false
             }));
             // Tick marks
             layer.add(new Konva.Line({
-                points: [seg.x1, topChainY - tickLen, seg.x1, topChainY + tickLen],
+                points: [x1, dimY - tickLen, x1, dimY + tickLen],
                 stroke: dimColor, strokeWidth: 1, listening: false
             }));
             layer.add(new Konva.Line({
-                points: [seg.x2, topChainY - tickLen, seg.x2, topChainY + tickLen],
+                points: [x2, dimY - tickLen, x2, dimY + tickLen],
                 stroke: dimColor, strokeWidth: 1, listening: false
             }));
+            // Extension lines
+            layer.add(new Konva.Line({
+                points: [x1, y, x1, dimY],
+                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
+            }));
+            layer.add(new Konva.Line({
+                points: [x2, y, x2, dimY],
+                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
+            }));
             // Label
-            if (seg.width >= FOOT / 2) {
+            if (width >= FOOT / 2) {
                 layer.add(new Konva.Text({
-                    x: (seg.x1 + seg.x2) / 2 - 12, y: topChainY - 12,
-                    text: formatDim(seg.width), fontSize: 8, fill: dimColor, listening: false
+                    x: midX - 12, y: labelY,
+                    text: formatDim(width), fontSize: 8, fill: dimColor, listening: false
                 }));
+            }
+        };
+
+        // Draw dimension for a vertical edge
+        const drawVertDim = (y1, y2, x, side) => {
+            const height = Math.abs(y2 - y1);
+            if (height < FOOT / 4) return; // Skip very small segments
+
+            const dimX = side === 'left' ? x - dimOffset : x + dimOffset;
+            const midY = (y1 + y2) / 2;
+            const labelX = side === 'left' ? dimX - 26 : dimX + 4;
+
+            // Dimension line
+            layer.add(new Konva.Line({
+                points: [dimX, y1, dimX, y2],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Tick marks
+            layer.add(new Konva.Line({
+                points: [dimX - tickLen, y1, dimX + tickLen, y1],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            layer.add(new Konva.Line({
+                points: [dimX - tickLen, y2, dimX + tickLen, y2],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Extension lines
+            layer.add(new Konva.Line({
+                points: [x, y1, dimX, y1],
+                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
+            }));
+            layer.add(new Konva.Line({
+                points: [x, y2, dimX, y2],
+                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
+            }));
+            // Label
+            if (height >= FOOT / 2) {
+                layer.add(new Konva.Text({
+                    x: labelX, y: midY - 4,
+                    text: formatDim(height), fontSize: 8, fill: dimColor, listening: false
+                }));
+            }
+        };
+
+        // === TOP EDGE: trace from left to right along the top ===
+        let prevTopY = null;
+        let prevX = null;
+        sortedX.forEach((x, i) => {
+            const topY = topEdgeByX.get(x);
+            if (topY !== undefined) {
+                if (prevTopY !== null && prevX !== null) {
+                    // Horizontal segment
+                    if (prevTopY === topY) {
+                        drawHorizDim(prevX, x, topY, 'top');
+                    } else {
+                        // There's a step - draw horizontal to the step, then vertical step
+                        drawHorizDim(prevX, x, Math.min(prevTopY, topY), 'top');
+                        // Draw the vertical step dimension
+                        const stepHeight = Math.abs(topY - prevTopY);
+                        if (stepHeight >= FOOT / 4) {
+                            drawVertDim(Math.min(prevTopY, topY), Math.max(prevTopY, topY), x, 'left');
+                        }
+                    }
+                }
+                prevTopY = topY;
+                prevX = x;
             }
         });
 
-        // Total width above
-        const topTotalY = minY - totalOffset;
+        // === BOTTOM EDGE: trace from left to right along the bottom ===
+        let prevBottomY = null;
+        prevX = null;
+        sortedX.forEach((x, i) => {
+            const bottomY = bottomEdgeByX.get(x);
+            if (bottomY !== undefined) {
+                if (prevBottomY !== null && prevX !== null) {
+                    // Horizontal segment
+                    if (prevBottomY === bottomY) {
+                        drawHorizDim(prevX, x, bottomY, 'bottom');
+                    } else {
+                        // There's a step
+                        drawHorizDim(prevX, x, Math.max(prevBottomY, bottomY), 'bottom');
+                        // Draw the vertical step dimension
+                        const stepHeight = Math.abs(bottomY - prevBottomY);
+                        if (stepHeight >= FOOT / 4) {
+                            drawVertDim(Math.min(prevBottomY, bottomY), Math.max(prevBottomY, bottomY), x, 'right');
+                        }
+                    }
+                }
+                prevBottomY = bottomY;
+                prevX = x;
+            }
+        });
+
+        // === LEFT EDGE: trace from top to bottom along the left ===
+        let prevLeftX = null;
+        let prevY = null;
+        sortedY.forEach((y, i) => {
+            const leftX = leftEdgeByY.get(y);
+            if (leftX !== undefined) {
+                if (prevLeftX !== null && prevY !== null) {
+                    // Vertical segment
+                    if (prevLeftX === leftX) {
+                        drawVertDim(prevY, y, leftX, 'left');
+                    } else {
+                        // There's a step
+                        drawVertDim(prevY, y, Math.min(prevLeftX, leftX), 'left');
+                        // Draw the horizontal step dimension
+                        const stepWidth = Math.abs(leftX - prevLeftX);
+                        if (stepWidth >= FOOT / 4) {
+                            drawHorizDim(Math.min(prevLeftX, leftX), Math.max(prevLeftX, leftX), y, 'top');
+                        }
+                    }
+                }
+                prevLeftX = leftX;
+                prevY = y;
+            }
+        });
+
+        // === RIGHT EDGE: trace from top to bottom along the right ===
+        let prevRightX = null;
+        prevY = null;
+        sortedY.forEach((y, i) => {
+            const rightX = rightEdgeByY.get(y);
+            if (rightX !== undefined) {
+                if (prevRightX !== null && prevY !== null) {
+                    // Vertical segment
+                    if (prevRightX === rightX) {
+                        drawVertDim(prevY, y, rightX, 'right');
+                    } else {
+                        // There's a step
+                        drawVertDim(prevY, y, Math.max(prevRightX, rightX), 'right');
+                        // Draw the horizontal step dimension
+                        const stepWidth = Math.abs(rightX - prevRightX);
+                        if (stepWidth >= FOOT / 4) {
+                            drawHorizDim(Math.min(prevRightX, rightX), Math.max(prevRightX, rightX), y, 'bottom');
+                        }
+                    }
+                }
+                prevRightX = rightX;
+                prevY = y;
+            }
+        });
+
+        // === TOTAL DIMENSIONS (outer ring) ===
+        const totalOffset = 50;
+        const totalW = maxX - minX;
+        const totalH = maxY - minY;
+
+        // Total width top
         layer.add(new Konva.Line({
-            points: [minX, topTotalY, maxX, topTotalY],
+            points: [minX, minY - totalOffset, maxX, minY - totalOffset],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Line({
-            points: [minX, topTotalY - tickLen, minX, topTotalY + tickLen],
+            points: [minX, minY - totalOffset - tickLen, minX, minY - totalOffset + tickLen],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Line({
-            points: [maxX, topTotalY - tickLen, maxX, topTotalY + tickLen],
+            points: [maxX, minY - totalOffset - tickLen, maxX, minY - totalOffset + tickLen],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Text({
-            x: (minX + maxX) / 2 - 18, y: topTotalY - 14,
+            x: (minX + maxX) / 2 - 18, y: minY - totalOffset - 14,
             text: formatDim(totalW), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
-
-        // === BOTTOM EDGE DIMENSIONS (below building) ===
-        const bottomSegs = findBottomEdgeSegments();
-        const bottomChainY = maxY + chainOffset;
-
-        bottomSegs.forEach(seg => {
-            // Extension lines
-            layer.add(new Konva.Line({
-                points: [seg.x1, seg.y + 4, seg.x1, bottomChainY - tickLen],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [seg.x2, seg.y + 4, seg.x2, bottomChainY - tickLen],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            // Dimension line
-            layer.add(new Konva.Line({
-                points: [seg.x1, bottomChainY, seg.x2, bottomChainY],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Tick marks
-            layer.add(new Konva.Line({
-                points: [seg.x1, bottomChainY - tickLen, seg.x1, bottomChainY + tickLen],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [seg.x2, bottomChainY - tickLen, seg.x2, bottomChainY + tickLen],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Label
-            if (seg.width >= FOOT / 2) {
-                layer.add(new Konva.Text({
-                    x: (seg.x1 + seg.x2) / 2 - 12, y: bottomChainY + 4,
-                    text: formatDim(seg.width), fontSize: 8, fill: dimColor, listening: false
-                }));
-            }
-        });
-
-        // Total width below
-        const bottomTotalY = maxY + totalOffset;
-        layer.add(new Konva.Line({
-            points: [minX, bottomTotalY, maxX, bottomTotalY],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [minX, bottomTotalY - tickLen, minX, bottomTotalY + tickLen],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [maxX, bottomTotalY - tickLen, maxX, bottomTotalY + tickLen],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Text({
-            x: (minX + maxX) / 2 - 18, y: bottomTotalY + 4,
-            text: formatDim(totalW), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
-        }));
-
-        // === LEFT EDGE DIMENSIONS (left of building) ===
-        const leftSegs = findLeftEdgeSegments();
-        const leftChainX = minX - chainOffset;
-
-        leftSegs.forEach(seg => {
-            // Extension lines
-            layer.add(new Konva.Line({
-                points: [seg.x - 4, seg.y1, leftChainX + tickLen, seg.y1],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [seg.x - 4, seg.y2, leftChainX + tickLen, seg.y2],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            // Dimension line
-            layer.add(new Konva.Line({
-                points: [leftChainX, seg.y1, leftChainX, seg.y2],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Tick marks
-            layer.add(new Konva.Line({
-                points: [leftChainX - tickLen, seg.y1, leftChainX + tickLen, seg.y1],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [leftChainX - tickLen, seg.y2, leftChainX + tickLen, seg.y2],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Label
-            if (seg.height >= FOOT / 2) {
-                layer.add(new Konva.Text({
-                    x: leftChainX - 28, y: (seg.y1 + seg.y2) / 2 - 4,
-                    text: formatDim(seg.height), fontSize: 8, fill: dimColor, listening: false
-                }));
-            }
-        });
 
         // Total height left
-        const leftTotalX = minX - totalOffset;
         layer.add(new Konva.Line({
-            points: [leftTotalX, minY, leftTotalX, maxY],
+            points: [minX - totalOffset, minY, minX - totalOffset, maxY],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Line({
-            points: [leftTotalX - tickLen, minY, leftTotalX + tickLen, minY],
+            points: [minX - totalOffset - tickLen, minY, minX - totalOffset + tickLen, minY],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Line({
-            points: [leftTotalX - tickLen, maxY, leftTotalX + tickLen, maxY],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Text({
-            x: leftTotalX - 36, y: (minY + maxY) / 2 - 5,
-            text: formatDim(totalH), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
-        }));
-
-        // === RIGHT EDGE DIMENSIONS (right of building) ===
-        const rightSegs = findRightEdgeSegments();
-        const rightChainX = maxX + chainOffset;
-
-        rightSegs.forEach(seg => {
-            // Extension lines
-            layer.add(new Konva.Line({
-                points: [seg.x + 4, seg.y1, rightChainX - tickLen, seg.y1],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [seg.x + 4, seg.y2, rightChainX - tickLen, seg.y2],
-                stroke: dimColor, strokeWidth: 0.5, dash: [2, 2], listening: false
-            }));
-            // Dimension line
-            layer.add(new Konva.Line({
-                points: [rightChainX, seg.y1, rightChainX, seg.y2],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Tick marks
-            layer.add(new Konva.Line({
-                points: [rightChainX - tickLen, seg.y1, rightChainX + tickLen, seg.y1],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            layer.add(new Konva.Line({
-                points: [rightChainX - tickLen, seg.y2, rightChainX + tickLen, seg.y2],
-                stroke: dimColor, strokeWidth: 1, listening: false
-            }));
-            // Label
-            if (seg.height >= FOOT / 2) {
-                layer.add(new Konva.Text({
-                    x: rightChainX + 6, y: (seg.y1 + seg.y2) / 2 - 4,
-                    text: formatDim(seg.height), fontSize: 8, fill: dimColor, listening: false
-                }));
-            }
-        });
-
-        // Total height right
-        const rightTotalX = maxX + totalOffset;
-        layer.add(new Konva.Line({
-            points: [rightTotalX, minY, rightTotalX, maxY],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [rightTotalX - tickLen, minY, rightTotalX + tickLen, minY],
-            stroke: dimColor, strokeWidth: 1.5, listening: false
-        }));
-        layer.add(new Konva.Line({
-            points: [rightTotalX - tickLen, maxY, rightTotalX + tickLen, maxY],
+            points: [minX - totalOffset - tickLen, maxY, minX - totalOffset + tickLen, maxY],
             stroke: dimColor, strokeWidth: 1.5, listening: false
         }));
         layer.add(new Konva.Text({
-            x: rightTotalX + 6, y: (minY + maxY) / 2 - 5,
+            x: minX - totalOffset - 36, y: (minY + maxY) / 2 - 5,
             text: formatDim(totalH), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
+
     },
 
     select(type, id) {
