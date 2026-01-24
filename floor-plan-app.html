@@ -1077,9 +1077,6 @@ const Render = {
         const heightFt = Math.round(g.height / FOOT);
         const dimText = `${widthFt}' x ${heightFt}'`;
 
-        // Dimension color: blue for exterior rooms, orange for interior rooms
-        const dimColor = room.isExterior ? DIM_COLOR_EXTERIOR : DIM_COLOR_INTERIOR;
-
         // Room label (inside)
         this.layers.labels.add(new Konva.Text({
             x: g.x, y: g.y + g.height / 2 - 20, width: g.width,
@@ -1089,22 +1086,67 @@ const Render = {
             x: g.x, y: g.y + g.height / 2 - 4, width: g.width,
             text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
         }));
-        // Room size inside (L x W)
+        // Room size inside (L x W) - ORANGE for inside measurements
         this.layers.labels.add(new Konva.Text({
             x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
-            text: dimText, fontSize: 9, fill: dimColor, align: 'center', listening: false
+            text: dimText, fontSize: 9, fill: DIM_COLOR_INTERIOR, align: 'center', listening: false
         }));
 
-        // Width dimension (below room)
+        // Outside dimension lines with shadow effect - BLUE for exterior
+        const dimOffset = 20;
+        const extLineLen = 8;
+        const shadowOffset = 1;
+
+        // Width dimension line (below room) with shadow
+        // Shadow line first
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x, g.y + g.height + dimOffset + shadowOffset, g.x + g.width, g.y + g.height + dimOffset + shadowOffset],
+            stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false
+        }));
+        // Main dimension line
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x, g.y + g.height + dimOffset, g.x + g.width, g.y + g.height + dimOffset],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
+        }));
+        // Extension lines (vertical ticks)
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x, g.y + g.height + dimOffset - extLineLen, g.x, g.y + g.height + dimOffset + extLineLen],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
+        }));
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x + g.width, g.y + g.height + dimOffset - extLineLen, g.x + g.width, g.y + g.height + dimOffset + extLineLen],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
+        }));
+        // Width text
         this.layers.dims.add(new Konva.Text({
-            x: g.x, y: g.y + g.height + 8, width: g.width,
-            text: `${widthFt}'-0"`, fontSize: 9, fill: dimColor, align: 'center', listening: false
+            x: g.x, y: g.y + g.height + dimOffset + 6, width: g.width,
+            text: `${widthFt}'-0"`, fontSize: 9, fill: DIM_COLOR_EXTERIOR, align: 'center', listening: false
         }));
 
-        // Height dimension (right of room, rotated)
+        // Height dimension line (right of room) with shadow
+        // Shadow line first
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x + g.width + dimOffset + shadowOffset, g.y, g.x + g.width + dimOffset + shadowOffset, g.y + g.height],
+            stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false
+        }));
+        // Main dimension line
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x + g.width + dimOffset, g.y, g.x + g.width + dimOffset, g.y + g.height],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
+        }));
+        // Extension lines (horizontal ticks)
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x + g.width + dimOffset - extLineLen, g.y, g.x + g.width + dimOffset + extLineLen, g.y],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
+        }));
+        this.layers.dims.add(new Konva.Line({
+            points: [g.x + g.width + dimOffset - extLineLen, g.y + g.height, g.x + g.width + dimOffset + extLineLen, g.y + g.height],
+            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
+        }));
+        // Height text (rotated)
         this.layers.dims.add(new Konva.Text({
-            x: g.x + g.width + 12, y: g.y + g.height / 2 + 15,
-            text: `${heightFt}'-0"`, fontSize: 9, fill: dimColor, rotation: -90, listening: false
+            x: g.x + g.width + dimOffset + 8, y: g.y + g.height / 2 + 15,
+            text: `${heightFt}'-0"`, fontSize: 9, fill: DIM_COLOR_EXTERIOR, rotation: -90, listening: false
         }));
     },
 
@@ -1931,16 +1973,29 @@ const Render = {
     renderDimension(dim) {
         const layer = this.layers.dims;
         const isVert = dim.vertical;
-        // Overall building dimensions use exterior (blue) color
+        // Overall building dimensions use exterior (blue) color with shadow
         const dimLineColor = DIM_COLOR_EXTERIOR;
-        layer.add(new Konva.Line({ points: [dim.x1, dim.y1, dim.x2, dim.y2], stroke: dimLineColor, strokeWidth: 1 }));
+        const shadowOffset = 1;
+
+        // Shadow line first
         if (isVert) {
-            layer.add(new Konva.Line({ points: [dim.x1 - 4, dim.y1, dim.x1 + 4, dim.y1], stroke: dimLineColor, strokeWidth: 1 }));
-            layer.add(new Konva.Line({ points: [dim.x2 - 4, dim.y2, dim.x2 + 4, dim.y2], stroke: dimLineColor, strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x1 + shadowOffset, dim.y1, dim.x2 + shadowOffset, dim.y2], stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false }));
         } else {
-            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 - 4, dim.x1, dim.y1 + 4], stroke: dimLineColor, strokeWidth: 1 }));
-            layer.add(new Konva.Line({ points: [dim.x2, dim.y2 - 4, dim.x2, dim.y2 + 4], stroke: dimLineColor, strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 + shadowOffset, dim.x2, dim.y2 + shadowOffset], stroke: 'rgba(0,0,0,0.3)', strokeWidth: 2, listening: false }));
         }
+
+        // Main dimension line
+        layer.add(new Konva.Line({ points: [dim.x1, dim.y1, dim.x2, dim.y2], stroke: dimLineColor, strokeWidth: 1.5, listening: false }));
+
+        // Extension lines (ticks)
+        if (isVert) {
+            layer.add(new Konva.Line({ points: [dim.x1 - 4, dim.y1, dim.x1 + 4, dim.y1], stroke: dimLineColor, strokeWidth: 1, listening: false }));
+            layer.add(new Konva.Line({ points: [dim.x2 - 4, dim.y2, dim.x2 + 4, dim.y2], stroke: dimLineColor, strokeWidth: 1, listening: false }));
+        } else {
+            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 - 4, dim.x1, dim.y1 + 4], stroke: dimLineColor, strokeWidth: 1, listening: false }));
+            layer.add(new Konva.Line({ points: [dim.x2, dim.y2 - 4, dim.x2, dim.y2 + 4], stroke: dimLineColor, strokeWidth: 1, listening: false }));
+        }
+
         const midX = (dim.x1 + dim.x2) / 2, midY = (dim.y1 + dim.y2) / 2;
         layer.add(new Konva.Text({
             x: isVert ? midX - 28 : midX - 18, y: isVert ? midY - 5 : midY - 12,
