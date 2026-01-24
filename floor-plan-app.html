@@ -151,6 +151,7 @@
         <button class="btn active" id="btnWallIds" onclick="App.toggle('wallIds')">W-ID</button>
         <button class="btn active" id="btnDims" onclick="App.toggle('dims')">Dims</button>
         <div class="sep"></div>
+        <button class="btn" onclick="App.rotateSelected()">Rotate</button>
         <button class="btn" onclick="App.showQA()">QA</button>
     </div>
     <div class="main">
@@ -2055,7 +2056,7 @@ const Render = {
             shape.on('tap click', () => App.onObjectTap('mep', mep.id));
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('POE')) {
-            const shape = new Konva.RegularPolygon({ x: pos.x, y: pos.y, sides: 3, radius: 12, fill: color, rotation: 0 });
+            const shape = new Konva.RegularPolygon({ x: pos.x, y: pos.y, sides: 3, radius: 12, fill: color, rotation: mep.rotation || 0 });
             shape.on('tap click', () => App.onObjectTap('mep', mep.id));
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('RAD')) {
@@ -3310,6 +3311,57 @@ const App = {
         const sel = Render.selection;
         if (sel.type && sel.id) {
             this.deleteObject(sel.id, sel.type);
+        }
+    },
+
+    // Rotate selected object by 90 degrees
+    rotateSelected() {
+        const sel = Render.selection;
+        if (!sel.type || !sel.id) return;
+
+        if (sel.type === 'door') {
+            // Doors: cycle through swing configurations (4 states)
+            const door = this.doc.doors.find(d => d.id === sel.id);
+            if (door) {
+                // Current state -> next state
+                // left-in -> left-out -> right-out -> right-in -> left-in
+                if (door.swingDir === 'left' && door.swing === 'in') {
+                    door.swing = 'out';
+                } else if (door.swingDir === 'left' && door.swing === 'out') {
+                    door.swingDir = 'right';
+                } else if (door.swingDir === 'right' && door.swing === 'out') {
+                    door.swing = 'in';
+                } else {
+                    door.swingDir = 'left';
+                    door.swing = 'in';
+                }
+                this.saveState();
+                this.render();
+            }
+        } else if (sel.type === 'window') {
+            // Windows: rotate 180 degrees (flip sides)
+            const win = this.doc.windows.find(w => w.id === sel.id);
+            if (win) {
+                win.rotation = ((win.rotation || 0) + 180) % 360;
+                this.saveState();
+                this.render();
+            }
+        } else if (sel.type === 'mep') {
+            // MEP: rotate 90 degrees
+            const mep = this.doc.mep.find(m => m.id === sel.id);
+            if (mep) {
+                mep.rotation = ((mep.rotation || 0) + 90) % 360;
+                this.saveState();
+                this.render();
+            }
+        } else if (sel.type === 'cased') {
+            // Cased openings: rotate 180 degrees
+            const op = this.doc.casedOpenings.find(o => o.id === sel.id);
+            if (op) {
+                op.rotation = ((op.rotation || 0) + 180) % 360;
+                this.saveState();
+                this.render();
+            }
         }
     },
 
