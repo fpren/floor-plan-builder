@@ -435,6 +435,24 @@
     </div>
 </div>
 
+<div class="modal" id="doorSampleModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">Door Sample</div>
+            <button class="modal-close" onclick="App.hideModal('doorSample')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 16px; color: #666;">What type of door surface is this sample from?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="App.placeDoorSample('door frame')" style="padding: 14px; background: #f0f7ff; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Door Frame</button>
+                <button onclick="App.placeDoorSample('door threshold')" style="padding: 14px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Door Threshold</button>
+                <button onclick="App.placeDoorSample('door')" style="padding: 14px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Door Surface</button>
+                <button onclick="App.hideModal('doorSample')" style="padding: 10px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; font-size: 12px; cursor: pointer; color: #666;">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
@@ -3172,7 +3190,14 @@ const Render = {
         });
         doorGroup.add(hitArea);
 
-        doorGroup.on('tap click', () => App.onObjectTap('door', door.id));
+        doorGroup.on('tap click', () => {
+            // If dust wipe tool is active, show door sample modal
+            if (App.currentTool === 'dustwipe') {
+                App.showDoorSampleModal(door.id);
+            } else {
+                App.onObjectTap('door', door.id);
+            }
+        });
         this.layers.openings.add(doorGroup);
 
         // Label
@@ -3653,7 +3678,23 @@ const Render = {
             if (isSelected) this.addMEPDragHandlers(shape, mep, ws);
             this.layers.mep.add(shape);
         } else if (mep.label.startsWith('POE')) {
-            const shape = new Konva.RegularPolygon({ x: posX, y: posY, sides: 3, radius: 12, fill: color, rotation: 0, draggable: isSelected });
+            // POE follows its anchor door if one exists
+            let poeX = posX, poeY = posY;
+            if (mep.anchorDoorId) {
+                const anchorDoor = doc.doors.find(d => d.id === mep.anchorDoorId);
+                if (anchorDoor) {
+                    const doorWs = doc.wallSegments.find(s => s.id === anchorDoor.parentWallSegmentId);
+                    if (doorWs) {
+                        const doorPos = this.getPositionOnSegment(doorWs, anchorDoor.distanceFromStart + anchorDoor.width / 2);
+                        poeX = doorPos.x;
+                        poeY = doorPos.y;
+                        // Update the mep position to stay synced with door
+                        mep.x = poeX;
+                        mep.y = poeY;
+                    }
+                }
+            }
+            const shape = new Konva.RegularPolygon({ x: poeX, y: poeY, sides: 3, radius: 12, fill: color, rotation: 0, draggable: isSelected });
             shape.on('tap click', (e) => { e.cancelBubble = true; App.onObjectTap('mep', mep.id); });
             if (isSelected) this.addMEPDragHandlers(shape, mep, ws);
             this.layers.mep.add(shape);
@@ -5212,10 +5253,19 @@ const App = {
                 this.doc.mep.push(obj);
                 break;
             case 'poe':
-                var poePos = Render.getPositionOnSegment(ws, defaultOffset);
+                // Find any door on this wall to anchor POE to
+                var anchorDoor = this.doc.doors.find(d => d.parentWallSegmentId === ws.id);
+                var poePos;
+                if (anchorDoor) {
+                    // Position POE at the anchor door
+                    poePos = Render.getPositionOnSegment(ws, anchorDoor.distanceFromStart + anchorDoor.width / 2);
+                } else {
+                    poePos = Render.getPositionOnSegment(ws, defaultOffset);
+                }
                 obj = {
                     id: Doc.uid(), label: Doc.label(this.doc, 'poe'), type: 'entry',
                     parentWallSegmentId: ws.id, parentRoomId: ws.roomId,
+                    anchorDoorId: anchorDoor ? anchorDoor.id : null,
                     x: poePos.x,
                     y: poePos.y
                 };
@@ -5271,7 +5321,7 @@ const App = {
             hint.textContent = `Tap a wall to place ${toolName}`;
             hint.classList.add('show');
         } else if (tool === 'dustwipe') {
-            hint.textContent = 'Tap floor, wall, or window to place SAMPLE marker';
+            hint.textContent = 'Tap floor, wall, door, or window to place SAMPLE marker';
             hint.classList.add('show');
         } else {
             hint.classList.remove('show');
@@ -6514,6 +6564,7 @@ const App = {
             y: pending.y,
             parentWallSegmentId: pending.wallSegmentId || null,
             parentWindowId: pending.windowId || null,
+            parentDoorId: pending.doorId || null,
             parentRoomId: pending.roomId || null,
             locationType: pending.locationType || null
         };
@@ -6650,6 +6701,58 @@ const App = {
             y: pending.y,
             roomId: pending.roomId,
             locationType: surfaceType  // floor, entryway, other
+        });
+    },
+
+    // Pending door sample placement
+    pendingDoorSample: null,
+
+    // Show door sample modal when clicking on a door with dust wipe tool
+    showDoorSampleModal(doorId) {
+        this.pendingDoorSample = doorId;
+        $('#doorSampleModal').classList.add('show');
+    },
+
+    // Place door sample with specific location type
+    placeDoorSample(locationType) {
+        // Check if sample sheet is set
+        if (!this.doc.sampleSheetNumber) {
+            this.hideModal('doorSample');
+            this.showSampleSheetModal();
+            return;
+        }
+
+        const doorId = this.pendingDoorSample;
+        if (!doorId) {
+            this.hideModal('doorSample');
+            return;
+        }
+
+        const door = this.doc.doors.find(d => d.id === doorId);
+        if (!door) {
+            this.hideModal('doorSample');
+            return;
+        }
+
+        // Get door position
+        const ws = this.doc.wallSegments.find(s => s.id === door.parentWallSegmentId);
+        let x = 0, y = 0;
+        if (ws) {
+            const pos = Render.getPositionOnSegment(ws, door.distanceFromStart + door.width / 2);
+            x = pos.x;
+            y = pos.y;
+        }
+
+        this.pendingDoorSample = null;
+        this.hideModal('doorSample');
+
+        // Show sample number modal
+        this.showSampleNumberModal({
+            x: x,
+            y: y,
+            doorId: doorId,
+            roomId: door.parentRoomId,
+            locationType: locationType  // door frame, door threshold, door
         });
     },
 
