@@ -204,9 +204,10 @@
                     <div class="section-content collapsed" id="objectTree"></div>
                 </div>
                 <div class="section" id="roomTypeSection" style="display: none;">
-                    <div class="section-header">Room Type</div>
+                    <div class="section-header">Room Settings</div>
                     <div class="section-content">
-                        <select id="roomTypeSelect" onchange="App.changeRoomType(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;">
+                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">Room Type</div>
+                        <select id="roomTypeSelect" onchange="App.changeRoomType(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; margin-bottom: 12px;">
                             <option value="Room">Room</option>
                             <option value="Bedroom 1">Bedroom 1</option>
                             <option value="Bedroom 2">Bedroom 2</option>
@@ -233,6 +234,11 @@
                             <option value="Sunroom">Sunroom</option>
                             <option value="Other">Other</option>
                         </select>
+                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">Set Wall as W1</div>
+                        <select id="wallStartSelect" onchange="App.setWallAsW1(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;">
+                            <option value="">-- Select wall --</option>
+                        </select>
+                        <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px;">Others will renumber clockwise</div>
                     </div>
                 </div>
                 <div class="section" id="wallSection" style="display: none;">
@@ -3625,12 +3631,28 @@ const App = {
         // Show/hide room type section based on room selection
         const roomTypeSection = $('#roomTypeSection');
         const roomTypeSelect = $('#roomTypeSelect');
+        const wallStartSelect = $('#wallStartSelect');
         if (roomTypeSection && roomTypeSelect) {
             if (sel.type === 'room' && sel.id) {
                 const room = this.doc.rooms.find(r => r.id === sel.id);
                 if (room) {
                     roomTypeSection.style.display = 'block';
                     roomTypeSelect.value = room.type;
+
+                    // Populate wall dropdown with walls for this room
+                    if (wallStartSelect) {
+                        const walls = this.doc.wallSegments
+                            .filter(ws => ws.roomId === room.id)
+                            .sort((a, b) => a.index - b.index);
+
+                        wallStartSelect.innerHTML = '<option value="">-- Select wall --</option>';
+                        walls.forEach(w => {
+                            const opt = document.createElement('option');
+                            opt.value = w.label;
+                            opt.textContent = w.label + ' (' + w.side + ')';
+                            wallStartSelect.appendChild(opt);
+                        });
+                    }
                 } else {
                     roomTypeSection.style.display = 'none';
                 }
@@ -3767,6 +3789,59 @@ const App = {
 
         this.updateTree();
         this.updateInspector();
+    },
+
+    // Set wall as W1 from room selection (by wall label)
+    setWallAsW1(wallLabel) {
+        if (!wallLabel) return;
+
+        const sel = Render.selection;
+        if (sel.type !== 'room' || !sel.id) {
+            alert('Please select a room first');
+            return;
+        }
+
+        const room = this.doc.rooms.find(r => r.id === sel.id);
+        if (!room) return;
+
+        // Get all walls for this room
+        const roomWalls = this.doc.wallSegments.filter(ws => ws.roomId === room.id);
+        if (roomWalls.length === 0) return;
+
+        // Find the wall by label
+        const selectedWall = roomWalls.find(w => w.label === wallLabel);
+        if (!selectedWall) return;
+
+        // Find the current index of the selected wall
+        const currentIndex = selectedWall.index;
+
+        // Renumber walls: selected becomes W1, then clockwise
+        roomWalls.forEach(wall => {
+            let newIndex = wall.index - currentIndex + 1;
+            if (newIndex <= 0) newIndex += roomWalls.length;
+
+            wall.index = newIndex;
+            wall.label = 'W' + newIndex;
+        });
+
+        // Sort walls by new index
+        roomWalls.sort((a, b) => a.index - b.index);
+
+        // Keep the room selected
+        const roomId = sel.id;
+
+        this.saveState();
+        this.render();
+
+        // Re-select the room
+        Render.select('room', roomId);
+
+        this.updateTree();
+        this.updateInspector();
+
+        // Reset the dropdown
+        const wallStartSelect = $('#wallStartSelect');
+        if (wallStartSelect) wallStartSelect.value = '';
     },
 
     deleteObject(objId, objType) {
