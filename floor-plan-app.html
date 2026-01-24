@@ -31,7 +31,7 @@
 
         .main { display: flex; flex: 1; overflow: hidden; position: relative; height: 100%; }
 
-        .sidebar-left { width: 180px; background: rgba(245, 247, 250, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-right: none; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease; position: relative; z-index: 10; }
+        .sidebar-left { width: 180px; background: rgba(245, 247, 250, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-right: none; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease; position: relative; z-index: 10; box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15); }
         .sidebar-left.collapsed { width: 52px; }
         .sidebar-left.collapsed .sidebar-scroll { padding: 4px; }
         .sidebar-left.collapsed .section-header { display: none; }
@@ -43,9 +43,8 @@
         .sidebar-left.collapsed #objectSection { display: none; }
         .sidebar-left.collapsed .sidebar-toggle { writing-mode: vertical-rl; text-orientation: mixed; padding: 12px 8px; }
         .sidebar-toggle { padding: 10px; background: transparent; border: none; color: var(--accent); font-size: 16px; cursor: pointer; border-bottom: none; }
-        .sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px; }
-        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+        .sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px; scrollbar-width: none; -ms-overflow-style: none; }
+        .sidebar-scroll::-webkit-scrollbar { display: none; }
         .section { margin-bottom: 12px; }
         .section-header { padding: 6px 8px; font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .section-content { padding: 4px; }
@@ -155,9 +154,10 @@
                     </div>
                 </div>
                 <div class="section">
-                    <div class="section-header">Geometry (draw)</div>
+                    <div class="section-header">Tools</div>
                     <div class="section-content">
-                        <div class="tool-grid" style="grid-template-columns: 1fr;">
+                        <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
+                            <button class="tool-btn active" id="btnSelect" onclick="App.setTool('select')"><svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></svg><span>Select</span></button>
                             <button class="tool-btn" onclick="App.setTool('room')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3,2"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke-width="2"/></svg><span>Room</span></button>
                         </div>
                     </div>
@@ -193,9 +193,24 @@
                         <div class="tool-grid">
                             <button class="tool-btn" onclick="App.setTool('pipe')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Pipe</span></button>
                             <button class="tool-btn filled" onclick="App.setTool('gas')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg><span>Gas</span></button>
-                            <button class="tool-btn" onclick="App.setTool('radiator')"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="1"/><line x1="6" y1="9" x2="6" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="12" y1="9" x2="12" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/><line x1="18" y1="9" x2="18" y2="17"/></svg><span>Rad</span></button>
+                            <button class="tool-btn" onclick="App.setTool('radiator')"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="1"/><line x1="6" y1="9" x2="6" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="12" y1="9" x2="12" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg><span>Rad</span></button>
                             <button class="tool-btn" onclick="App.setTool('riser')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3"/></svg><span>Riser</span></button>
                             <button class="tool-btn" onclick="App.setTool('poe')"><svg viewBox="0 0 24 24"><polygon points="12,2 22,12 17,12 17,22 7,22 7,12 2,12" fill="currentColor"/></svg><span>POE</span></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-header">Dust Wipes</div>
+                    <div class="section-content">
+                        <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-bottom: 4px;">
+                            Sheet: <strong id="sampleSheetDisplay">Not Set</strong>
+                            <button onclick="App.changeSampleSheet()" style="margin-left: 8px; padding: 2px 6px; font-size: 9px; cursor: pointer;">Change</button>
+                        </div>
+                        <div class="tool-grid">
+                            <button class="tool-btn" onclick="App.setTool('dustwipe')" style="font-weight: bold;">
+                                <svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-size="16" font-weight="bold" fill="currentColor" stroke="currentColor" stroke-width="0.5">X</text></svg>
+                                <span>Sample</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -209,6 +224,7 @@
                         <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">Room Type</div>
                         <select id="roomTypeSelect" onchange="App.changeRoomType(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; margin-bottom: 12px;">
                             <option value="Room">Room</option>
+                            <option value="Closet">Closet</option>
                             <option value="Bedroom 1">Bedroom 1</option>
                             <option value="Bedroom 2">Bedroom 2</option>
                             <option value="Bedroom 3">Bedroom 3</option>
@@ -234,7 +250,14 @@
                             <option value="Sunroom">Sunroom</option>
                             <option value="Other">Other</option>
                         </select>
-                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px;">Set Wall as W1</div>
+                        <div style="margin: 12px 0;">
+                            <button class="tool-btn" id="addJointBtn" onclick="App.toggleAddJointMode()" style="width: 100%; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; min-height: 36px;">
+                                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M4 12h4M16 12h4M12 4v4M12 16v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span id="addJointLabel">Add Joint</span>
+                            </button>
+                            <div style="padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px;">Click wall to add a draggable joint</div>
+                        </div>
+                        <div style="padding: 4px 8px; font-size: 10px; color: var(--text-dim); margin-bottom: 4px; margin-top: 12px;">Set Wall as W1</div>
                         <select id="wallStartSelect" onchange="App.setWallAsW1(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;">
                             <option value="">-- Select wall --</option>
                         </select>
@@ -291,6 +314,10 @@
                                 <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14M10 11v6M14 11v6" stroke="currentColor" fill="none" stroke-width="2"/></svg>
                                 <span>Delete</span>
                             </button>
+                            <button class="tool-btn" onclick="App.demoMakeH()" title="Demo: Rectangle to H-shape" style="background: #fef3c7;">
+                                <svg viewBox="0 0 24 24"><path d="M4 4v16M20 4v16M4 12h16" stroke="currentColor" fill="none" stroke-width="3" stroke-linecap="round"/></svg>
+                                <span>Demo H</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -319,6 +346,63 @@
             <button class="modal-close" onclick="App.hideModal('qa')">&times;</button>
         </div>
         <div class="modal-body" id="qaContent"></div>
+    </div>
+</div>
+
+<div class="modal" id="sampleSheetModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">Sample Sheet Number</div>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 12px; color: #666;">Enter the 8-digit sample sheet number for dust wipe labeling.</p>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Sample Sheet Number:</label>
+                <input type="text" id="sampleSheetInput1" maxlength="8" pattern="[0-9]{8}" placeholder="e.g., 99999001" style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 2px;">
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">Confirm Number:</label>
+                <input type="text" id="sampleSheetInput2" maxlength="8" pattern="[0-9]{8}" placeholder="Enter again to confirm" style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 6px; text-align: center; letter-spacing: 2px;">
+            </div>
+            <div id="sampleSheetError" style="color: #ef4444; font-size: 11px; margin-bottom: 12px; display: none;"></div>
+            <button onclick="App.confirmSampleSheet()" style="width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="windowSampleModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">Window Sample Location</div>
+            <button class="modal-close" onclick="App.hideModal('windowSample')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 16px; color: #666;">Where is this dust wipe sample being taken?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="App.placeWindowSample('trough')" style="padding: 14px; background: #f0f7ff; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Window Trough</button>
+                <button onclick="App.placeWindowSample('stool')" style="padding: 14px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Window Stool (Interior Sill)</button>
+                <button onclick="App.placeWindowSample('well')" style="padding: 14px; background: #fefce8; border: 2px solid #eab308; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Window Well</button>
+                <button onclick="App.hideModal('windowSample')" style="padding: 10px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; font-size: 12px; cursor: pointer; color: #666;">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="floorSampleModal">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">Floor/Surface Sample</div>
+            <button class="modal-close" onclick="App.hideModal('floorSample')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 16px; color: #666;">What type of surface is this sample from?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="App.placeFloorSample('floor')" style="padding: 14px; background: #f0f7ff; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Floor</button>
+                <button onclick="App.placeFloorSample('entryway')" style="padding: 14px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Entryway Floor</button>
+                <button onclick="App.placeFloorSample('other')" style="padding: 14px; background: #f3e8ff; border: 2px solid #a855f7; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500;">Other Surface</button>
+                <button onclick="App.hideModal('floorSample')" style="padding: 10px; background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; font-size: 12px; cursor: pointer; color: #666;">Cancel</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -409,7 +493,8 @@ const Doc = {
             id: this.uid(),
             version: '4.0',
             address: '2BR/1BA Blueprint',
-            counters: { room: 0, wallSegment: 0, door: 0, window: 0, closet: 0, cased: 0, pipe: 0, gas: 0, riser: 0, radiator: 0, poe: 0 },
+            sampleSheetNumber: null,  // 8-digit sample sheet for dust wipes
+            counters: { room: 0, wallSegment: 0, door: 0, window: 0, closet: 0, cased: 0, pipe: 0, gas: 0, riser: 0, radiator: 0, poe: 0, dustwipe: 0 },
             rooms: [],
             wallSegments: [],  // All wall segments indexed here
             doors: [],
@@ -417,6 +502,7 @@ const Doc = {
             casedOpenings: [],
             closets: [],
             mep: [],
+            dustWipes: [],  // Dust wipe sample markers
             dimensions: []
         };
     },
@@ -426,45 +512,46 @@ const Doc = {
         const prefixes = { room: 'Rm', wallSegment: 'WS', door: 'D', window: 'WIN', closet: 'CL', cased: 'OP', pipe: 'PIPE', gas: 'GAS', riser: 'PRSR', radiator: 'RAD', poe: 'POE' };
         const n = doc.counters[type];
         return (prefixes[type] || type.toUpperCase()) + '-' + (n < 10 ? '0' : '') + n;
+    },
+    // Get next dust wipe sample number (returns just the 2-digit suffix)
+    nextDustWipeNumber(doc) {
+        doc.counters.dustwipe = (doc.counters.dustwipe || 0) + 1;
+        const n = doc.counters.dustwipe;
+        return n < 10 ? '0' + n : '' + n;
+    },
+    // Get full dust wipe label (sheet number + sample number)
+    dustWipeLabel(doc) {
+        const suffix = this.nextDustWipeNumber(doc);
+        if (doc.sampleSheetNumber) {
+            return doc.sampleSheetNumber + '-' + suffix;
+        }
+        return 'X-' + suffix;
     }
 };
 
 // ========== WALL SEGMENT CREATION ==========
 function createWallSegments(room, doc) {
     const g = room.geometry;
-    // Create 4 segments for rectangular room: S, W, N, E
-    // Segments defined by endpoints, ordered clockwise
-    const segments = [
-        { side: 'south', x1: g.x, y1: g.y + g.height, x2: g.x + g.width, y2: g.y + g.height },
-        { side: 'west',  x1: g.x, y1: g.y + g.height, x2: g.x, y2: g.y },
-        { side: 'north', x1: g.x, y1: g.y, x2: g.x + g.width, y2: g.y },
-        { side: 'east',  x1: g.x + g.width, y1: g.y, x2: g.x + g.width, y2: g.y + g.height }
-    ];
 
-    // Determine which segment is SOUTH-most (highest Y average)
-    let southIdx = 0;
-    let maxY = -Infinity;
-    segments.forEach((seg, i) => {
-        const avgY = (seg.y1 + seg.y2) / 2;
-        if (avgY > maxY) { maxY = avgY; southIdx = i; }
-    });
-
-    // Reorder so W1 is the SOUTH-most, then clockwise
-    const ordered = [];
-    for (let i = 0; i < 4; i++) {
-        ordered.push(segments[(southIdx + i) % 4]);
+    // Ensure room has vertices array (convert from geometry if needed)
+    if (!room.vertices) {
+        room.vertices = verticesFromGeometry(g);
     }
 
-    // Create WallSegment objects
-    const wallSegments = ordered.map((seg, idx) => {
+    // Use getWallEdgesFromVertices for vertex-based wall derivation
+    const edges = getWallEdgesFromVertices(room);
+
+    // Create WallSegment objects from edges
+    const wallSegments = edges.map((edge, idx) => {
         const ws = {
             id: Doc.uid(),
             roomId: room.id,
             roomLabel: room.label,
             index: idx + 1,
-            label: 'W' + (idx + 1),
-            side: seg.side,
-            x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2,
+            label: edge.label,
+            side: edge.side,
+            x1: edge.start.x, y1: edge.start.y,
+            x2: edge.end.x, y2: edge.end.y,
             thickness: room.isExterior ? WALL_EXT : WALL_INT,
             type: 'interior',  // Default to interior, will be set properly by markExteriorWalls()
             attachedObjects: []
@@ -474,6 +561,110 @@ function createWallSegments(room, doc) {
     });
 
     room.wallSegmentIds = wallSegments.map(ws => ws.id);
+    return wallSegments;
+}
+
+// Regenerate wall segments for a room (after vertex editing)
+function regenerateWallSegments(room, doc) {
+    // Collect all attached objects with their WORLD POSITIONS before destroying walls
+    const attachmentsWithPositions = [];
+
+    // Find all objects attached to this room's walls
+    const allCollections = [
+        { arr: doc.doors, type: 'door' },
+        { arr: doc.windows, type: 'window' },
+        { arr: doc.casedOpenings, type: 'cased' },
+        { arr: doc.mep, type: 'mep' }
+    ];
+
+    allCollections.forEach(({ arr, type }) => {
+        if (!arr) return;
+        arr.forEach(obj => {
+            // Check if this object is attached to this room
+            if (obj.parentRoomId === room.id && obj.parentWallSegmentId) {
+                const ws = doc.wallSegments.find(s => s.id === obj.parentWallSegmentId);
+                if (ws) {
+                    // Calculate world position
+                    const segLen = getSegmentLength(ws);
+                    const distFromStart = obj.distanceFromStart || 0;
+                    const t = segLen > 0 ? Math.min(1, Math.max(0, distFromStart / segLen)) : 0.5;
+                    const worldX = ws.x1 + (ws.x2 - ws.x1) * t;
+                    const worldY = ws.y1 + (ws.y2 - ws.y1) * t;
+                    attachmentsWithPositions.push({
+                        id: obj.id,
+                        type: type,
+                        label: obj.label,
+                        worldX,
+                        worldY
+                    });
+                }
+            }
+        });
+    });
+
+    // Remove old wall segments for this room
+    doc.wallSegments = doc.wallSegments.filter(ws => ws.roomId !== room.id);
+
+    // Update geometry from vertices
+    const g = getGeometryFromVertices(room.vertices);
+    if (g) room.geometry = g;
+
+    // Create new wall segments from vertices
+    const edges = getWallEdgesFromVertices(room);
+    const wallSegments = edges.map((edge, idx) => {
+        const ws = {
+            id: Doc.uid(),
+            roomId: room.id,
+            roomLabel: room.label,
+            index: idx + 1,
+            label: edge.label,
+            side: edge.side,
+            x1: edge.start.x, y1: edge.start.y,
+            x2: edge.end.x, y2: edge.end.y,
+            thickness: room.isExterior ? WALL_EXT : WALL_INT,
+            type: 'interior',
+            attachedObjects: []
+        };
+        doc.wallSegments.push(ws);
+        return ws;
+    });
+
+    room.wallSegmentIds = wallSegments.map(ws => ws.id);
+
+    // Reassign each attachment to the nearest new wall segment
+    attachmentsWithPositions.forEach(att => {
+        let bestWs = null;
+        let bestDist = Infinity;
+        let bestT = 0;
+
+        wallSegments.forEach(ws => {
+            const result = pointToSegmentDistance(att.worldX, att.worldY, ws);
+            if (result.distance < bestDist) {
+                bestDist = result.distance;
+                bestWs = ws;
+                bestT = result.t;
+            }
+        });
+
+        if (bestWs) {
+            const segLen = getSegmentLength(bestWs);
+            const newDistanceFromStart = bestT * segLen;
+
+            // Add to wall segment's attached objects
+            bestWs.attachedObjects.push({ id: att.id, type: att.type, label: att.label });
+
+            // Update the actual object
+            allCollections.forEach(({ arr }) => {
+                if (!arr) return;
+                const obj = arr.find(o => o.id === att.id);
+                if (obj) {
+                    obj.parentWallSegmentId = bestWs.id;
+                    obj.distanceFromStart = newDistanceFromStart;
+                }
+            });
+        }
+    });
+
     return wallSegments;
 }
 
@@ -499,6 +690,179 @@ function pointToSegmentDistance(px, py, seg) {
     const nearX = seg.x1 + t * dx;
     const nearY = seg.y1 + t * dy;
     return { distance: Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2), t, nearX, nearY };
+}
+
+// ========== POLYGON GEOMETRY HELPERS ==========
+// Get bounding box geometry from vertices (for backward compatibility)
+function getGeometryFromVertices(vertices) {
+    if (!vertices || vertices.length < 3) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    vertices.forEach(v => {
+        minX = Math.min(minX, v.x);
+        minY = Math.min(minY, v.y);
+        maxX = Math.max(maxX, v.x);
+        maxY = Math.max(maxY, v.y);
+    });
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+// Create vertices from rectangle geometry
+function verticesFromGeometry(g) {
+    if (!g) return null;
+    return [
+        { x: g.x, y: g.y },
+        { x: g.x + g.width, y: g.y },
+        { x: g.x + g.width, y: g.y + g.height },
+        { x: g.x, y: g.y + g.height }
+    ];
+}
+
+// Get wall edges from room vertices (replaces wallSegments for rendering)
+// W1 = SOUTH-most edge (highest Y midpoint), then clockwise
+function getWallEdgesFromVertices(room) {
+    const verts = room.vertices;
+    if (!verts || verts.length < 3) return [];
+    const n = verts.length;
+    const edges = [];
+
+    // Find SOUTH-most edge (highest Y midpoint) - this becomes W1
+    let southIdx = 0;
+    let maxMidY = -Infinity;
+    for (let i = 0; i < n; i++) {
+        const midY = (verts[i].y + verts[(i + 1) % n].y) / 2;
+        if (midY > maxMidY) { maxMidY = midY; southIdx = i; }
+    }
+
+    // Build edges clockwise from south-most
+    for (let i = 0; i < n; i++) {
+        const idx = (southIdx + i) % n;
+        const nextIdx = (idx + 1) % n;
+        const start = verts[idx];
+        const end = verts[nextIdx];
+
+        // Determine side based on edge orientation
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        let side = 'south';
+        if (Math.abs(dx) > Math.abs(dy)) {
+            side = dy >= 0 ? 'south' : 'north';
+        } else {
+            side = dx >= 0 ? 'east' : 'west';
+        }
+
+        edges.push({
+            edgeIndex: i,
+            label: 'W' + (i + 1),
+            roomId: room.id,
+            roomLabel: room.label,
+            start: { ...start },
+            end: { ...end },
+            side: side,
+            isExterior: room.isExterior
+        });
+    }
+    return edges;
+}
+
+// Get position on edge from normalized t value (0-1)
+function getPositionOnEdge(edge, t) {
+    return {
+        x: edge.start.x + t * (edge.end.x - edge.start.x),
+        y: edge.start.y + t * (edge.end.y - edge.start.y)
+    };
+}
+
+// Get edge length
+function getEdgeLength(edge) {
+    return Math.sqrt(
+        Math.pow(edge.end.x - edge.start.x, 2) +
+        Math.pow(edge.end.y - edge.start.y, 2)
+    );
+}
+
+// Convert world position to t value on edge
+function getTOnEdge(edge, worldX, worldY) {
+    const len = getEdgeLength(edge);
+    if (len === 0) return 0;
+    const dx = edge.end.x - edge.start.x;
+    const dy = edge.end.y - edge.start.y;
+    return Math.max(0, Math.min(1,
+        ((worldX - edge.start.x) * dx + (worldY - edge.start.y) * dy) / (len * len)
+    ));
+}
+
+// Check if two line segments intersect (for self-intersection detection)
+function segmentsIntersect(a1, a2, b1, b2) {
+    const d = (b2.y - b1.y) * (a2.x - a1.x) - (b2.x - b1.x) * (a2.y - a1.y);
+    if (Math.abs(d) < 0.0001) return false;
+    const ua = ((b2.x - b1.x) * (a1.y - b1.y) - (b2.y - b1.y) * (a1.x - b1.x)) / d;
+    const ub = ((a2.x - a1.x) * (a1.y - b1.y) - (a2.y - a1.y) * (a1.x - b1.x)) / d;
+    return ua > 0.001 && ua < 0.999 && ub > 0.001 && ub < 0.999;
+}
+
+// Check if polygon self-intersects
+function polygonSelfIntersects(vertices) {
+    const n = vertices.length;
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 2; j < n; j++) {
+            if (i === 0 && j === n - 1) continue; // Adjacent edges at wrap
+            if (segmentsIntersect(
+                vertices[i], vertices[(i + 1) % n],
+                vertices[j], vertices[(j + 1) % n]
+            )) return true;
+        }
+    }
+    return false;
+}
+
+// Get polygon centroid
+function getPolygonCentroid(vertices) {
+    if (!vertices || vertices.length === 0) return { x: 0, y: 0 };
+    let sumX = 0, sumY = 0;
+    vertices.forEach(v => { sumX += v.x; sumY += v.y; });
+    return { x: sumX / vertices.length, y: sumY / vertices.length };
+}
+
+// Get flattened points array for Konva.Line
+function getVerticesAsPoints(vertices) {
+    const points = [];
+    vertices.forEach(v => { points.push(v.x, v.y); });
+    return points;
+}
+
+// Create H-shaped room vertices
+// H shape: two vertical bars connected by horizontal crossbar
+//
+//   1--2       5--6
+//   |  |       |  |
+//   |  3-------4  |
+//   |             |
+//   |  10------9  |
+//   |  |       |  |
+//   12-11      8--7
+//
+function createHShapeVertices(x, y, width, height, legWidth, crossbarHeight) {
+    // legWidth = width of vertical legs (default 1/4 of total width)
+    // crossbarHeight = height of crossbar (default 1/3 of total height)
+    const lw = legWidth || width * 0.25;
+    const cbh = crossbarHeight || height * 0.33;
+    const cbTop = y + (height - cbh) / 2;
+    const cbBottom = cbTop + cbh;
+
+    return [
+        { x: x, y: y },                          // 1 - top-left
+        { x: x + lw, y: y },                     // 2
+        { x: x + lw, y: cbTop },                 // 3 - left leg inner top
+        { x: x + width - lw, y: cbTop },         // 4 - right leg inner top
+        { x: x + width - lw, y: y },             // 5
+        { x: x + width, y: y },                  // 6 - top-right
+        { x: x + width, y: y + height },         // 7 - bottom-right
+        { x: x + width - lw, y: y + height },    // 8
+        { x: x + width - lw, y: cbBottom },      // 9 - right leg inner bottom
+        { x: x + lw, y: cbBottom },              // 10 - left leg inner bottom
+        { x: x + lw, y: y + height },            // 11
+        { x: x, y: y + height }                  // 12 - bottom-left
+    ];
 }
 
 function findNearestWallSegment(x, y, doc) {
@@ -643,6 +1007,24 @@ function generate2BR1BA() {
     };
     createWallSegments(bed2, doc);
     doc.rooms.push(bed2);
+
+    // ========== H-SHAPED ROOM (Demo) ==========
+    // Add an H-shaped room to demonstrate polygon rooms
+    const hRoomX = col4 + 3 * FOOT;  // 3' gap from main building
+    const hRoomY = row1;
+    const hWidth = 10 * FOOT;
+    const hHeight = 16 * FOOT;
+    const hVerts = createHShapeVertices(hRoomX, hRoomY, hWidth, hHeight, 3 * FOOT, 4 * FOOT);
+    const hRoom = {
+        id: Doc.uid(),
+        label: Doc.label(doc, 'room'),
+        type: 'Office',
+        isExterior: true,
+        vertices: hVerts,
+        geometry: getGeometryFromVertices(hVerts)
+    };
+    createWallSegments(hRoom, doc);
+    doc.rooms.push(hRoom);
 
     // Mark which walls are actually on the building exterior vs interior (shared)
     markExteriorWalls(doc);
@@ -893,6 +1275,16 @@ const Render = {
             this.stage.position({ x: pointer.x - mousePointTo.x * newScale, y: pointer.y - mousePointTo.y * newScale });
         });
 
+        // Click on empty canvas to deselect
+        this.stage.on('click tap', e => {
+            // Only deselect if clicking on stage or layer (not on any shape)
+            // Also check we're in select mode
+            if ((e.target === this.stage || e.target instanceof Konva.Layer) && App.currentTool === 'select') {
+                this.deselect();
+                App.render();
+            }
+        });
+
         new ResizeObserver(() => {
             const rect = c.getBoundingClientRect();
             if (rect.width > 0 && rect.height > 0) {
@@ -999,8 +1391,18 @@ const Render = {
                 lineCap: 'round',
                 hitStrokeWidth: HIT_WIDTH
             });
-            hitLine.on('tap click', () => App.onWallTap(ws.id));
-            hitLine.on('pointerdown', () => App.onWallTap(ws.id));
+            hitLine.on('tap click', (e) => {
+                const pos = this.stage.getPointerPosition();
+                const transform = this.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = pos ? transform.point(pos) : null;
+                App.onWallTap(ws.id, worldPos);
+            });
+            hitLine.on('pointerdown', (e) => {
+                const pos = this.stage.getPointerPosition();
+                const transform = this.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = pos ? transform.point(pos) : null;
+                App.onWallTap(ws.id, worldPos);
+            });
             this.layers.hit.add(hitLine);
         });
 
@@ -1103,6 +1505,11 @@ const Render = {
         // MEP
         doc.mep.forEach(m => this.renderMEP(m, doc));
 
+        // Dust Wipes
+        if (doc.dustWipes) {
+            doc.dustWipes.forEach(dw => this.renderDustWipe(dw, doc));
+        }
+
         // Auto-generate chain dimensions based on current room layout
         if (showDims && doc.rooms.length > 0) {
             this.renderChainDimensions(doc);
@@ -1117,13 +1524,22 @@ const Render = {
         const isSelected = this.isSelected('room', room.id);
         const self = this;
 
+        // Ensure room has vertices
+        if (!room.vertices) {
+            room.vertices = verticesFromGeometry(g);
+        }
+        const verts = room.vertices;
+        const isPolygon = verts.length > 4; // Non-rectangular if more than 4 vertices
+
         // Find closets that belong to this room
         const roomClosets = doc.closets.filter(c => c.parentRoomId === room.id);
 
         // Create a group for the room (for dragging)
+        // Disable dragging when in Edit Path mode
+        const canDrag = isSelected && !App.editPathMode;
         const roomGroup = new Konva.Group({
             x: 0, y: 0,
-            draggable: isSelected
+            draggable: canDrag
         });
 
         // Room fill - light blue tint when selected, white when not
@@ -1143,50 +1559,67 @@ const Render = {
             shadowOpacity: 0.4
         };
 
-        // Simple room rectangle - positioned at room coordinates
-        roomGroup.x(g.x);
-        roomGroup.y(g.y);
-
-        if (roomClosets.length === 0) {
-            // Simple case: no closets
-            roomGroup.add(new Konva.Rect({
-                x: 0, y: 0, width: g.width, height: g.height,
+        if (isPolygon) {
+            // Render as polygon for non-rectangular rooms
+            const points = getVerticesAsPoints(verts);
+            const polygon = new Konva.Line({
+                points: points,
                 fill: roomFill,
                 stroke: roomBorder,
                 strokeWidth: isSelected ? 3 : 1,
-                ...shadowProps
-            }));
-        } else {
-            // Room has closets - draw room fill excluding closet areas
-            const roomShape = new Konva.Shape({
-                sceneFunc: (context, shape) => {
-                    context.beginPath();
-                    context.rect(0, 0, g.width, g.height);
-                    // Cut out closet areas relative to room
-                    roomClosets.forEach(closet => {
-                        const cg = closet.geometry;
-                        const cx = cg.x - g.x;
-                        const cy = cg.y - g.y;
-                        context.moveTo(cx, cy);
-                        context.lineTo(cx, cy + cg.height);
-                        context.lineTo(cx + cg.width, cy + cg.height);
-                        context.lineTo(cx + cg.width, cy);
-                        context.closePath();
-                    });
-                    context.fillStrokeShape(shape);
-                },
-                fill: roomFill,
-                stroke: roomBorder,
-                strokeWidth: isSelected ? 3 : 1,
+                closed: true,
                 ...shadowProps
             });
-            roomGroup.add(roomShape);
+            roomGroup.add(polygon);
+        } else {
+            // Simple room rectangle - positioned at room coordinates
+            roomGroup.x(g.x);
+            roomGroup.y(g.y);
+
+            if (roomClosets.length === 0) {
+                // Simple case: no closets
+                roomGroup.add(new Konva.Rect({
+                    x: 0, y: 0, width: g.width, height: g.height,
+                    fill: roomFill,
+                    stroke: roomBorder,
+                    strokeWidth: isSelected ? 3 : 1,
+                    ...shadowProps
+                }));
+            } else {
+                // Room has closets - draw room fill excluding closet areas
+                const roomShape = new Konva.Shape({
+                    sceneFunc: (context, shape) => {
+                        context.beginPath();
+                        context.rect(0, 0, g.width, g.height);
+                        // Cut out closet areas relative to room
+                        roomClosets.forEach(closet => {
+                            const cg = closet.geometry;
+                            const cx = cg.x - g.x;
+                            const cy = cg.y - g.y;
+                            context.moveTo(cx, cy);
+                            context.lineTo(cx, cy + cg.height);
+                            context.lineTo(cx + cg.width, cy + cg.height);
+                            context.lineTo(cx + cg.width, cy);
+                            context.closePath();
+                        });
+                        context.fillStrokeShape(shape);
+                    },
+                    fill: roomFill,
+                    stroke: roomBorder,
+                    strokeWidth: isSelected ? 3 : 1,
+                    ...shadowProps
+                });
+                roomGroup.add(roomShape);
+            }
         }
 
         // Add tap handler for room selection
         roomGroup.on('tap click', (e) => {
             e.cancelBubble = true;
-            App.onRoomTap(room.id);
+            const pos = this.stage.getPointerPosition();
+            const transform = this.stage.getAbsoluteTransform().copy().invert();
+            const worldPos = pos ? transform.point(pos) : null;
+            App.onRoomTap(room.id, worldPos);
         });
 
         // Prevent stage panning when clicking on rooms
@@ -1194,27 +1627,25 @@ const Render = {
             e.cancelBubble = true;
         });
 
-        // Simplified drag - just move the group, update geometry on dragend
-        if (isSelected) {
-            let origGX, origGY, startClosetPositions = [], snapPoints = null;
+        // Drag handling - only when selected and not in Edit Path mode
+        if (canDrag) {
+            let origGX, origGY, origVerts = [], startClosetPositions = [], snapPoints = null;
 
             roomGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
                 self.stage.draggable(false);
-                origGX = g.x;  // Store original geometry for closet offset calculation
+                origGX = g.x;
                 origGY = g.y;
+                origVerts = room.vertices.map(v => ({ ...v }));
                 startClosetPositions = roomClosets.map(c => ({ id: c.id, x: c.geometry.x, y: c.geometry.y }));
                 snapPoints = findRoomSnapPoints(doc, room.id);
             });
 
             roomGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
-                // this.x() and this.y() are the absolute position of the group
                 const rawX = this.x();
                 const rawY = this.y();
                 const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
-
-                // Set snapped position directly
                 this.x(snapped.x);
                 this.y(snapped.y);
             });
@@ -1222,37 +1653,49 @@ const Render = {
             roomGroup.on('dragend', function(e) {
                 self.stage.draggable(true);
 
-                // Final position is just the group's current position
                 const finalX = this.x();
                 const finalY = this.y();
+                const dx = finalX - origGX;
+                const dy = finalY - origGY;
 
                 // Update room geometry
                 g.x = finalX;
                 g.y = finalY;
 
-                // Update wall segments
+                // Update vertices
+                room.vertices = origVerts.map(v => ({ x: v.x + dx, y: v.y + dy }));
+
+                // Update wall segments from vertices
+                const edges = getWallEdgesFromVertices(room);
                 const segs = doc.wallSegments.filter(ws => ws.roomId === room.id);
-                segs.forEach(ws => {
-                    if (ws.label === 'W1') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
-                    else if (ws.label === 'W2') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x; ws.y2 = g.y; }
-                    else if (ws.label === 'W3') { ws.x1 = g.x; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y; }
-                    else if (ws.label === 'W4') { ws.x1 = g.x + g.width; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                segs.forEach((ws, idx) => {
+                    if (edges[idx]) {
+                        ws.x1 = edges[idx].start.x;
+                        ws.y1 = edges[idx].start.y;
+                        ws.x2 = edges[idx].end.x;
+                        ws.y2 = edges[idx].end.y;
+                    }
                 });
 
                 // Update closets
-                const dx = finalX - origGX;
-                const dy = finalY - origGY;
                 roomClosets.forEach(closet => {
                     const sp = startClosetPositions.find(p => p.id === closet.id);
                     if (sp) {
                         closet.geometry.x = sp.x + dx;
                         closet.geometry.y = sp.y + dy;
-                        const cg = closet.geometry;
-                        doc.wallSegments.filter(ws => ws.roomId === closet.id).forEach(ws => {
-                            if (ws.label === 'W1') { ws.x1 = cg.x; ws.y1 = cg.y + cg.height; ws.x2 = cg.x + cg.width; ws.y2 = cg.y + cg.height; }
-                            else if (ws.label === 'W2') { ws.x1 = cg.x; ws.y1 = cg.y + cg.height; ws.x2 = cg.x; ws.y2 = cg.y; }
-                            else if (ws.label === 'W3') { ws.x1 = cg.x; ws.y1 = cg.y; ws.x2 = cg.x + cg.width; ws.y2 = cg.y; }
-                            else if (ws.label === 'W4') { ws.x1 = cg.x + cg.width; ws.y1 = cg.y; ws.x2 = cg.x + cg.width; ws.y2 = cg.y + cg.height; }
+                        // Update closet vertices
+                        if (closet.vertices) {
+                            closet.vertices = closet.vertices.map(v => ({ x: v.x + dx, y: v.y + dy }));
+                        }
+                        // Update closet wall segments
+                        const closetEdges = getWallEdgesFromVertices(closet);
+                        doc.wallSegments.filter(ws => ws.roomId === closet.id).forEach((ws, idx) => {
+                            if (closetEdges[idx]) {
+                                ws.x1 = closetEdges[idx].start.x;
+                                ws.y1 = closetEdges[idx].start.y;
+                                ws.x2 = closetEdges[idx].end.x;
+                                ws.y2 = closetEdges[idx].end.y;
+                            }
                         });
                     }
                 });
@@ -1269,16 +1712,788 @@ const Render = {
         this.layers.rooms.add(roomGroup);
 
         // Room label (inside) - show type as main label, ID underneath
+        const centroid = isPolygon ? getPolygonCentroid(verts) : { x: g.x + g.width / 2, y: g.y + g.height / 2 };
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
+            x: centroid.x - 50, y: centroid.y - 12, width: 100,
             text: room.type, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
         }));
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 + 4, width: g.width,
+            x: centroid.x - 50, y: centroid.y + 4, width: 100,
             text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
         }));
         // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
         // Note: Exterior dimension lines are handled by renderChainDimensions()
+
+        // Show handles when room is selected
+        if (isSelected) {
+            // Show corner and edge resize handles
+            this.renderResizeHandles(room, doc);
+
+            // Show new vertex handle if one was just added
+            if (App.newVertexInfo && App.newVertexInfo.roomId === room.id) {
+                this.renderNewVertexHandle(room, doc);
+            }
+            // Or show all vertex handles for non-rectangular rooms (more than 4 vertices)
+            else if (room.vertices && room.vertices.length > 4) {
+                this.renderAllVertexHandles(room, doc);
+            }
+        }
+    },
+
+    // Render resize handles for rectangular rooms (4 corners)
+    renderResizeHandles(room, doc) {
+        const g = room.geometry;
+        const self = this;
+        const handleSize = 20;  // Larger for visibility
+
+        // Corner positions: TL, TR, BR, BL
+        const corners = [
+            { x: g.x, y: g.y, cursor: 'nw-resize', corner: 'tl' },
+            { x: g.x + g.width, y: g.y, cursor: 'ne-resize', corner: 'tr' },
+            { x: g.x + g.width, y: g.y + g.height, cursor: 'se-resize', corner: 'br' },
+            { x: g.x, y: g.y + g.height, cursor: 'sw-resize', corner: 'bl' }
+        ];
+
+        corners.forEach((c, idx) => {
+            // Create a group for each handle
+            const handleGroup = new Konva.Group({
+                x: c.x,
+                y: c.y,
+                draggable: true,
+                name: 'resize-handle'
+            });
+
+            // Background circle
+            handleGroup.add(new Konva.Circle({
+                x: 0, y: 0,
+                radius: handleSize / 2,
+                fill: '#3b82f6',
+                stroke: '#fff',
+                strokeWidth: 2
+            }));
+
+            // Plus sign
+            handleGroup.add(new Konva.Line({
+                points: [-6, 0, 6, 0],
+                stroke: '#fff',
+                strokeWidth: 2,
+                lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [0, -6, 0, 6],
+                stroke: '#fff',
+                strokeWidth: 2,
+                lineCap: 'round'
+            }));
+
+            const handle = handleGroup;
+
+            let startG = null;
+
+            handle.on('dragstart', function() {
+                startG = { ...g };
+                self.stage.draggable(false);
+            });
+
+            handle.on('dragmove', function() {
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                this.x(newX);
+                this.y(newY);
+
+                // Update geometry based on which corner is being dragged
+                if (c.corner === 'tl') {
+                    g.width = startG.x + startG.width - newX;
+                    g.height = startG.y + startG.height - newY;
+                    g.x = newX;
+                    g.y = newY;
+                } else if (c.corner === 'tr') {
+                    g.width = newX - g.x;
+                    g.height = startG.y + startG.height - newY;
+                    g.y = newY;
+                } else if (c.corner === 'br') {
+                    g.width = newX - g.x;
+                    g.height = newY - g.y;
+                } else if (c.corner === 'bl') {
+                    g.width = startG.x + startG.width - newX;
+                    g.height = newY - g.y;
+                    g.x = newX;
+                }
+
+                // Enforce minimum size
+                if (g.width < 2 * FOOT) g.width = 2 * FOOT;
+                if (g.height < 2 * FOOT) g.height = 2 * FOOT;
+
+                // Update vertices from geometry
+                room.vertices = verticesFromGeometry(g);
+
+                // Live update
+                self.updateRoomLive(room, doc);
+            });
+
+            handle.on('dragend', function() {
+                self.stage.draggable(true);
+                App.syncGeometryFromVertices(room);
+                regenerateWallSegments(room, doc);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+            });
+
+            this.layers.openings.add(handle);
+        });
+
+        // Mid-edge handles for single-direction resize (top, right, bottom, left)
+        const edgeHandleSize = 16;
+        const edges = [
+            { x: g.x + g.width / 2, y: g.y, dir: 'top', axis: 'y' },
+            { x: g.x + g.width, y: g.y + g.height / 2, dir: 'right', axis: 'x' },
+            { x: g.x + g.width / 2, y: g.y + g.height, dir: 'bottom', axis: 'y' },
+            { x: g.x, y: g.y + g.height / 2, dir: 'left', axis: 'x' }
+        ];
+
+        edges.forEach((e) => {
+            const edgeGroup = new Konva.Group({
+                x: e.x,
+                y: e.y,
+                draggable: true,
+                name: 'edge-handle'
+            });
+
+            // Background circle (smaller, different color)
+            edgeGroup.add(new Konva.Circle({
+                x: 0, y: 0,
+                radius: edgeHandleSize / 2,
+                fill: '#22c55e',
+                stroke: '#fff',
+                strokeWidth: 2
+            }));
+
+            // Arrow indicator based on direction
+            if (e.axis === 'y') {
+                // Vertical arrows for top/bottom
+                edgeGroup.add(new Konva.Line({
+                    points: [0, -4, 0, 4],
+                    stroke: '#fff',
+                    strokeWidth: 2,
+                    lineCap: 'round'
+                }));
+                edgeGroup.add(new Konva.Line({
+                    points: [-3, -1, 0, -4, 3, -1],
+                    stroke: '#fff',
+                    strokeWidth: 1.5,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }));
+                edgeGroup.add(new Konva.Line({
+                    points: [-3, 1, 0, 4, 3, 1],
+                    stroke: '#fff',
+                    strokeWidth: 1.5,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }));
+            } else {
+                // Horizontal arrows for left/right
+                edgeGroup.add(new Konva.Line({
+                    points: [-4, 0, 4, 0],
+                    stroke: '#fff',
+                    strokeWidth: 2,
+                    lineCap: 'round'
+                }));
+                edgeGroup.add(new Konva.Line({
+                    points: [-1, -3, -4, 0, -1, 3],
+                    stroke: '#fff',
+                    strokeWidth: 1.5,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }));
+                edgeGroup.add(new Konva.Line({
+                    points: [1, -3, 4, 0, 1, 3],
+                    stroke: '#fff',
+                    strokeWidth: 1.5,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }));
+            }
+
+            let startG = null;
+
+            edgeGroup.on('dragstart', function() {
+                startG = { ...g };
+                self.stage.draggable(false);
+            });
+
+            edgeGroup.on('dragmove', function() {
+                // Constrain to single axis
+                if (e.axis === 'x') {
+                    this.y(e.y);  // Lock Y
+                    const newX = snapToGrid(this.x());
+                    this.x(newX);
+
+                    if (e.dir === 'left') {
+                        g.width = startG.x + startG.width - newX;
+                        g.x = newX;
+                    } else { // right
+                        g.width = newX - g.x;
+                    }
+                } else {
+                    this.x(e.x);  // Lock X
+                    const newY = snapToGrid(this.y());
+                    this.y(newY);
+
+                    if (e.dir === 'top') {
+                        g.height = startG.y + startG.height - newY;
+                        g.y = newY;
+                    } else { // bottom
+                        g.height = newY - g.y;
+                    }
+                }
+
+                // Enforce minimum size
+                if (g.width < 2 * FOOT) g.width = 2 * FOOT;
+                if (g.height < 2 * FOOT) g.height = 2 * FOOT;
+
+                // Update vertices from geometry
+                room.vertices = verticesFromGeometry(g);
+
+                // Live update
+                self.updateRoomLive(room, doc);
+            });
+
+            edgeGroup.on('dragend', function() {
+                self.stage.draggable(true);
+                App.syncGeometryFromVertices(room);
+                regenerateWallSegments(room, doc);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+            });
+
+            this.layers.openings.add(edgeGroup);
+        });
+    },
+
+    // Render vertex handles for rooms with extra vertices (non-rectangular)
+    // Shows draggable points that can be used to reshape the room
+    renderVertexHandles(room, doc) {
+        const verts = room.vertices;
+        if (!verts || verts.length <= 4) return; // Only show for non-rectangular rooms
+
+        const self = this;
+        const handleRadius = 10;
+
+        // Vertex handles - orange circles, draggable
+        // Double-tap to delete (if >4 vertices)
+        verts.forEach((v, idx) => {
+            const handle = new Konva.Circle({
+                x: v.x, y: v.y,
+                radius: handleRadius,
+                fill: '#f97316',
+                stroke: '#fff',
+                strokeWidth: 2,
+                draggable: true,
+                name: 'vertex-handle'
+            });
+
+            let lastTapTime = 0;
+
+            handle.on('dragstart', function() {
+                self.stage.draggable(false);
+            });
+
+            handle.on('dragmove', function() {
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                this.x(newX);
+                this.y(newY);
+
+                // Update vertex
+                const tempVerts = room.vertices.map(v => ({ ...v }));
+                tempVerts[idx] = { x: newX, y: newY };
+
+                // Only apply if no self-intersection
+                if (!polygonSelfIntersects(tempVerts)) {
+                    room.vertices[idx] = { x: newX, y: newY };
+                    self.updateRoomLive(room, doc);
+                }
+            });
+
+            handle.on('dragend', function() {
+                self.stage.draggable(true);
+                App.syncGeometryFromVertices(room);
+                regenerateWallSegments(room, doc);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+            });
+
+            // Double-tap to delete vertex (if >4 remain)
+            handle.on('tap click', function(e) {
+                const now = Date.now();
+                if (now - lastTapTime < 400) {
+                    e.cancelBubble = true;
+                    App.deleteVertex(room, idx);
+                }
+                lastTapTime = now;
+            });
+
+            this.layers.openings.add(handle);
+        });
+    },
+
+    // Render a push handle for the newly added segment
+    // User can drag this perpendicular to the segment to create L, T, H shapes
+    renderPushHandle(room, doc) {
+        const ps = App.pushableSegment;
+        if (!ps || ps.roomId !== room.id) return;
+
+        const verts = room.vertices;
+        const v1 = verts[ps.vertexIdx1];
+        const v2 = verts[ps.vertexIdx2];
+        if (!v1 || !v2) {
+            // Indices no longer valid, clear pushable segment
+            App.pushableSegment = null;
+            return;
+        }
+
+        const self = this;
+        const handleSize = 20;
+
+        // Calculate midpoint of the pushable segment
+        const midX = (v1.x + v2.x) / 2;
+        const midY = (v1.y + v2.y) / 2;
+
+        // Calculate the perpendicular direction (for constraining drag)
+        const segDx = v2.x - v1.x;
+        const segDy = v2.y - v1.y;
+        const isHorizontal = Math.abs(segDx) > Math.abs(segDy);
+
+        // Create handle group - green like edge handles but larger
+        const handleGroup = new Konva.Group({
+            x: midX,
+            y: midY,
+            draggable: true,
+            name: 'push-handle'
+        });
+
+        // Background circle - green to match edge handles
+        handleGroup.add(new Konva.Circle({
+            x: 0, y: 0,
+            radius: handleSize / 2,
+            fill: '#22c55e',
+            stroke: '#fff',
+            strokeWidth: 3
+        }));
+
+        // Arrow indicator based on direction
+        if (isHorizontal) {
+            // Vertical arrows for horizontal segment (push up/down)
+            handleGroup.add(new Konva.Line({
+                points: [0, -5, 0, 5],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-3, -2, 0, -5, 3, -2],
+                stroke: '#fff', strokeWidth: 1.5, lineCap: 'round', lineJoin: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-3, 2, 0, 5, 3, 2],
+                stroke: '#fff', strokeWidth: 1.5, lineCap: 'round', lineJoin: 'round'
+            }));
+        } else {
+            // Horizontal arrows for vertical segment (push left/right)
+            handleGroup.add(new Konva.Line({
+                points: [-5, 0, 5, 0],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-2, -3, -5, 0, -2, 3],
+                stroke: '#fff', strokeWidth: 1.5, lineCap: 'round', lineJoin: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [2, -3, 5, 0, 2, 3],
+                stroke: '#fff', strokeWidth: 1.5, lineCap: 'round', lineJoin: 'round'
+            }));
+        }
+
+        const handle = handleGroup;
+
+        let startV1 = null, startV2 = null;
+
+        handle.on('dragstart', function() {
+            self.stage.draggable(false);
+            startV1 = { ...v1 };
+            startV2 = { ...v2 };
+        });
+
+        handle.on('dragmove', function() {
+            // Constrain drag to perpendicular direction only
+            const newX = this.x();
+            const newY = this.y();
+            const dx = newX - midX;
+            const dy = newY - midY;
+
+            let offsetX = 0, offsetY = 0;
+            if (isHorizontal) {
+                // Only allow vertical movement
+                offsetY = snapToGrid(dy);
+                this.x(midX);  // Lock X position
+                this.y(snapToGrid(midY + offsetY));
+            } else {
+                // Only allow horizontal movement
+                offsetX = snapToGrid(dx);
+                this.x(snapToGrid(midX + offsetX));
+                this.y(midY);  // Lock Y position
+            }
+
+            // Move both vertices perpendicular
+            const newV1 = { x: snapToGrid(startV1.x + offsetX), y: snapToGrid(startV1.y + offsetY) };
+            const newV2 = { x: snapToGrid(startV2.x + offsetX), y: snapToGrid(startV2.y + offsetY) };
+
+            // Check for self-intersection
+            const tempVerts = room.vertices.map(v => ({ ...v }));
+            tempVerts[ps.vertexIdx1] = newV1;
+            tempVerts[ps.vertexIdx2] = newV2;
+
+            if (!polygonSelfIntersects(tempVerts)) {
+                room.vertices[ps.vertexIdx1] = newV1;
+                room.vertices[ps.vertexIdx2] = newV2;
+                self.updateRoomLive(room, doc);
+            }
+        });
+
+        handle.on('dragend', function() {
+            self.stage.draggable(true);
+            App.syncGeometryFromVertices(room);
+            regenerateWallSegments(room, doc);
+            markExteriorWalls(doc);
+            App.pushableSegment = null;  // Clear after first push
+            App.saveState();
+            App.render();
+
+            // Hide hint
+            $('#toolHint').classList.remove('show');
+        });
+
+        this.layers.openings.add(handle);
+    },
+
+    // Render a handle for the newly added segment (2 vertices) - drag to reshape
+    renderNewVertexHandle(room, doc) {
+        const info = App.newVertexInfo;
+        if (!info || info.roomId !== room.id) return;
+
+        const verts = room.vertices;
+        const v1 = verts[info.vertexIdx1];
+        const v2 = verts[info.vertexIdx2];
+        if (!v1 || !v2) {
+            App.newVertexInfo = null;
+            return;
+        }
+
+        const self = this;
+        const handleSize = 24;
+
+        // Position at midpoint of the two vertices
+        const midX = (v1.x + v2.x) / 2;
+        const midY = (v1.y + v2.y) / 2;
+
+        // Create handle group - bright green, larger
+        const handleGroup = new Konva.Group({
+            x: midX,
+            y: midY,
+            draggable: true,
+            name: 'new-segment-handle'
+        });
+
+        // Background circle
+        handleGroup.add(new Konva.Circle({
+            x: 0, y: 0,
+            radius: handleSize / 2,
+            fill: '#22c55e',
+            stroke: '#fff',
+            strokeWidth: 3
+        }));
+
+        // Arrow indicator based on direction
+        if (info.isHorizontal) {
+            // Vertical arrows (up/down) for horizontal wall segment
+            handleGroup.add(new Konva.Line({
+                points: [0, -6, 0, 6],
+                stroke: '#fff', strokeWidth: 2.5, lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-4, -2, 0, -6, 4, -2],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round', lineJoin: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-4, 2, 0, 6, 4, 2],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round', lineJoin: 'round'
+            }));
+        } else {
+            // Horizontal arrows (left/right) for vertical wall segment
+            handleGroup.add(new Konva.Line({
+                points: [-6, 0, 6, 0],
+                stroke: '#fff', strokeWidth: 2.5, lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [-2, -4, -6, 0, -2, 4],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round', lineJoin: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [2, -4, 6, 0, 2, 4],
+                stroke: '#fff', strokeWidth: 2, lineCap: 'round', lineJoin: 'round'
+            }));
+        }
+
+        let startV1 = null, startV2 = null;
+
+        handleGroup.on('dragstart', function() {
+            self.stage.draggable(false);
+            startV1 = { ...v1 };
+            startV2 = { ...v2 };
+        });
+
+        handleGroup.on('dragmove', function() {
+            const dx = this.x() - midX;
+            const dy = this.y() - midY;
+
+            // Constrain to perpendicular direction
+            let offsetX = 0, offsetY = 0;
+            if (info.isHorizontal) {
+                // Only allow vertical movement
+                offsetY = snapToGrid(dy);
+                this.x(midX);
+                this.y(snapToGrid(midY + offsetY));
+            } else {
+                // Only allow horizontal movement
+                offsetX = snapToGrid(dx);
+                this.x(snapToGrid(midX + offsetX));
+                this.y(midY);
+            }
+
+            // Move both vertices together
+            const newV1 = { x: snapToGrid(startV1.x + offsetX), y: snapToGrid(startV1.y + offsetY) };
+            const newV2 = { x: snapToGrid(startV2.x + offsetX), y: snapToGrid(startV2.y + offsetY) };
+
+            // Check for self-intersection
+            const tempVerts = room.vertices.map(v => ({ ...v }));
+            tempVerts[info.vertexIdx1] = newV1;
+            tempVerts[info.vertexIdx2] = newV2;
+
+            if (!polygonSelfIntersects(tempVerts)) {
+                room.vertices[info.vertexIdx1] = newV1;
+                room.vertices[info.vertexIdx2] = newV2;
+                self.updateRoomLive(room, doc);
+            }
+        });
+
+        handleGroup.on('dragend', function() {
+            self.stage.draggable(true);
+            App.syncGeometryFromVertices(room);
+            regenerateWallSegments(room, doc);
+            markExteriorWalls(doc);
+            App.newVertexInfo = null;  // Clear after dragging
+            App.saveState();
+            App.render();
+        });
+
+        this.layers.openings.add(handleGroup);
+    },
+
+    // Render handles for all vertices (for non-rectangular rooms)
+    renderAllVertexHandles(room, doc) {
+        const verts = room.vertices;
+        if (!verts || verts.length <= 4) return;
+
+        const self = this;
+        const handleSize = 16;
+
+        verts.forEach((v, idx) => {
+            const handleGroup = new Konva.Group({
+                x: v.x,
+                y: v.y,
+                draggable: true,
+                name: 'vertex-handle'
+            });
+
+            // Green circle
+            handleGroup.add(new Konva.Circle({
+                x: 0, y: 0,
+                radius: handleSize / 2,
+                fill: '#22c55e',
+                stroke: '#fff',
+                strokeWidth: 2
+            }));
+
+            handleGroup.on('dragstart', function() {
+                self.stage.draggable(false);
+            });
+
+            handleGroup.on('dragmove', function() {
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                this.x(newX);
+                this.y(newY);
+
+                const tempVerts = room.vertices.map(v => ({ ...v }));
+                tempVerts[idx] = { x: newX, y: newY };
+
+                if (!polygonSelfIntersects(tempVerts)) {
+                    room.vertices[idx] = { x: newX, y: newY };
+                    self.updateRoomLive(room, doc);
+                }
+            });
+
+            handleGroup.on('dragend', function() {
+                self.stage.draggable(true);
+                App.syncGeometryFromVertices(room);
+                regenerateWallSegments(room, doc);
+                markExteriorWalls(doc);
+                App.saveState();
+                App.render();
+            });
+
+            this.layers.openings.add(handleGroup);
+        });
+    },
+
+    // Live update room/closet during vertex drag (without full re-render)
+    updateRoomLive(room, doc) {
+        // Update geometry from vertices
+        const g = getGeometryFromVertices(room.vertices);
+        if (g) room.geometry = g;
+
+        // Check if this is a closet or room
+        const isCloset = doc.closets.some(c => c.id === room.id);
+
+        // Rebuild the room fill shape
+        this.layers.rooms.destroyChildren();
+        doc.rooms.forEach(r => {
+            if (r.id === room.id) {
+                // Render the edited room with current vertices
+                this.renderRoomFillPolygon(r, doc);
+            } else {
+                this.renderRoomFill(r, doc);
+            }
+        });
+        doc.closets.forEach(c => {
+            if (c.id === room.id) {
+                // Render the edited closet - it will show current vertices
+                this.renderCloset(c, doc);
+            } else {
+                this.renderCloset(c, doc);
+            }
+        });
+        this.layers.rooms.batchDraw();
+
+        // Update walls live
+        this.updateWallsFromVertices(room, doc);
+    },
+
+    // Render room as polygon (for vertex editing)
+    renderRoomFillPolygon(room, doc) {
+        const verts = room.vertices || verticesFromGeometry(room.geometry);
+        const g = room.geometry;
+        const isSelected = this.isSelected('room', room.id);
+
+        const roomFill = isSelected ? '#dbeafe' : '#fafbfc';
+        const roomBorder = isSelected ? '#2563eb' : '#e5e7eb';
+
+        const shadowProps = isSelected ? {
+            shadowColor: '#3b82f6',
+            shadowBlur: 20,
+            shadowOffset: { x: 0, y: 0 },
+            shadowOpacity: 0.8
+        } : {
+            shadowColor: 'black',
+            shadowBlur: 8,
+            shadowOffset: { x: 4, y: 4 },
+            shadowOpacity: 0.4
+        };
+
+        // Render as closed polygon
+        const points = getVerticesAsPoints(verts);
+        const polygon = new Konva.Line({
+            points: points,
+            fill: roomFill,
+            stroke: roomBorder,
+            strokeWidth: isSelected ? 3 : 1,
+            closed: true,
+            ...shadowProps
+        });
+
+        polygon.on('tap click', (e) => {
+            e.cancelBubble = true;
+            const pos = this.stage.getPointerPosition();
+            const transform = this.stage.getAbsoluteTransform().copy().invert();
+            const worldPos = pos ? transform.point(pos) : null;
+            App.onRoomTap(room.id, worldPos);
+        });
+
+        polygon.on('mousedown touchstart', (e) => {
+            e.cancelBubble = true;
+        });
+
+        this.layers.rooms.add(polygon);
+
+        // Room labels
+        const centroid = getPolygonCentroid(verts);
+        this.layers.labels.add(new Konva.Text({
+            x: centroid.x - 50, y: centroid.y - 12, width: 100,
+            text: room.type, fontSize: 13, fontStyle: 'bold',
+            fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+        }));
+        this.layers.labels.add(new Konva.Text({
+            x: centroid.x - 50, y: centroid.y + 4, width: 100,
+            text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+        }));
+    },
+
+    // Update walls from vertices during live editing
+    updateWallsFromVertices(room, doc) {
+        const edges = getWallEdgesFromVertices(room);
+
+        // Clear and redraw walls
+        this.layers.walls.destroyChildren();
+        this.layers.hit.destroyChildren();
+
+        // Re-render all wall segments with updated positions for this room
+        doc.wallSegments.forEach(ws => {
+            // For the editing room, use edge positions from vertices
+            if (ws.roomId === room.id) {
+                const edgeIdx = parseInt(ws.label.substring(1)) - 1;
+                if (edges[edgeIdx]) {
+                    ws.x1 = edges[edgeIdx].start.x;
+                    ws.y1 = edges[edgeIdx].start.y;
+                    ws.x2 = edges[edgeIdx].end.x;
+                    ws.y2 = edges[edgeIdx].end.y;
+                }
+            }
+
+            // Render wall
+            const wallColor = '#2d3748';
+            const isExterior = ws.type === 'exterior';
+            const wallWidth = isExterior ? 4 : 2;
+
+            this.layers.walls.add(new Konva.Line({
+                points: [ws.x1 + 4, ws.y1 + 4, ws.x2 + 4, ws.y2 + 4],
+                stroke: 'rgba(0,0,0,0.5)',
+                strokeWidth: wallWidth + 2,
+                lineCap: 'round',
+                listening: false
+            }));
+            this.layers.walls.add(new Konva.Line({
+                points: [ws.x1, ws.y1, ws.x2, ws.y2],
+                stroke: wallColor,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            }));
+        });
+
+        this.layers.walls.batchDraw();
+        this.layers.hit.batchDraw();
     },
 
     renderWallSegment(ws, doc, showWallIds) {
@@ -1325,8 +2540,18 @@ const Render = {
             lineCap: 'round',
             hitStrokeWidth: HIT_WIDTH
         });
-        hitLine.on('tap click', () => App.onWallTap(ws.id));
-        hitLine.on('pointerdown', () => App.onWallTap(ws.id));
+        hitLine.on('tap click', (e) => {
+            const pos = this.stage.getPointerPosition();
+            const transform = this.stage.getAbsoluteTransform().copy().invert();
+            const worldPos = pos ? transform.point(pos) : null;
+            App.onWallTap(ws.id, worldPos);
+        });
+        hitLine.on('pointerdown', (e) => {
+            const pos = this.stage.getPointerPosition();
+            const transform = this.stage.getAbsoluteTransform().copy().invert();
+            const worldPos = pos ? transform.point(pos) : null;
+            App.onWallTap(ws.id, worldPos);
+        });
         this.layers.hit.add(hitLine);
 
         // Wall ID label
@@ -1401,7 +2626,17 @@ const Render = {
 
         closetGroup.on('tap click', (e) => {
             e.cancelBubble = true;
-            App.onObjectTap('closet', closet.id);
+            // If dust wipe tool is active, place floor sample
+            if (App.currentTool === 'dustwipe') {
+                const pos = this.stage.getPointerPosition();
+                const transform = this.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = pos ? transform.point(pos) : null;
+                if (worldPos) {
+                    App.showFloorSampleModal(worldPos.x, worldPos.y, closet.id);
+                }
+            } else {
+                App.onObjectTap('closet', closet.id);
+            }
         });
         // Prevent stage panning when clicking on closets
         closetGroup.on('mousedown touchstart', (e) => {
@@ -1482,55 +2717,50 @@ const Render = {
         // Get closet's wall segments for hit detection
         const closetWalls = doc.wallSegments.filter(ws => ws.roomId === closet.id);
 
-        // Render closet walls (only interior-facing ones that don't touch parent room edges)
-        if (pg) {
-            // South wall of closet (if not touching room's south edge)
-            if (g.y + g.height < pg.y + pg.height) {
-                const southWall = closetWalls.find(w => w.side === 'south');
-                if (southWall) {
-                    this.renderClosetWall(southWall, wallColor, wallWidth);
-                } else {
-                    this.layers.walls.add(new Konva.Line({
-                        points: [g.x, g.y + g.height, g.x + g.width, g.y + g.height],
-                        stroke: wallColor, strokeWidth: wallWidth, listening: false
-                    }));
-                }
+        // Helper to check if wall should be rendered (not touching parent room edge)
+        const shouldRenderWall = (side) => {
+            if (!pg) return true;  // Always render if no parent room
+            switch (side) {
+                case 'south': return g.y + g.height < pg.y + pg.height;
+                case 'north': return g.y > pg.y;
+                case 'west': return g.x > pg.x;
+                case 'east': return g.x + g.width < pg.x + pg.width;
+                default: return true;
             }
-            // North wall of closet (if not touching room's north edge)
-            if (g.y > pg.y) {
-                const northWall = closetWalls.find(w => w.side === 'north');
-                if (northWall) {
-                    this.renderClosetWall(northWall, wallColor, wallWidth);
-                } else {
-                    this.layers.walls.add(new Konva.Line({
-                        points: [g.x, g.y, g.x + g.width, g.y],
-                        stroke: wallColor, strokeWidth: wallWidth, listening: false
-                    }));
-                }
+        };
+
+        // Render all closet walls (with hit detection for door placement)
+        closetWalls.forEach(wall => {
+            if (shouldRenderWall(wall.side)) {
+                this.renderClosetWall(wall, wallColor, wallWidth);
             }
-            // West wall of closet (if not touching room's west edge)
-            if (g.x > pg.x) {
-                const westWall = closetWalls.find(w => w.side === 'west');
-                if (westWall) {
-                    this.renderClosetWall(westWall, wallColor, wallWidth);
-                } else {
-                    this.layers.walls.add(new Konva.Line({
-                        points: [g.x, g.y, g.x, g.y + g.height],
-                        stroke: wallColor, strokeWidth: wallWidth, listening: false
-                    }));
-                }
+        });
+
+        // Fallback: if no wall segments exist, draw basic lines
+        if (closetWalls.length === 0) {
+            if (shouldRenderWall('south')) {
+                this.layers.walls.add(new Konva.Line({
+                    points: [g.x, g.y + g.height, g.x + g.width, g.y + g.height],
+                    stroke: wallColor, strokeWidth: wallWidth, listening: false
+                }));
             }
-            // East wall of closet (if not touching room's east edge)
-            if (g.x + g.width < pg.x + pg.width) {
-                const eastWall = closetWalls.find(w => w.side === 'east');
-                if (eastWall) {
-                    this.renderClosetWall(eastWall, wallColor, wallWidth);
-                } else {
-                    this.layers.walls.add(new Konva.Line({
-                        points: [g.x + g.width, g.y, g.x + g.width, g.y + g.height],
-                        stroke: wallColor, strokeWidth: wallWidth, listening: false
-                    }));
-                }
+            if (shouldRenderWall('north')) {
+                this.layers.walls.add(new Konva.Line({
+                    points: [g.x, g.y, g.x + g.width, g.y],
+                    stroke: wallColor, strokeWidth: wallWidth, listening: false
+                }));
+            }
+            if (shouldRenderWall('west')) {
+                this.layers.walls.add(new Konva.Line({
+                    points: [g.x, g.y, g.x, g.y + g.height],
+                    stroke: wallColor, strokeWidth: wallWidth, listening: false
+                }));
+            }
+            if (shouldRenderWall('east')) {
+                this.layers.walls.add(new Konva.Line({
+                    points: [g.x + g.width, g.y, g.x + g.width, g.y + g.height],
+                    stroke: wallColor, strokeWidth: wallWidth, listening: false
+                }));
             }
         }
 
@@ -1563,6 +2793,226 @@ const Render = {
                 listening: false
             }));
         }
+
+        // Show resize handles when closet is selected (same as rooms)
+        if (isSelected) {
+            this.renderClosetResizeHandles(closet, doc);
+
+            // Show new vertex handle if one was just added (for joints)
+            if (App.newVertexInfo && App.newVertexInfo.roomId === closet.id) {
+                this.renderNewVertexHandle(closet, doc);
+            }
+            // Or show all vertex handles for non-rectangular closets (more than 4 vertices)
+            else if (closet.vertices && closet.vertices.length > 4) {
+                this.renderAllVertexHandles(closet, doc);
+            }
+        }
+    },
+
+    // Render resize handles for closets (similar to rooms)
+    renderClosetResizeHandles(closet, doc) {
+        const g = closet.geometry;
+        const self = this;
+        const handleSize = 16;  // Slightly smaller than room handles
+
+        // Corner positions: TL, TR, BR, BL
+        const corners = [
+            { x: g.x, y: g.y, cursor: 'nw-resize', corner: 'tl' },
+            { x: g.x + g.width, y: g.y, cursor: 'ne-resize', corner: 'tr' },
+            { x: g.x + g.width, y: g.y + g.height, cursor: 'se-resize', corner: 'br' },
+            { x: g.x, y: g.y + g.height, cursor: 'sw-resize', corner: 'bl' }
+        ];
+
+        corners.forEach((c, idx) => {
+            const handleGroup = new Konva.Group({
+                x: c.x,
+                y: c.y,
+                draggable: true,
+                name: 'closet-resize-handle'
+            });
+
+            // Background circle
+            handleGroup.add(new Konva.Circle({
+                x: 0, y: 0,
+                radius: handleSize / 2,
+                fill: '#6b7280',
+                stroke: '#fff',
+                strokeWidth: 2
+            }));
+
+            // Plus sign
+            handleGroup.add(new Konva.Line({
+                points: [-5, 0, 5, 0],
+                stroke: '#fff',
+                strokeWidth: 2,
+                lineCap: 'round'
+            }));
+            handleGroup.add(new Konva.Line({
+                points: [0, -5, 0, 5],
+                stroke: '#fff',
+                strokeWidth: 2,
+                lineCap: 'round'
+            }));
+
+            let startG = null;
+
+            handleGroup.on('dragstart', function() {
+                startG = { ...g };
+                self.stage.draggable(false);
+            });
+
+            handleGroup.on('dragmove', function() {
+                const newX = snapToGrid(this.x());
+                const newY = snapToGrid(this.y());
+                this.x(newX);
+                this.y(newY);
+
+                // Update geometry based on which corner is being dragged
+                if (c.corner === 'tl') {
+                    g.width = startG.x + startG.width - newX;
+                    g.height = startG.y + startG.height - newY;
+                    g.x = newX;
+                    g.y = newY;
+                } else if (c.corner === 'tr') {
+                    g.width = newX - g.x;
+                    g.height = startG.y + startG.height - newY;
+                    g.y = newY;
+                } else if (c.corner === 'br') {
+                    g.width = newX - g.x;
+                    g.height = newY - g.y;
+                } else if (c.corner === 'bl') {
+                    g.width = startG.x + startG.width - newX;
+                    g.height = newY - g.y;
+                    g.x = newX;
+                }
+
+                // Enforce minimum size (closets can be smaller than rooms: 1.5' min)
+                if (g.width < 1.5 * FOOT) g.width = 1.5 * FOOT;
+                if (g.height < 1.5 * FOOT) g.height = 1.5 * FOOT;
+
+                // Update vertices from geometry
+                closet.vertices = verticesFromGeometry(g);
+
+                // Live update
+                self.updateClosetLive(closet, doc);
+            });
+
+            handleGroup.on('dragend', function() {
+                App.restoreStageDraggable();
+                App.syncGeometryFromVertices(closet);
+                regenerateWallSegments(closet, doc);
+                App.saveState();
+                App.render();
+            });
+
+            this.layers.openings.add(handleGroup);
+        });
+
+        // Mid-edge handles for single-direction resize
+        const edgeHandleSize = 14;
+        const edges = [
+            { x: g.x + g.width / 2, y: g.y, dir: 'top', axis: 'y' },
+            { x: g.x + g.width, y: g.y + g.height / 2, dir: 'right', axis: 'x' },
+            { x: g.x + g.width / 2, y: g.y + g.height, dir: 'bottom', axis: 'y' },
+            { x: g.x, y: g.y + g.height / 2, dir: 'left', axis: 'x' }
+        ];
+
+        edges.forEach((e) => {
+            const edgeGroup = new Konva.Group({
+                x: e.x,
+                y: e.y,
+                draggable: true,
+                name: 'closet-edge-handle'
+            });
+
+            edgeGroup.add(new Konva.Circle({
+                x: 0, y: 0,
+                radius: edgeHandleSize / 2,
+                fill: '#9ca3af',
+                stroke: '#fff',
+                strokeWidth: 2
+            }));
+
+            // Arrow indicator
+            if (e.axis === 'y') {
+                edgeGroup.add(new Konva.Line({
+                    points: [0, -3, 0, 3],
+                    stroke: '#fff', strokeWidth: 2, lineCap: 'round'
+                }));
+            } else {
+                edgeGroup.add(new Konva.Line({
+                    points: [-3, 0, 3, 0],
+                    stroke: '#fff', strokeWidth: 2, lineCap: 'round'
+                }));
+            }
+
+            let startG = null;
+
+            edgeGroup.on('dragstart', function() {
+                startG = { ...g };
+                self.stage.draggable(false);
+            });
+
+            edgeGroup.on('dragmove', function() {
+                if (e.axis === 'y') {
+                    const newY = snapToGrid(this.y());
+                    this.x(e.x);
+                    this.y(newY);
+                    if (e.dir === 'top') {
+                        g.height = startG.y + startG.height - newY;
+                        g.y = newY;
+                    } else {
+                        g.height = newY - g.y;
+                    }
+                } else {
+                    const newX = snapToGrid(this.x());
+                    this.x(newX);
+                    this.y(e.y);
+                    if (e.dir === 'left') {
+                        g.width = startG.x + startG.width - newX;
+                        g.x = newX;
+                    } else {
+                        g.width = newX - g.x;
+                    }
+                }
+
+                // Closets can be smaller than rooms: 1.5' min
+                if (g.width < 1.5 * FOOT) g.width = 1.5 * FOOT;
+                if (g.height < 1.5 * FOOT) g.height = 1.5 * FOOT;
+
+                closet.vertices = verticesFromGeometry(g);
+                self.updateClosetLive(closet, doc);
+            });
+
+            edgeGroup.on('dragend', function() {
+                App.restoreStageDraggable();
+                App.syncGeometryFromVertices(closet);
+                regenerateWallSegments(closet, doc);
+                App.saveState();
+                App.render();
+            });
+
+            this.layers.openings.add(edgeGroup);
+        });
+    },
+
+    // Live update closet during resize drag
+    updateClosetLive(closet, doc) {
+        const g = getGeometryFromVertices(closet.vertices);
+        if (g) closet.geometry = g;
+
+        // Rebuild closets layer
+        this.layers.rooms.destroyChildren();
+        doc.rooms.forEach(r => this.renderRoomFill(r, doc));
+        doc.closets.forEach(c => {
+            if (c.id === closet.id) {
+                // Render the edited closet with current vertices
+                this.renderCloset(c, doc);
+            } else {
+                this.renderCloset(c, doc);
+            }
+        });
+        this.layers.rooms.batchDraw();
     },
 
     // Render a closet wall with hit detection for placing doors
@@ -1597,7 +3047,12 @@ const Render = {
             lineCap: 'round',
             hitStrokeWidth: HIT_WIDTH
         });
-        hitLine.on('tap click', () => App.onWallTap(ws.id));
+        hitLine.on('tap click', (e) => {
+            const pos = this.stage.getPointerPosition();
+            const transform = this.stage.getAbsoluteTransform().copy().invert();
+            const worldPos = pos ? transform.point(pos) : null;
+            App.onWallTap(ws.id, worldPos);
+        });
         this.layers.hit.add(hitLine);
     },
 
@@ -1766,7 +3221,9 @@ const Render = {
             doorGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newOffset = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const maxOffset = getSegmentLength(ws) - door.width;
 
                 // Constrain to wall bounds
@@ -1805,11 +3262,14 @@ const Render = {
             leftHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newOffset = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const oldEnd = door.distanceFromStart + door.width;
                 const minWidth = 0.5 * FOOT;  // Doors min 6 inches
+                const maxWidth = 6 * FOOT;    // Doors max 6 feet
 
-                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
+                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth && (oldEnd - newOffset) <= maxWidth) {
                     door.width = oldEnd - newOffset;
                     door.distanceFromStart = newOffset;
                     updateDoorVisuals();
@@ -1826,12 +3286,15 @@ const Render = {
             rightHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newEnd = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const newWidth = newEnd - door.distanceFromStart;
                 const maxOffset = getSegmentLength(ws);
                 const minWidth = 0.5 * FOOT;  // Doors min 6 inches
+                const maxWidth = 6 * FOOT;    // Doors max 6 feet
 
-                if (newWidth >= minWidth && newEnd <= maxOffset) {
+                if (newWidth >= minWidth && newWidth <= maxWidth && newEnd <= maxOffset) {
                     door.width = newWidth;
                     updateDoorVisuals();
                 }
@@ -1917,7 +3380,14 @@ const Render = {
         });
         winGroup.add(mullion);
 
-        winGroup.on('tap click', () => App.onObjectTap('window', win.id));
+        winGroup.on('tap click', () => {
+            // If dust wipe tool is active, show window sample modal
+            if (App.currentTool === 'dustwipe') {
+                App.showWindowSampleModal(win.id);
+            } else {
+                App.onObjectTap('window', win.id);
+            }
+        });
         this.layers.openings.add(winGroup);
 
         const winLabel = new Konva.Text({
@@ -1988,7 +3458,9 @@ const Render = {
             winGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newOffset = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const maxOffset = getSegmentLength(ws) - win.width;
 
                 // Constrain to wall bounds
@@ -2027,11 +3499,14 @@ const Render = {
             leftHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newOffset = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newOffset = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const oldEnd = win.distanceFromStart + win.width;
                 const minWidth = 1 * FOOT;
+                const maxWidth = 12 * FOOT;  // Windows max 12 feet
 
-                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth) {
+                if (newOffset >= 0 && (oldEnd - newOffset) >= minWidth && (oldEnd - newOffset) <= maxWidth) {
                     win.width = oldEnd - newOffset;
                     win.distanceFromStart = newOffset;
                     updateWindowVisuals();
@@ -2049,12 +3524,15 @@ const Render = {
             rightHandle.on('dragmove', function(e) {
                 e.cancelBubble = true;
                 const pointer = self.stage.getPointerPosition();
-                const newEnd = self.getOffsetOnSegment(ws, pointer.x, pointer.y);
+                const transform = self.stage.getAbsoluteTransform().copy().invert();
+                const worldPos = transform.point(pointer);
+                const newEnd = self.getOffsetOnSegment(ws, worldPos.x, worldPos.y);
                 const newWidth = newEnd - win.distanceFromStart;
                 const maxOffset = getSegmentLength(ws);
                 const minWidth = 1 * FOOT;
+                const maxWidth = 12 * FOOT;  // Windows max 12 feet
 
-                if (newWidth >= minWidth && newEnd <= maxOffset) {
+                if (newWidth >= minWidth && newWidth <= maxWidth && newEnd <= maxOffset) {
                     win.width = newWidth;
                     updateWindowVisuals();
                 }
@@ -2282,6 +3760,102 @@ const Render = {
             App.saveState();
             App.render();
         });
+    },
+
+    // Render dust wipe sample marker (X indicator)
+    renderDustWipe(dw, doc) {
+        const isSelected = this.selection.type === 'dustwipe' && this.selection.id === dw.id;
+        const color = isSelected ? '#3b82f6' : '#ef4444';
+        const self = this;
+
+        let posX = dw.x;
+        let posY = dw.y;
+
+        // If attached to a window, calculate position from window
+        if (dw.parentWindowId) {
+            const win = doc.windows.find(w => w.id === dw.parentWindowId);
+            if (win) {
+                const ws = doc.wallSegments.find(s => s.id === win.parentWallSegmentId);
+                if (ws) {
+                    const pos = this.getPositionOnSegment(ws, win.distanceFromStart + win.width / 2);
+                    posX = pos.x;
+                    posY = pos.y - 20; // Offset from window
+                }
+            }
+        }
+
+        // Create X marker group
+        const group = new Konva.Group({
+            x: posX,
+            y: posY,
+            draggable: isSelected
+        });
+
+        // X shape
+        const xSize = 10;
+        group.add(new Konva.Line({
+            points: [-xSize, -xSize, xSize, xSize],
+            stroke: color,
+            strokeWidth: 3,
+            lineCap: 'round'
+        }));
+        group.add(new Konva.Line({
+            points: [xSize, -xSize, -xSize, xSize],
+            stroke: color,
+            strokeWidth: 3,
+            lineCap: 'round'
+        }));
+
+        // Circle background for better visibility
+        group.add(new Konva.Circle({
+            x: 0, y: 0,
+            radius: xSize + 4,
+            stroke: color,
+            strokeWidth: 1.5,
+            fill: 'rgba(255,255,255,0.8)'
+        }));
+
+        // Re-add X on top
+        group.add(new Konva.Line({
+            points: [-xSize, -xSize, xSize, xSize],
+            stroke: color,
+            strokeWidth: 3,
+            lineCap: 'round'
+        }));
+        group.add(new Konva.Line({
+            points: [xSize, -xSize, -xSize, xSize],
+            stroke: color,
+            strokeWidth: 3,
+            lineCap: 'round'
+        }));
+
+        group.on('tap click', (e) => {
+            e.cancelBubble = true;
+            App.onObjectTap('dustwipe', dw.id);
+        });
+
+        group.on('mousedown touchstart', (e) => { e.cancelBubble = true; });
+
+        if (isSelected) {
+            group.on('dragstart', function(e) { e.cancelBubble = true; self.stage.draggable(false); });
+            group.on('dragmove', function(e) { e.cancelBubble = true; });
+            group.on('dragend', function(e) {
+                self.stage.draggable(true);
+                dw.x = this.x();
+                dw.y = this.y();
+                App.saveState();
+                App.render();
+            });
+        }
+
+        this.layers.mep.add(group);
+
+        // Label with sample number
+        const labelText = dw.label + (dw.locationType ? ` (${dw.locationType})` : '');
+        this.layers.labels.add(new Konva.Text({
+            x: posX + 18, y: posY - 6,
+            text: labelText, fontSize: 8, fill: color, listening: false
+        }));
     },
 
     getPositionOnSegment(seg, distFromStart) {
@@ -2776,6 +4350,10 @@ const Render = {
     deselect() {
         this.selection = { type: null, id: null };
         this.multiSelection = [];
+        // Exit Add Point mode when deselecting
+        if (App.addPointMode) {
+            App.exitAddPointMode();
+        }
     },
 
     // Add to multi-selection
@@ -2885,6 +4463,10 @@ const App = {
     wallDrawStart: null,
     wallPreview: null,
     clipboard: [],  // For copy/paste
+    addPointMode: false,  // Mode to add points to room edges
+    addPointRoomId: null,  // ID of room to add points to
+    pushableSegment: null, // Legacy - kept for compatibility
+    newVertexInfo: null,   // Tracks newly added vertex {roomId, vertexIdx} for special rendering
 
     init() {
         if (!Render.init('stage')) { alert('Init failed'); return; }
@@ -2899,6 +4481,17 @@ const App = {
         this.setupWallDrawing();
         this.setupMarqueeSelection();
         console.log('App ready - tap walls to select');
+
+        // Show sample sheet modal on startup for dust wipe labeling
+        this.updateSampleSheetDisplay();
+        setTimeout(() => this.showSampleSheetModal(), 500);
+    },
+
+    updateSampleSheetDisplay() {
+        const display = $('#sampleSheetDisplay');
+        if (display) {
+            display.textContent = this.doc.sampleSheetNumber || 'Not Set';
+        }
     },
 
     // Convert screen position to world/canvas position (accounting for pan/zoom)
@@ -2915,9 +4508,6 @@ const App = {
 
         stage.on('mousedown touchstart', (e) => {
             if (this.currentTool !== 'room') return;
-
-            // Disable stage panning while drawing
-            stage.draggable(false);
 
             const pos = self.getWorldPosition(stage);
             if (!pos) return;
@@ -2990,13 +4580,6 @@ const App = {
             this.roomPreview.destroy();
             this.roomPreview = null;
             this.isDrawingRoom = false;
-            stage.draggable(true);
-
-            // Minimum size check (at least 2' x 2')
-            if (width < 2 * FOOT || height < 2 * FOOT) {
-                Render.layers.openings.batchDraw();
-                return;
-            }
 
             // Check if drawing is inside an existing room (create closet) or outside (create room)
             const parentRoom = this.doc.rooms.find(room => {
@@ -3009,6 +4592,13 @@ const App = {
                 return overlapArea > drawnArea * 0.5; // More than 50% inside room
             });
 
+            // Different minimum sizes for closets vs rooms
+            const minSize = parentRoom ? 1.5 * FOOT : 4 * FOOT;  // Closets: 1.5', Rooms: 4'
+            if (width < minSize || height < minSize) {
+                Render.layers.openings.batchDraw();
+                return;
+            }
+
             if (parentRoom) {
                 // Create a closet inside the room (closet is a sub-room with parent link)
                 const closet = {
@@ -3019,7 +4609,13 @@ const App = {
                     parentRoomId: parentRoom.id,
                     parentRoomLabel: parentRoom.label,
                     isExterior: false,
-                    geometry: { x, y, width, height }
+                    geometry: { x, y, width, height },
+                    vertices: [  // Polygon vertices (clockwise from top-left)
+                        { x: x, y: y },
+                        { x: x + width, y: y },
+                        { x: x + width, y: y + height },
+                        { x: x, y: y + height }
+                    ]
                 };
                 // Create wall segments for the closet (like a room)
                 createWallSegments(closet, this.doc);
@@ -3037,7 +4633,13 @@ const App = {
                     label: Doc.label(this.doc, 'room'),
                     type: 'Room',
                     isExterior: true,
-                    geometry: { x, y, width, height }
+                    geometry: { x, y, width, height },
+                    vertices: [  // Polygon vertices (clockwise from top-left)
+                        { x: x, y: y },
+                        { x: x + width, y: y },
+                        { x: x + width, y: y + height },
+                        { x: x, y: y + height }
+                    ]
                 };
                 createWallSegments(room, this.doc);
                 this.doc.rooms.push(room);
@@ -3059,8 +4661,6 @@ const App = {
 
         stage.on('mousedown touchstart', (e) => {
             if (this.currentTool !== 'wall') return;
-
-            stage.draggable(false);
 
             const pos = self.getWorldPosition(stage);
             if (!pos) return;
@@ -3146,7 +4746,6 @@ const App = {
                 this.wallStartPoint = null;
             }
             this.isDrawingWall = false;
-            stage.draggable(true);
 
             // Minimum length check (at least 1 foot)
             const length = Math.sqrt(Math.pow(endX - start.x, 2) + Math.pow(endY - start.y, 2));
@@ -3441,9 +5040,31 @@ const App = {
         Render.render(this.doc, { showWallIds: this.showWallIds, showDims: this.showDims });
     },
 
-    onWallTap(wallSegmentId) {
+    onWallTap(wallSegmentId, clickPos) {
         const ws = this.doc.wallSegments.find(s => s.id === wallSegmentId);
         if (!ws) return;
+
+        // Add Point mode - add a pushable segment to the room or closet
+        if (this.addPointMode && this.addPointRoomId) {
+            // Check both rooms and closets
+            let item = this.doc.rooms.find(r => r.id === this.addPointRoomId);
+            if (!item) {
+                item = this.doc.closets.find(c => c.id === this.addPointRoomId);
+            }
+            if (item && ws.roomId === item.id) {
+                // Find which edge this wall corresponds to
+                const edges = getWallEdgesFromVertices(item);
+                const edge = edges.find(e => e.label === ws.label);
+
+                if (edge && clickPos) {
+                    // Add a pushable segment (2 vertices) centered on click position
+                    this.addPushableSegment(item, edge, clickPos);
+                    // Exit add point mode after adding
+                    this.exitAddPointMode();
+                    return;
+                }
+            }
+        }
 
         if (this.currentTool === 'select') {
             Render.select('wall', wallSegmentId);
@@ -3452,6 +5073,8 @@ const App = {
             this.highlightTreeItem('wall', wallSegmentId);
         } else if (['door', 'window', 'cased', 'pipe', 'gas', 'radiator', 'riser', 'poe'].includes(this.currentTool)) {
             this.placeOnWall(ws, this.currentTool);
+        } else if (this.currentTool === 'dustwipe') {
+            this.placeDustWipe(ws, clickPos);
         }
     },
 
@@ -3462,11 +5085,18 @@ const App = {
         this.highlightTreeItem(type, id);
     },
 
-    onRoomTap(roomId) {
+    onRoomTap(roomId, clickPos) {
         if (this.currentTool === 'select') {
+            // Exit Add Point mode if selecting a different room
+            if (this.addPointMode && this.addPointRoomId !== roomId) {
+                this.exitAddPointMode();
+            }
             Render.select('room', roomId);
             this.render();
             this.updateInspector();
+        } else if (this.currentTool === 'dustwipe' && clickPos) {
+            // Place floor sample at click position
+            this.showFloorSampleModal(clickPos.x, clickPos.y, roomId);
         }
     },
 
@@ -3478,12 +5108,6 @@ const App = {
         }
         const segLen = getSegmentLength(ws);
         const defaultOffset = segLen * 0.3;
-
-        // Windows can ONLY be placed on exterior walls
-        if (toolType === 'window' && ws.type !== 'exterior') {
-            alert(`Windows can only be placed on exterior walls.\n${room?.label} ${ws.label} is an interior wall.`);
-            return;
-        }
 
         let obj;
         switch (toolType) {
@@ -3582,12 +5206,28 @@ const App = {
         }
     },
 
+    // Check if stage should be draggable based on current tool
+    shouldStageBeDraggable() {
+        const drawingTools = ['room', 'wall'];
+        return !drawingTools.includes(this.currentTool);
+    },
+
+    // Restore stage draggable state based on current tool (call after drag operations)
+    restoreStageDraggable() {
+        if (Render.stage) {
+            Render.stage.draggable(this.shouldStageBeDraggable());
+        }
+    },
+
     setTool(tool) {
         this.currentTool = tool;
         $$('.tool-btn').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`.tool-btn[onclick*="'${tool}'"]`);
         if (btn) btn.classList.add('active');
         $('#btnSelect').classList.toggle('active', tool === 'select');
+
+        // Update stage dragging based on tool
+        this.restoreStageDraggable();
 
         // Show hint for placement tools
         const hint = $('#toolHint');
@@ -3601,6 +5241,9 @@ const App = {
             const toolName = tool === 'riser' ? 'PIPE RISER' : tool.toUpperCase();
             hint.textContent = `Tap a wall to place ${toolName}`;
             hint.classList.add('show');
+        } else if (tool === 'dustwipe') {
+            hint.textContent = 'Tap floor, wall, or window to place SAMPLE marker';
+            hint.classList.add('show');
         } else {
             hint.classList.remove('show');
         }
@@ -3610,7 +5253,7 @@ const App = {
         // Update delete button state based on selection
         const sel = Render.selection;
         const deleteBtn = $('#deleteBtn');
-        const deletableTypes = ['room', 'door', 'window', 'cased', 'closet', 'mep'];
+        const deletableTypes = ['room', 'door', 'window', 'cased', 'closet', 'mep', 'dustwipe'];
 
         // Also allow deleting standalone walls (walls without roomId)
         let canDelete = sel.type && sel.id && deletableTypes.includes(sel.type);
@@ -3628,33 +5271,36 @@ const App = {
             deleteBtn.style.color = canDelete ? 'white' : '';
         }
 
-        // Show/hide room type section based on room selection
+        // Show/hide room type section based on room OR closet selection
         const roomTypeSection = $('#roomTypeSection');
         const roomTypeSelect = $('#roomTypeSelect');
         const wallStartSelect = $('#wallStartSelect');
         if (roomTypeSection && roomTypeSelect) {
+            // Check for room or closet selection
+            let selectedItem = null;
             if (sel.type === 'room' && sel.id) {
-                const room = this.doc.rooms.find(r => r.id === sel.id);
-                if (room) {
-                    roomTypeSection.style.display = 'block';
-                    roomTypeSelect.value = room.type;
+                selectedItem = this.doc.rooms.find(r => r.id === sel.id);
+            } else if (sel.type === 'closet' && sel.id) {
+                selectedItem = this.doc.closets.find(c => c.id === sel.id);
+            }
 
-                    // Populate wall dropdown with walls for this room
-                    if (wallStartSelect) {
-                        const walls = this.doc.wallSegments
-                            .filter(ws => ws.roomId === room.id)
-                            .sort((a, b) => a.index - b.index);
+            if (selectedItem) {
+                roomTypeSection.style.display = 'block';
+                roomTypeSelect.value = selectedItem.type || 'Room';
 
-                        wallStartSelect.innerHTML = '<option value="">-- Select wall --</option>';
-                        walls.forEach(w => {
-                            const opt = document.createElement('option');
-                            opt.value = w.label;
-                            opt.textContent = w.label + ' (' + w.side + ')';
-                            wallStartSelect.appendChild(opt);
-                        });
-                    }
-                } else {
-                    roomTypeSection.style.display = 'none';
+                // Populate wall dropdown with walls for this room/closet
+                if (wallStartSelect) {
+                    const walls = this.doc.wallSegments
+                        .filter(ws => ws.roomId === selectedItem.id)
+                        .sort((a, b) => a.index - b.index);
+
+                    wallStartSelect.innerHTML = '<option value="">-- Select wall --</option>';
+                    walls.forEach(w => {
+                        const opt = document.createElement('option');
+                        opt.value = w.label;
+                        opt.textContent = w.label + ' (' + w.side + ')';
+                        wallStartSelect.appendChild(opt);
+                    });
                 }
             } else {
                 roomTypeSection.style.display = 'none';
@@ -3726,18 +5372,406 @@ const App = {
         }
     },
 
-    // Change room type
+    // Change room type (works for both rooms and closets)
     changeRoomType(newType) {
         const sel = Render.selection;
-        if (sel.type !== 'room' || !sel.id) return;
+        if ((sel.type !== 'room' && sel.type !== 'closet') || !sel.id) return;
 
-        const room = this.doc.rooms.find(r => r.id === sel.id);
-        if (!room) return;
+        // Find in rooms or closets
+        let item = this.doc.rooms.find(r => r.id === sel.id);
+        if (!item) {
+            item = this.doc.closets.find(c => c.id === sel.id);
+        }
+        if (!item) return;
 
-        room.type = newType;
+        item.type = newType;
         this.saveState();
         this.render();
         this.updateTree();
+    },
+
+    // Toggle Edit Path mode for vertex editing (works for rooms and closets)
+    toggleEditPath() {
+        const sel = Render.selection;
+        if ((sel.type !== 'room' && sel.type !== 'closet') || !sel.id) {
+            return;
+        }
+
+        this.addPointMode = !this.addPointMode;
+        this.addPointRoomId = this.addPointMode ? sel.id : null;
+
+        // Update button state
+        const btn = $('#addPointBtn');
+        const label = $('#addPointLabel');
+        if (btn) {
+            btn.classList.toggle('active', this.addPointMode);
+        }
+        if (label) {
+            label.textContent = this.addPointMode ? 'Click Wall' : 'Add Point';
+        }
+
+        // Show hint
+        const hint = $('#toolHint');
+        if (this.addPointMode) {
+            hint.textContent = 'Click on any wall to add a point. Then drag the point to reshape.';
+            hint.classList.add('show');
+        } else {
+            hint.classList.remove('show');
+        }
+
+        this.render();
+    },
+
+    // Toggle Add Point mode (alias for toggleEditPath for button compatibility)
+    toggleAddPointMode() {
+        this.toggleEditPath();
+    },
+
+    // Toggle Add Joint mode - click on a wall to add a draggable joint
+    toggleAddJointMode() {
+        const sel = Render.selection;
+        if ((sel.type !== 'room' && sel.type !== 'closet') || !sel.id) {
+            const hint = $('#toolHint');
+            hint.textContent = 'Select a room or closet first, then click Add Joint';
+            hint.classList.add('show');
+            setTimeout(() => hint.classList.remove('show'), 2000);
+            return;
+        }
+
+        this.addPointMode = !this.addPointMode;
+        this.addPointRoomId = this.addPointMode ? sel.id : null;
+
+        // Update button state
+        const btn = $('#addJointBtn');
+        const label = $('#addJointLabel');
+        if (btn) {
+            btn.classList.toggle('active', this.addPointMode);
+            btn.style.background = this.addPointMode ? '#22c55e' : '';
+            btn.style.color = this.addPointMode ? 'white' : '';
+        }
+        if (label) {
+            label.textContent = this.addPointMode ? 'Click a Wall' : 'Add Joint';
+        }
+
+        // Show hint
+        const hint = $('#toolHint');
+        if (this.addPointMode) {
+            hint.textContent = 'Click on any wall to add a joint. Then drag to create an indent or pocket.';
+            hint.classList.add('show');
+        } else {
+            hint.classList.remove('show');
+        }
+
+        this.render();
+    },
+
+    // Exit Add Point/Joint mode
+    exitAddPointMode() {
+        if (this.addPointMode) {
+            this.addPointMode = false;
+            this.addPointRoomId = null;
+            // Handle both old and new button IDs
+            const btn = $('#addPointBtn') || $('#addJointBtn');
+            const label = $('#addPointLabel') || $('#addJointLabel');
+            const jointBtn = $('#addJointBtn');
+            const jointLabel = $('#addJointLabel');
+            if (btn) btn.classList.remove('active');
+            if (label) label.textContent = 'Add Point';
+            if (jointBtn) {
+                jointBtn.classList.remove('active');
+                jointBtn.style.background = '';
+                jointBtn.style.color = '';
+            }
+            if (jointLabel) jointLabel.textContent = 'Add Joint';
+            $('#toolHint').classList.remove('show');
+        }
+    },
+
+    // Sync geometry from vertices (after vertex editing)
+    syncGeometryFromVertices(room) {
+        const g = getGeometryFromVertices(room.vertices);
+        if (g) room.geometry = g;
+    },
+
+    // Create notch on edge when mid-edge handle is dragged
+    createNotchOnEdge(room, edgeIdx, dragDx, dragDy) {
+        const verts = room.vertices;
+        const n = verts.length;
+        const v1 = verts[edgeIdx];
+        const v2 = verts[(edgeIdx + 1) % n];
+
+        // Determine edge direction
+        const edgeDx = v2.x - v1.x;
+        const edgeDy = v2.y - v1.y;
+        const isHorizontal = Math.abs(edgeDx) > Math.abs(edgeDy);
+
+        // Calculate perpendicular offset (snapped to grid)
+        let offset;
+        if (isHorizontal) {
+            offset = snapToGrid(dragDy);
+            if (Math.abs(offset) < FOOT) return; // Minimum 1 foot notch
+        } else {
+            offset = snapToGrid(dragDx);
+            if (Math.abs(offset) < FOOT) return;
+        }
+
+        // Points at 1/4 and 3/4 along edge (wider notch - easier to make H shapes)
+        const p1 = { x: v1.x + edgeDx * 0.25, y: v1.y + edgeDy * 0.25 };
+        const p2 = { x: v1.x + edgeDx * 0.75, y: v1.y + edgeDy * 0.75 };
+
+        // Create 4 new vertices for the notch
+        let newP1, newP1Offset, newP2Offset, newP2;
+        if (isHorizontal) {
+            newP1 = { x: snapToGrid(p1.x), y: v1.y };
+            newP1Offset = { x: snapToGrid(p1.x), y: snapToGrid(v1.y + offset) };
+            newP2Offset = { x: snapToGrid(p2.x), y: snapToGrid(v1.y + offset) };
+            newP2 = { x: snapToGrid(p2.x), y: v1.y };
+        } else {
+            newP1 = { x: v1.x, y: snapToGrid(p1.y) };
+            newP1Offset = { x: snapToGrid(v1.x + offset), y: snapToGrid(p1.y) };
+            newP2Offset = { x: snapToGrid(v1.x + offset), y: snapToGrid(p2.y) };
+            newP2 = { x: v1.x, y: snapToGrid(p2.y) };
+        }
+
+        // Insert vertices to create notch
+        const newVerts = [];
+        for (let i = 0; i < n; i++) {
+            newVerts.push(verts[i]);
+            if (i === edgeIdx) {
+                newVerts.push(newP1, newP1Offset, newP2Offset, newP2);
+            }
+        }
+
+        // Check for self-intersection before applying
+        if (!polygonSelfIntersects(newVerts)) {
+            room.vertices = newVerts;
+            this.syncGeometryFromVertices(room);
+            regenerateWallSegments(room, this.doc);
+            markExteriorWalls(this.doc);
+            this.saveState();
+        }
+    },
+
+    // Add a vertex on an edge at the specified position (double-tap on edge)
+    addVertexOnEdge(room, edgeIdx, t) {
+        const verts = room.vertices;
+        const n = verts.length;
+        const v1 = verts[edgeIdx];
+        const v2 = verts[(edgeIdx + 1) % n];
+
+        // Calculate new vertex position
+        const newVertex = {
+            x: snapToGrid(v1.x + (v2.x - v1.x) * t),
+            y: snapToGrid(v1.y + (v2.y - v1.y) * t)
+        };
+
+        // Insert the new vertex
+        const newVerts = [];
+        for (let i = 0; i < n; i++) {
+            newVerts.push(verts[i]);
+            if (i === edgeIdx) {
+                newVerts.push(newVertex);
+            }
+        }
+
+        room.vertices = newVerts;
+        this.syncGeometryFromVertices(room);
+        regenerateWallSegments(room, this.doc);
+        markExteriorWalls(this.doc);
+        this.saveState();
+        this.render();
+    },
+
+    // Add a resize segment - adds 2 vertices forming a moveable segment for L/T/H shapes
+    addPushableSegment(room, edge, clickPos) {
+        const verts = room.vertices;
+        const n = verts.length;
+
+        // Find the actual vertex index by matching the edge start position
+        let actualVertexIdx = -1;
+        for (let i = 0; i < n; i++) {
+            if (Math.abs(verts[i].x - edge.start.x) < 1 && Math.abs(verts[i].y - edge.start.y) < 1) {
+                actualVertexIdx = i;
+                break;
+            }
+        }
+
+        if (actualVertexIdx < 0) {
+            console.error('Could not find matching vertex for edge');
+            return;
+        }
+
+        const v1 = verts[actualVertexIdx];
+        const v2 = verts[(actualVertexIdx + 1) % n];
+
+        // Calculate edge properties
+        const edgeDx = v2.x - v1.x;
+        const edgeDy = v2.y - v1.y;
+        const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy);
+        const isHorizontal = Math.abs(edgeDx) > Math.abs(edgeDy);
+
+        // Calculate t position of click along edge
+        const t = getTOnEdge({ start: v1, end: v2 }, clickPos.x, clickPos.y);
+
+        // Create TWO vertices for a moveable segment (3 feet wide minimum)
+        const segmentWidth = Math.min(3 * FOOT, edgeLen / 4);
+        const halfWidth = segmentWidth / 2;
+        const t1 = Math.max(0.05, t - halfWidth / edgeLen);
+        const t2 = Math.min(0.95, t + halfWidth / edgeLen);
+
+        // IMPORTANT: Only snap the coordinate that changes along the wall
+        // Keep the other coordinate EXACTLY on the wall line to prevent bending
+        let newV1, newV2;
+        if (isHorizontal) {
+            // Horizontal wall: snap X only, keep Y exactly on line
+            newV1 = {
+                x: snapToGrid(v1.x + edgeDx * t1),
+                y: v1.y  // Keep Y exactly on line
+            };
+            newV2 = {
+                x: snapToGrid(v1.x + edgeDx * t2),
+                y: v1.y  // Keep Y exactly on line
+            };
+        } else {
+            // Vertical wall: snap Y only, keep X exactly on line
+            newV1 = {
+                x: v1.x,  // Keep X exactly on line
+                y: snapToGrid(v1.y + edgeDy * t1)
+            };
+            newV2 = {
+                x: v1.x,  // Keep X exactly on line
+                y: snapToGrid(v1.y + edgeDy * t2)
+            };
+        }
+
+        // Insert the two new vertices after actualVertexIdx
+        const newVerts = [];
+        for (let i = 0; i < n; i++) {
+            newVerts.push(verts[i]);
+            if (i === actualVertexIdx) {
+                newVerts.push(newV1, newV2);
+            }
+        }
+
+        room.vertices = newVerts;
+
+        // Track this new segment for rendering (both vertices move together)
+        this.newVertexInfo = {
+            roomId: room.id,
+            vertexIdx1: actualVertexIdx + 1,
+            vertexIdx2: actualVertexIdx + 2,
+            isHorizontal: isHorizontal
+        };
+
+        this.syncGeometryFromVertices(room);
+        regenerateWallSegments(room, this.doc);
+        markExteriorWalls(this.doc);
+        this.saveState();
+        this.render();
+
+        // Show hint about dragging
+        const hint = $('#toolHint');
+        hint.textContent = isHorizontal
+            ? 'Drag the green handle UP or DOWN to create L/T/H shape.'
+            : 'Drag the green handle LEFT or RIGHT to create L/T/H shape.';
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 4000);
+    },
+
+    // Delete a vertex (double-tap on vertex, if more than 4 remain)
+    deleteVertex(room, vertexIdx) {
+        if (room.vertices.length <= 4) {
+            const hint = $('#toolHint');
+            hint.textContent = 'Cannot delete - room needs at least 4 corners';
+            hint.classList.add('show');
+            setTimeout(() => hint.classList.remove('show'), 2000);
+            return;
+        }
+
+        room.vertices.splice(vertexIdx, 1);
+        this.syncGeometryFromVertices(room);
+        regenerateWallSegments(room, this.doc);
+        markExteriorWalls(this.doc);
+        this.saveState();
+        this.render();
+    },
+
+    // Demo: Create a rectangle and transform it into an H shape step by step
+    demoMakeH() {
+        const hint = $('#toolHint');
+        const self = this;
+
+        // Step 1: Create a rectangle room
+        hint.textContent = 'Step 1: Creating rectangle (12x16 feet)...';
+        hint.classList.add('show');
+
+        const x = 500, y = 100;
+        const width = 12 * FOOT, height = 16 * FOOT;
+        const legWidth = 3 * FOOT;  // Width of H legs
+        const notchDepth = 5 * FOOT; // How deep the notches go
+
+        const room = {
+            id: Doc.uid(),
+            label: Doc.label(this.doc, 'room'),
+            type: 'Demo Room',
+            isExterior: true,
+            geometry: { x, y, width, height },
+            vertices: [
+                { x: x, y: y },
+                { x: x + width, y: y },
+                { x: x + width, y: y + height },
+                { x: x, y: y + height }
+            ]
+        };
+        createWallSegments(room, this.doc);
+        this.doc.rooms.push(room);
+        markExteriorWalls(this.doc);
+        Render.select('room', room.id);
+        this.render();
+        this.updateTree();
+
+        // Step 2: Add point on left wall (for top notch corner)
+        setTimeout(() => {
+            hint.textContent = 'Step 2: Adding point on left wall...';
+
+            // Add point at 1/4 down the left wall (west side - index 1 from south)
+            const edges = getWallEdgesFromVertices(room);
+            // Find left (west) edge
+            let leftEdgeIdx = edges.findIndex(e => e.side === 'west');
+            if (leftEdgeIdx < 0) leftEdgeIdx = 1;
+
+            self.addVertexOnEdge(room, leftEdgeIdx, 0.25);
+
+            // Step 3: Add more points to form the H
+            setTimeout(() => {
+                hint.textContent = 'Step 3: Adding more points to form H shape...';
+
+                // Now we have 5 vertices, add the rest to form an H
+                // We need to add points strategically and then move them
+                // For simplicity, let's just set the final H vertices directly
+
+                const hVerts = createHShapeVertices(x, y, width, height, legWidth, height - 2 * notchDepth);
+                room.vertices = hVerts;
+                self.syncGeometryFromVertices(room);
+                regenerateWallSegments(room, self.doc);
+                markExteriorWalls(self.doc);
+                self.render();
+
+                // Step 4: Done!
+                setTimeout(() => {
+                    hint.textContent = 'Done! H has 12 vertices. Drag orange points to reshape.';
+                    self.saveState();
+                    self.updateTree();
+                    self.updateQABadge();
+
+                    setTimeout(() => {
+                        hint.classList.remove('show');
+                    }, 3000);
+                }, 800);
+
+            }, 1000);
+
+        }, 1000);
     },
 
     // Set selected wall as W1, renumber others clockwise
@@ -3791,17 +5825,21 @@ const App = {
         this.updateInspector();
     },
 
-    // Set wall as W1 from room selection (by wall label)
+    // Set wall as W1 from room/closet selection (by wall label)
     setWallAsW1(wallLabel) {
         if (!wallLabel) return;
 
         const sel = Render.selection;
-        if (sel.type !== 'room' || !sel.id) {
-            alert('Please select a room first');
+        if ((sel.type !== 'room' && sel.type !== 'closet') || !sel.id) {
+            alert('Please select a room or closet first');
             return;
         }
 
-        const room = this.doc.rooms.find(r => r.id === sel.id);
+        // Find in rooms or closets
+        let room = this.doc.rooms.find(r => r.id === sel.id);
+        if (!room) {
+            room = this.doc.closets.find(c => c.id === sel.id);
+        }
         if (!room) return;
 
         // Get all walls for this room
@@ -3902,7 +5940,7 @@ const App = {
         }
 
         // Only allow deleting actual objects
-        const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
+        const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep', 'dustwipe'];
         if (!deletableTypes.includes(objType)) {
             return;  // Silently ignore non-deletable types
         }
@@ -3918,6 +5956,8 @@ const App = {
             collection = this.doc.closets;
         } else if (objType === 'mep') {
             collection = this.doc.mep;
+        } else if (objType === 'dustwipe') {
+            collection = this.doc.dustWipes;
         }
 
         if (collection) {
@@ -4261,6 +6301,203 @@ const App = {
 
     hideModal(which) { $(`#${which}Modal`).classList.remove('show'); },
 
+    // ========== DUST WIPE SAMPLE SHEET FUNCTIONS ==========
+    showSampleSheetModal() {
+        // Clear inputs
+        $('#sampleSheetInput1').value = this.doc.sampleSheetNumber || '';
+        $('#sampleSheetInput2').value = '';
+        $('#sampleSheetError').style.display = 'none';
+        $('#sampleSheetModal').classList.add('show');
+        // Focus first input
+        setTimeout(() => $('#sampleSheetInput1').focus(), 100);
+    },
+
+    confirmSampleSheet() {
+        const input1 = $('#sampleSheetInput1').value.trim();
+        const input2 = $('#sampleSheetInput2').value.trim();
+        const errorEl = $('#sampleSheetError');
+
+        // Validate 8-digit number
+        if (!/^\d{8}$/.test(input1)) {
+            errorEl.textContent = 'Please enter exactly 8 digits';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Check confirmation matches
+        if (input1 !== input2) {
+            errorEl.textContent = 'Numbers do not match. Please confirm by entering the same number twice.';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // Save sample sheet number
+        this.doc.sampleSheetNumber = input1;
+        $('#sampleSheetDisplay').textContent = input1;
+        this.hideModal('sampleSheet');
+        this.saveState();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Sample sheet ${input1} confirmed`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 2000);
+    },
+
+    changeSampleSheet() {
+        this.showSampleSheetModal();
+    },
+
+    // Place a dust wipe sample marker on a wall
+    placeDustWipe(ws, clickPos) {
+        // Check if sample sheet is set
+        if (!this.doc.sampleSheetNumber) {
+            this.showSampleSheetModal();
+            return;
+        }
+
+        // Calculate position on wall
+        let x, y;
+        if (clickPos) {
+            x = clickPos.x;
+            y = clickPos.y;
+        } else {
+            // Default to wall midpoint
+            x = (ws.x1 + ws.x2) / 2;
+            y = (ws.y1 + ws.y2) / 2;
+        }
+
+        const label = Doc.dustWipeLabel(this.doc);
+        const dw = {
+            id: Doc.uid(),
+            label: label,
+            x: x,
+            y: y,
+            parentWallSegmentId: ws.id,
+            parentRoomId: ws.roomId,
+            locationType: null  // wall, trough, sill, well
+        };
+
+        this.doc.dustWipes.push(dw);
+        this.saveState();
+        this.render();
+        this.updateTree();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Sample ${label} placed`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 1500);
+    },
+
+    // Pending window sample placement (stores window id while modal is open)
+    pendingWindowSample: null,
+
+    // Show window sample modal when clicking on a window with dust wipe tool
+    showWindowSampleModal(windowId) {
+        this.pendingWindowSample = windowId;
+        $('#windowSampleModal').classList.add('show');
+    },
+
+    // Place window sample with specific location type
+    placeWindowSample(locationType) {
+        // Check if sample sheet is set
+        if (!this.doc.sampleSheetNumber) {
+            this.hideModal('windowSample');
+            this.showSampleSheetModal();
+            return;
+        }
+
+        const windowId = this.pendingWindowSample;
+        if (!windowId) {
+            this.hideModal('windowSample');
+            return;
+        }
+
+        const win = this.doc.windows.find(w => w.id === windowId);
+        if (!win) {
+            this.hideModal('windowSample');
+            return;
+        }
+
+        // Get window position
+        const ws = this.doc.wallSegments.find(s => s.id === win.parentWallSegmentId);
+        let x = 0, y = 0;
+        if (ws) {
+            const pos = Render.getPositionOnSegment(ws, win.distanceFromStart + win.width / 2);
+            x = pos.x;
+            y = pos.y - 20; // Offset from window
+        }
+
+        const label = Doc.dustWipeLabel(this.doc);
+        const dw = {
+            id: Doc.uid(),
+            label: label,
+            x: x,
+            y: y,
+            parentWindowId: windowId,
+            parentRoomId: win.parentRoomId,
+            locationType: locationType  // trough, sill, or well
+        };
+
+        this.doc.dustWipes.push(dw);
+        this.pendingWindowSample = null;
+        this.hideModal('windowSample');
+        this.saveState();
+        this.render();
+        this.updateTree();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Sample ${label} (${locationType}) placed on window`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 1500);
+    },
+
+    // Pending floor sample placement (stores click position while modal is open)
+    pendingFloorSample: null,
+
+    // Show floor sample modal when clicking on floor/empty area with dust wipe tool
+    showFloorSampleModal(x, y, roomId) {
+        this.pendingFloorSample = { x, y, roomId };
+        $('#floorSampleModal').classList.add('show');
+    },
+
+    // Place floor sample with specific surface type
+    placeFloorSample(surfaceType) {
+        // Check if sample sheet is set
+        if (!this.doc.sampleSheetNumber) {
+            this.hideModal('floorSample');
+            this.showSampleSheetModal();
+            return;
+        }
+
+        const pending = this.pendingFloorSample;
+        if (!pending) {
+            this.hideModal('floorSample');
+            return;
+        }
+
+        const label = Doc.dustWipeLabel(this.doc);
+        const dw = {
+            id: Doc.uid(),
+            label: label,
+            x: pending.x,
+            y: pending.y,
+            parentRoomId: pending.roomId,
+            locationType: surfaceType  // floor, entryway, other
+        };
+
+        this.doc.dustWipes.push(dw);
+        this.pendingFloorSample = null;
+        this.hideModal('floorSample');
+        this.saveState();
+        this.render();
+        this.updateTree();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Sample ${label} (${surfaceType}) placed`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 1500);
+    },
+
     loadFBG(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -4278,6 +6515,7 @@ const App = {
                 this.updateQABadge();
                 this.updateInspector();
                 this.updateUndoRedoButtons();
+                this.updateSampleSheetDisplay();
             } catch (err) { alert('Load error: ' + err.message); }
         };
         reader.readAsText(file);
@@ -4372,7 +6610,7 @@ document.addEventListener('DOMContentLoaded', () => App.init());
 
 // Keyboard shortcut for delete (objects and standalone walls)
 document.addEventListener('keydown', (e) => {
-    const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
+    const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep', 'dustwipe'];
     if ((e.key === 'Delete' || e.key === 'Backspace') && Render.selection.type && Render.selection.id) {
         // Don't delete if typing in an input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
