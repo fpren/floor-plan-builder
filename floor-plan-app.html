@@ -3721,14 +3721,24 @@ const App = {
     // Set selected wall as W1, renumber others clockwise
     setAsW1() {
         const sel = Render.selection;
-        if (sel.type !== 'wall' || !sel.id) return;
+
+        if (sel.type !== 'wall' || !sel.id) {
+            alert('Please select a wall first');
+            return;
+        }
 
         const selectedWall = this.doc.wallSegments.find(ws => ws.id === sel.id);
-        if (!selectedWall || !selectedWall.roomId) return;
+        if (!selectedWall || !selectedWall.roomId) {
+            alert('Selected wall not found');
+            return;
+        }
 
         // Get all walls for this room
         const roomWalls = this.doc.wallSegments.filter(ws => ws.roomId === selectedWall.roomId);
         if (roomWalls.length === 0) return;
+
+        // Remember the old label for feedback
+        const oldLabel = selectedWall.label;
 
         // Find the current index of the selected wall
         const currentIndex = selectedWall.index;
@@ -3746,8 +3756,15 @@ const App = {
         // Sort walls by new index to ensure consistent order
         roomWalls.sort((a, b) => a.index - b.index);
 
+        // Keep the wall selected after render
+        const wallId = sel.id;
+
         this.saveState();
         this.render();
+
+        // Re-select the wall (now W1)
+        Render.select('wall', wallId);
+
         this.updateTree();
         this.updateInspector();
     },
