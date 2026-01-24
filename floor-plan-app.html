@@ -1018,6 +1018,11 @@ const Render = {
             App.onRoomTap(room.id);
         });
 
+        // Prevent stage panning when clicking on rooms
+        roomGroup.on('mousedown touchstart', (e) => {
+            e.cancelBubble = true;
+        });
+
         // Add drag handlers for room movement
         if (isSelected) {
             let startRoomX, startRoomY;
@@ -1285,6 +1290,10 @@ const Render = {
         closetGroup.add(hatchGroup);
 
         closetGroup.on('tap click', () => App.onObjectTap('closet', closet.id));
+        // Prevent stage panning when clicking on closets
+        closetGroup.on('mousedown touchstart', (e) => {
+            e.cancelBubble = true;
+        });
         this.layers.rooms.add(closetGroup);
 
         // Draw closet walls and make them clickable for placing doors
