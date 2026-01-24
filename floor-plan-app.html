@@ -112,15 +112,20 @@
         @media (max-width: 768px) {
             .topbar { padding: 4px 8px; min-height: 40px; }
             .btn { padding: 6px 10px; font-size: 10px; min-height: 28px; }
-            .sidebar-left { width: 52px; }
-            .sidebar-left .sidebar-scroll { padding: 4px; }
-            .sidebar-left .section-header { display: none; }
-            .sidebar-left .section-content { padding: 2px; }
-            .sidebar-left .tool-grid { grid-template-columns: 1fr; gap: 4px; }
-            .sidebar-left .tool-btn { min-height: 40px; padding: 6px; }
-            .sidebar-left .tool-btn span { display: none; }
-            .sidebar-left .tool-btn svg { margin-bottom: 0; }
+            /* Mobile: sidebar starts expanded, toggle works via .collapsed class */
+            .sidebar-left { width: 160px; }
+            .sidebar-left .tool-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
+            .sidebar-left .tool-btn { min-height: 44px; padding: 6px; }
+            .sidebar-left .tool-btn span { font-size: 7px; }
             .sidebar-left #objectSection { display: none; }
+            /* Mobile collapsed state */
+            .sidebar-left.collapsed { width: 48px; }
+            .sidebar-left.collapsed .sidebar-scroll { padding: 4px; }
+            .sidebar-left.collapsed .section-header { display: none; }
+            .sidebar-left.collapsed .section-content { padding: 2px; }
+            .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr; }
+            .sidebar-left.collapsed .tool-btn span { display: none; }
+            .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
             .north-arrow { width: 28px; height: 28px; font-size: 10px; top: 8px; right: 8px; }
             .scale-label { font-size: 9px; padding: 4px 8px; bottom: 8px; left: 8px; }
             .qa-badge { font-size: 9px; padding: 4px 10px; top: 8px; left: 8px; }
@@ -138,6 +143,7 @@
 <div class="app">
     <div class="topbar">
         <button class="btn" onclick="App.newDoc()">New</button>
+        <button class="btn" onclick="App.loadDemo()">Demo</button>
         <button class="btn" onclick="$('#fbgInput').click()">Load</button>
         <input type="file" id="fbgInput" accept=".fbg,.fgs,.json" onchange="App.loadFBG(event)">
         <button class="btn" onclick="App.exportPDF()">PDF</button>
@@ -159,9 +165,8 @@
                 <div class="section">
                     <div class="section-header">Geometry (draw)</div>
                     <div class="section-content">
-                        <div class="tool-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="tool-grid" style="grid-template-columns: 1fr;">
                             <button class="tool-btn" onclick="App.setTool('room')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="3,2"/><line x1="12" y1="8" x2="12" y2="16" stroke-width="2"/><line x1="8" y1="12" x2="16" y2="12" stroke-width="2"/></svg><span>Room</span></button>
-                            <button class="tool-btn" onclick="App.setTool('wall')"><svg viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4" stroke-width="3"/><circle cx="4" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="4" r="2" fill="currentColor"/></svg><span>Wall</span></button>
                         </div>
                     </div>
                 </div>
@@ -282,20 +287,42 @@ function findRoomSnapPoints(doc, excludeRoomId) {
 function snapRoomPosition(x, y, width, height, snapPoints) {
     let snappedX = x;
     let snappedY = y;
+    let bestDistX = SNAP_DISTANCE;
+    let bestDistY = SNAP_DISTANCE;
 
-    // Check left edge
+    // Find closest X snap point (check both left and right edges)
     for (const sx of snapPoints.x) {
-        if (Math.abs(x - sx) < SNAP_DISTANCE) { snappedX = sx; break; }
-        if (Math.abs(x + width - sx) < SNAP_DISTANCE) { snappedX = sx - width; break; }
+        // Left edge snap
+        const leftDist = Math.abs(x - sx);
+        if (leftDist < bestDistX) {
+            bestDistX = leftDist;
+            snappedX = sx;
+        }
+        // Right edge snap
+        const rightDist = Math.abs(x + width - sx);
+        if (rightDist < bestDistX) {
+            bestDistX = rightDist;
+            snappedX = sx - width;
+        }
     }
 
-    // Check top edge
+    // Find closest Y snap point (check both top and bottom edges)
     for (const sy of snapPoints.y) {
-        if (Math.abs(y - sy) < SNAP_DISTANCE) { snappedY = sy; break; }
-        if (Math.abs(y + height - sy) < SNAP_DISTANCE) { snappedY = sy - height; break; }
+        // Top edge snap
+        const topDist = Math.abs(y - sy);
+        if (topDist < bestDistY) {
+            bestDistY = topDist;
+            snappedY = sy;
+        }
+        // Bottom edge snap
+        const bottomDist = Math.abs(y + height - sy);
+        if (bottomDist < bestDistY) {
+            bestDistY = bottomDist;
+            snappedY = sy - height;
+        }
     }
 
-    // Also snap to grid if not snapped to room
+    // Snap to grid if no room edge snap found
     if (snappedX === x) snappedX = snapToGrid(x);
     if (snappedY === y) snappedY = snapToGrid(y);
 
@@ -547,37 +574,6 @@ function generate2BR1BA() {
     // Mark which walls are actually on the building exterior vs interior (shared)
     markExteriorWalls(doc);
 
-    // ========== CLOSETS (with parentRoomId and wall segments) ==========
-    // CL-01: Inside Bedroom 1, corner position (4' x 3') - shares north and east walls
-    const cl1 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
-        parentRoomId: bed1.id,
-        parentRoomLabel: bed1.label,
-        isExterior: false,
-        geometry: {
-            x: bed1.geometry.x + bed1.geometry.width - 4 * FOOT,  // Flush with east wall
-            y: bed1.geometry.y,  // Flush with north wall
-            width: 4 * FOOT,
-            height: 3 * FOOT
-        }
-    };
-    doc.closets.push(cl1);
-
-    // CL-02: Inside Bedroom 2, corner position (4' x 3') - shares north and west walls
-    const cl2 = {
-        id: Doc.uid(), label: Doc.label(doc, 'closet'), type: 'Closet',
-        parentRoomId: bed2.id,
-        parentRoomLabel: bed2.label,
-        isExterior: false,
-        geometry: {
-            x: bed2.geometry.x,  // Flush with west wall
-            y: bed2.geometry.y,  // Flush with north wall
-            width: 4 * FOOT,
-            height: 3 * FOOT
-        }
-    };
-    doc.closets.push(cl2);
-
     // ========== DOORS ==========
     // New layout wall reference:
     // W1=SOUTH, W2=WEST, W3=NORTH, W4=EAST (clockwise from south)
@@ -797,7 +793,6 @@ const Render = {
         const r = c.getBoundingClientRect();
         this.stage = new Konva.Stage({ container: containerId, width: r.width, height: r.height, draggable: true });
 
-        this.layers.grid = new Konva.Layer();
         this.layers.rooms = new Konva.Layer();
         this.layers.walls = new Konva.Layer();
         this.layers.openings = new Konva.Layer();
@@ -806,7 +801,7 @@ const Render = {
         this.layers.dims = new Konva.Layer();
         this.layers.hit = new Konva.Layer(); // Hit regions layer
 
-        this.stage.add(this.layers.grid, this.layers.rooms, this.layers.walls, this.layers.hit, this.layers.openings, this.layers.mep, this.layers.labels, this.layers.dims);
+        this.stage.add(this.layers.rooms, this.layers.walls, this.layers.hit, this.layers.openings, this.layers.mep, this.layers.labels, this.layers.dims);
 
         this.stage.on('wheel', e => {
             e.evt.preventDefault();
@@ -832,8 +827,6 @@ const Render = {
                 this.stage.height(rect.height);
             }
         }).observe(c);
-
-        this.drawGrid();
 
         // Auto-fit on mobile
         if (window.innerWidth <= 768) {
@@ -892,17 +885,127 @@ const Render = {
         this.stage.batchDraw();
     },
 
-    drawGrid() {
-        const layer = this.layers.grid;
-        layer.destroyChildren();
-        const w = 2000, h = 1500;
-        // Light blue minor grid (6 inch)
-        for (let x = 0; x < w; x += 6 * INCH) layer.add(new Konva.Line({ points: [x, 0, x, h], stroke: '#dbeafe', strokeWidth: 0.5 }));
-        for (let y = 0; y < h; y += 6 * INCH) layer.add(new Konva.Line({ points: [0, y, w, y], stroke: '#dbeafe', strokeWidth: 0.5 }));
-        // Medium blue major grid (1 foot)
-        for (let x = 0; x < w; x += FOOT) layer.add(new Konva.Line({ points: [x, 0, x, h], stroke: '#93c5fd', strokeWidth: 0.75 }));
-        for (let y = 0; y < h; y += FOOT) layer.add(new Konva.Line({ points: [0, y, w, y], stroke: '#93c5fd', strokeWidth: 0.75 }));
-        layer.batchDraw();
+    // Live update walls during drag
+    updateWallsLive(doc) {
+        this.layers.walls.destroyChildren();
+        this.layers.hit.destroyChildren();
+
+        doc.wallSegments.forEach(ws => {
+            let room = doc.rooms.find(r => r.id === ws.roomId);
+            if (!room) room = doc.closets.find(c => c.id === ws.roomId);
+            const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
+            const isExterior = ws.type === 'exterior';
+
+            const wallColor = isSelected ? '#3b82f6' : '#2d3748';
+            const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
+            const shadowOffset = 4;
+
+            // Shadow line
+            this.layers.walls.add(new Konva.Line({
+                points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
+                stroke: 'rgba(0,0,0,0.5)',
+                strokeWidth: wallWidth + 2,
+                lineCap: 'round',
+                listening: false
+            }));
+
+            // Main wall line
+            this.layers.walls.add(new Konva.Line({
+                points: [ws.x1, ws.y1, ws.x2, ws.y2],
+                stroke: wallColor,
+                strokeWidth: wallWidth,
+                lineCap: 'round',
+                listening: false
+            }));
+
+            // Hit region
+            const hitLine = new Konva.Line({
+                points: [ws.x1, ws.y1, ws.x2, ws.y2],
+                stroke: 'transparent',
+                strokeWidth: HIT_WIDTH,
+                lineCap: 'round',
+                hitStrokeWidth: HIT_WIDTH
+            });
+            hitLine.on('tap click', () => App.onWallTap(ws.id));
+            hitLine.on('pointerdown', () => App.onWallTap(ws.id));
+            this.layers.hit.add(hitLine);
+        });
+
+        this.layers.walls.batchDraw();
+        this.layers.hit.batchDraw();
+    },
+
+    // Live update dimensions during drag (lightweight, doesn't recreate room groups)
+    updateDimensionsLive(doc) {
+        // Clear only dims and labels layers
+        this.layers.dims.destroyChildren();
+        this.layers.labels.destroyChildren();
+
+        // Re-render room dimensions and labels
+        doc.rooms.forEach(room => {
+            const g = room.geometry;
+            const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
+            const widthFt = Math.round(g.width / FOOT);
+            const heightFt = Math.round(g.height / FOOT);
+            const dimText = `${widthFt}' x ${heightFt}'`;
+
+            // Room label (inside)
+            this.layers.labels.add(new Konva.Text({
+                x: g.x, y: g.y + g.height / 2 - 20, width: g.width,
+                text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+            }));
+            this.layers.labels.add(new Konva.Text({
+                x: g.x, y: g.y + g.height / 2 - 4, width: g.width,
+                text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+            }));
+            // Room size inside (L x W) - ORANGE
+            this.layers.labels.add(new Konva.Text({
+                x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
+                text: dimText, fontSize: 9, fill: DIM_COLOR_INTERIOR, align: 'center', listening: false
+            }));
+            // Note: Exterior dimensions are handled by renderChainDimensions()
+        });
+
+        // Re-render closet labels
+        doc.closets.forEach(closet => {
+            const g = closet.geometry;
+            const isSelected = this.selection.type === 'closet' && this.selection.id === closet.id;
+            const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
+
+            this.layers.labels.add(new Konva.Text({
+                x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
+                text: closet.label, fontSize: 10, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#6b7280', align: 'center', listening: false
+            }));
+            if (parentRoom) {
+                this.layers.labels.add(new Konva.Text({
+                    x: g.x, y: g.y + g.height / 2 + 2, width: g.width,
+                    text: `(${parentRoom.label})`, fontSize: 8, fill: '#9ca3af', align: 'center', listening: false
+                }));
+            }
+        });
+
+        // Re-render wall labels
+        doc.wallSegments.forEach(ws => {
+            let room = doc.rooms.find(r => r.id === ws.roomId);
+            if (!room) room = doc.closets.find(c => c.id === ws.roomId);
+            if (!room) return;
+
+            const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
+            const mid = getSegmentMidpoint(ws);
+            const labelOffset = this.getLabelOffset(ws, room);
+            this.layers.labels.add(new Konva.Text({
+                x: mid.x + labelOffset.x - 8, y: mid.y + labelOffset.y - 5,
+                text: ws.label, fontSize: 9, fill: isSelected ? '#3b82f6' : '#9ca3af', fontStyle: 'bold', listening: false
+            }));
+        });
+
+        // Auto-generate chain dimensions if showDims is enabled
+        if (App.showDims && doc.rooms.length > 0) {
+            this.renderChainDimensions(doc);
+        }
+
+        this.layers.dims.batchDraw();
+        this.layers.labels.batchDraw();
     },
 
     render(doc, opts = {}) {
@@ -933,8 +1036,10 @@ const Render = {
         // MEP
         doc.mep.forEach(m => this.renderMEP(m, doc));
 
-        // Dimensions
-        if (showDims) doc.dimensions.forEach(d => this.renderDimension(d));
+        // Auto-generate chain dimensions based on current room layout
+        if (showDims && doc.rooms.length > 0) {
+            this.renderChainDimensions(doc);
+        }
 
         Object.values(this.layers).forEach(l => l.batchDraw());
     },
@@ -953,16 +1058,16 @@ const Render = {
             draggable: isSelected
         });
 
-        // Room fill - white/light with subtle border
-        const roomFill = '#fafbfc';
-        const roomBorder = isSelected ? '#3b82f6' : '#e5e7eb';
+        // Room fill - light blue tint when selected, white when not
+        const roomFill = isSelected ? '#dbeafe' : '#fafbfc';
+        const roomBorder = isSelected ? '#2563eb' : '#e5e7eb';
 
-        // Shadow properties - blue glow when selected, dark shadow when not
+        // Shadow properties - bright blue glow when selected, subtle shadow when not
         const shadowProps = isSelected ? {
             shadowColor: '#3b82f6',
-            shadowBlur: 15,
+            shadowBlur: 20,
             shadowOffset: { x: 0, y: 0 },
-            shadowOpacity: 0.6
+            shadowOpacity: 0.8
         } : {
             shadowColor: 'black',
             shadowBlur: 8,
@@ -970,43 +1075,41 @@ const Render = {
             shadowOpacity: 0.4
         };
 
+        // Simple room rectangle - positioned at room coordinates
+        roomGroup.x(g.x);
+        roomGroup.y(g.y);
+
         if (roomClosets.length === 0) {
-            // Simple case: no closets, just draw rectangle with shadow
+            // Simple case: no closets
             roomGroup.add(new Konva.Rect({
-                x: g.x, y: g.y, width: g.width, height: g.height,
+                x: 0, y: 0, width: g.width, height: g.height,
                 fill: roomFill,
                 stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1,
+                strokeWidth: isSelected ? 3 : 1,
                 ...shadowProps
             }));
         } else {
             // Room has closets - draw room fill excluding closet areas
-            // Use a custom shape to punch holes for closets
             const roomShape = new Konva.Shape({
                 sceneFunc: (context, shape) => {
                     context.beginPath();
-                    // Outer room rectangle (clockwise)
-                    context.moveTo(g.x, g.y);
-                    context.lineTo(g.x + g.width, g.y);
-                    context.lineTo(g.x + g.width, g.y + g.height);
-                    context.lineTo(g.x, g.y + g.height);
-                    context.closePath();
-
-                    // Cut out closet areas (counter-clockwise to create holes)
+                    context.rect(0, 0, g.width, g.height);
+                    // Cut out closet areas relative to room
                     roomClosets.forEach(closet => {
                         const cg = closet.geometry;
-                        context.moveTo(cg.x, cg.y);
-                        context.lineTo(cg.x, cg.y + cg.height);
-                        context.lineTo(cg.x + cg.width, cg.y + cg.height);
-                        context.lineTo(cg.x + cg.width, cg.y);
+                        const cx = cg.x - g.x;
+                        const cy = cg.y - g.y;
+                        context.moveTo(cx, cy);
+                        context.lineTo(cx, cy + cg.height);
+                        context.lineTo(cx + cg.width, cy + cg.height);
+                        context.lineTo(cx + cg.width, cy);
                         context.closePath();
                     });
-
                     context.fillStrokeShape(shape);
                 },
                 fill: roomFill,
                 stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1,
+                strokeWidth: isSelected ? 3 : 1,
                 ...shadowProps
             });
             roomGroup.add(roomShape);
@@ -1023,85 +1126,70 @@ const Render = {
             e.cancelBubble = true;
         });
 
-        // Add drag handlers for room movement
+        // Simplified drag - just move the group, update geometry on dragend
         if (isSelected) {
-            let startRoomX, startRoomY;
-            let startClosetPositions = [];
-            let snapPoints = null;
+            let startX, startY, startClosetPositions = [], snapPoints = null;
 
             roomGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
                 self.stage.draggable(false);
-                startRoomX = g.x;
-                startRoomY = g.y;
-                // Store initial closet positions
+                startX = g.x;
+                startY = g.y;
                 startClosetPositions = roomClosets.map(c => ({ id: c.id, x: c.geometry.x, y: c.geometry.y }));
-                // Get snap points from other rooms
                 snapPoints = findRoomSnapPoints(doc, room.id);
             });
 
             roomGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
-                const dx = this.x();
-                const dy = this.y();
-
-                // Calculate raw position
-                const rawX = startRoomX + dx;
-                const rawY = startRoomY + dy;
-
-                // Apply snapping
+                // Apply snapping to current position
+                const rawX = startX + this.x();
+                const rawY = startY + this.y();
                 const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
-                g.x = snapped.x;
-                g.y = snapped.y;
 
-                // Calculate actual delta after snapping (for closets)
-                const actualDx = g.x - startRoomX;
-                const actualDy = g.y - startRoomY;
-
-                // Update wall segments for this room
-                const segs = doc.wallSegments.filter(ws => ws.roomId === room.id);
-                segs.forEach(ws => {
-                    const roomG = room.geometry;
-                    if (ws.label === 'W1') { // South wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y + roomG.height;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y + roomG.height;
-                    } else if (ws.label === 'W2') { // West wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y + roomG.height;
-                        ws.x2 = roomG.x; ws.y2 = roomG.y;
-                    } else if (ws.label === 'W3') { // North wall
-                        ws.x1 = roomG.x; ws.y1 = roomG.y;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y;
-                    } else if (ws.label === 'W4') { // East wall
-                        ws.x1 = roomG.x + roomG.width; ws.y1 = roomG.y;
-                        ws.x2 = roomG.x + roomG.width; ws.y2 = roomG.y + roomG.height;
-                    }
-                });
-
-                // Update closets that belong to this room
-                roomClosets.forEach(closet => {
-                    const startPos = startClosetPositions.find(p => p.id === closet.id);
-                    if (startPos) {
-                        closet.geometry.x = startPos.x + actualDx;
-                        closet.geometry.y = startPos.y + actualDy;
-                    }
-                });
-
-                // Snap the visual position - set group to show snapped offset
-                const snappedDx = g.x - startRoomX;
-                const snappedDy = g.y - startRoomY;
-                this.x(snappedDx);
-                this.y(snappedDy);
+                // Adjust visual position to show snap
+                this.x(snapped.x - startX);
+                this.y(snapped.y - startY);
             });
 
             roomGroup.on('dragend', function(e) {
                 self.stage.draggable(true);
-                // Reset group position (geometry already updated)
-                this.x(0);
-                this.y(0);
 
-                // Recalculate exterior walls
+                // Calculate final position
+                const finalX = startX + this.x();
+                const finalY = startY + this.y();
+
+                // Update room geometry
+                g.x = finalX;
+                g.y = finalY;
+
+                // Update wall segments
+                const segs = doc.wallSegments.filter(ws => ws.roomId === room.id);
+                segs.forEach(ws => {
+                    if (ws.label === 'W1') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                    else if (ws.label === 'W2') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x; ws.y2 = g.y; }
+                    else if (ws.label === 'W3') { ws.x1 = g.x; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y; }
+                    else if (ws.label === 'W4') { ws.x1 = g.x + g.width; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                });
+
+                // Update closets
+                const dx = finalX - startX;
+                const dy = finalY - startY;
+                roomClosets.forEach(closet => {
+                    const sp = startClosetPositions.find(p => p.id === closet.id);
+                    if (sp) {
+                        closet.geometry.x = sp.x + dx;
+                        closet.geometry.y = sp.y + dy;
+                        const cg = closet.geometry;
+                        doc.wallSegments.filter(ws => ws.roomId === closet.id).forEach(ws => {
+                            if (ws.label === 'W1') { ws.x1 = cg.x; ws.y1 = cg.y + cg.height; ws.x2 = cg.x + cg.width; ws.y2 = cg.y + cg.height; }
+                            else if (ws.label === 'W2') { ws.x1 = cg.x; ws.y1 = cg.y + cg.height; ws.x2 = cg.x; ws.y2 = cg.y; }
+                            else if (ws.label === 'W3') { ws.x1 = cg.x; ws.y1 = cg.y; ws.x2 = cg.x + cg.width; ws.y2 = cg.y; }
+                            else if (ws.label === 'W4') { ws.x1 = cg.x + cg.width; ws.y1 = cg.y; ws.x2 = cg.x + cg.width; ws.y2 = cg.y + cg.height; }
+                        });
+                    }
+                });
+
                 markExteriorWalls(doc);
-
                 App.saveState();
                 App.render();
                 App.updateTree();
@@ -1131,54 +1219,13 @@ const Render = {
             x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
             text: dimText, fontSize: 9, fill: DIM_COLOR_INTERIOR, align: 'center', listening: false
         }));
-
-        // Outside dimension lines with shadow effect - BLUE for exterior
-        const dimOffset = 20;
-        const extLineLen = 8;
-
-        // Width dimension line (below room) - BLUE
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x, g.y + g.height + dimOffset, g.x + g.width, g.y + g.height + dimOffset],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
-        }));
-        // Extension lines (vertical ticks)
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x, g.y + g.height + dimOffset - extLineLen, g.x, g.y + g.height + dimOffset + extLineLen],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
-        }));
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x + g.width, g.y + g.height + dimOffset - extLineLen, g.x + g.width, g.y + g.height + dimOffset + extLineLen],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
-        }));
-        // Width text
-        this.layers.dims.add(new Konva.Text({
-            x: g.x, y: g.y + g.height + dimOffset + 6, width: g.width,
-            text: `${widthFt}'-0"`, fontSize: 9, fill: DIM_COLOR_EXTERIOR, align: 'center', listening: false
-        }));
-
-        // Height dimension line (right of room) - BLUE
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x + g.width + dimOffset, g.y, g.x + g.width + dimOffset, g.y + g.height],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1.5, listening: false
-        }));
-        // Extension lines (horizontal ticks)
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x + g.width + dimOffset - extLineLen, g.y, g.x + g.width + dimOffset + extLineLen, g.y],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
-        }));
-        this.layers.dims.add(new Konva.Line({
-            points: [g.x + g.width + dimOffset - extLineLen, g.y + g.height, g.x + g.width + dimOffset + extLineLen, g.y + g.height],
-            stroke: DIM_COLOR_EXTERIOR, strokeWidth: 1, listening: false
-        }));
-        // Height text (rotated)
-        this.layers.dims.add(new Konva.Text({
-            x: g.x + g.width + dimOffset + 8, y: g.y + g.height / 2 + 15,
-            text: `${heightFt}'-0"`, fontSize: 9, fill: DIM_COLOR_EXTERIOR, rotation: -90, listening: false
-        }));
+        // Note: Exterior dimension lines are now handled by renderChainDimensions()
     },
 
     renderWallSegment(ws, doc, showWallIds) {
-        const room = doc.rooms.find(r => r.id === ws.roomId);
+        // Find room or closet (closets are rooms too)
+        let room = doc.rooms.find(r => r.id === ws.roomId);
+        if (!room) room = doc.closets.find(c => c.id === ws.roomId);
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
         const isExterior = ws.type === 'exterior';
 
@@ -1268,32 +1315,104 @@ const Render = {
             shadowOpacity: 0.4
         };
         // Closet is a room - render in rooms layer so shadow shows properly
-        const closetGroup = new Konva.Group();
+        const closetGroup = new Konva.Group({
+            x: g.x, y: g.y,
+            draggable: isSelected
+        });
+        const self = this;
 
         const rect = new Konva.Rect({
-            x: g.x, y: g.y, width: g.width, height: g.height,
+            x: 0, y: 0, width: g.width, height: g.height,
             fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1,
             ...closetShadowProps
         });
         closetGroup.add(rect);
 
         // Diagonal hatch lines (architectural convention for closets)
-        const hatchGroup = new Konva.Group({ clip: { x: g.x, y: g.y, width: g.width, height: g.height } });
+        const hatchGroup = new Konva.Group({ clip: { x: 0, y: 0, width: g.width, height: g.height } });
         const spacing = 12;
         const hatchColor = '#d1d5db';
         for (let i = -g.height; i < g.width + g.height; i += spacing) {
             hatchGroup.add(new Konva.Line({
-                points: [g.x + i, g.y, g.x + i + g.height, g.y + g.height],
+                points: [i, 0, i + g.height, g.height],
                 stroke: hatchColor, strokeWidth: 1, listening: false
             }));
         }
         closetGroup.add(hatchGroup);
 
-        closetGroup.on('tap click', () => App.onObjectTap('closet', closet.id));
+        closetGroup.on('tap click', (e) => {
+            e.cancelBubble = true;
+            App.onObjectTap('closet', closet.id);
+        });
         // Prevent stage panning when clicking on closets
         closetGroup.on('mousedown touchstart', (e) => {
             e.cancelBubble = true;
         });
+
+        // Add drag functionality for closets when selected
+        if (isSelected) {
+            let startX, startY, snapPoints = null;
+
+            closetGroup.on('dragstart', function(e) {
+                e.cancelBubble = true;
+                self.stage.draggable(false);
+                startX = g.x;
+                startY = g.y;
+                snapPoints = findRoomSnapPoints(doc, closet.id);
+            });
+
+            closetGroup.on('dragmove', function(e) {
+                e.cancelBubble = true;
+                const rawX = startX + this.x();
+                const rawY = startY + this.y();
+                const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
+                this.x(snapped.x - startX);
+                this.y(snapped.y - startY);
+            });
+
+            closetGroup.on('dragend', function(e) {
+                self.stage.draggable(true);
+
+                const finalX = startX + this.x();
+                const finalY = startY + this.y();
+
+                // Update closet geometry
+                g.x = finalX;
+                g.y = finalY;
+
+                // Update closet wall segments
+                doc.wallSegments.filter(ws => ws.roomId === closet.id).forEach(ws => {
+                    if (ws.label === 'W1') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                    else if (ws.label === 'W2') { ws.x1 = g.x; ws.y1 = g.y + g.height; ws.x2 = g.x; ws.y2 = g.y; }
+                    else if (ws.label === 'W3') { ws.x1 = g.x; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y; }
+                    else if (ws.label === 'W4') { ws.x1 = g.x + g.width; ws.y1 = g.y; ws.x2 = g.x + g.width; ws.y2 = g.y + g.height; }
+                });
+
+                // Update parentRoomId if closet moved outside its parent
+                const newParent = doc.rooms.find(room => {
+                    const rg = room.geometry;
+                    const overlapX = Math.max(0, Math.min(g.x + g.width, rg.x + rg.width) - Math.max(g.x, rg.x));
+                    const overlapY = Math.max(0, Math.min(g.y + g.height, rg.y + rg.height) - Math.max(g.y, rg.y));
+                    const overlapArea = overlapX * overlapY;
+                    const closetArea = g.width * g.height;
+                    return overlapArea > closetArea * 0.5;
+                });
+                if (newParent) {
+                    closet.parentRoomId = newParent.id;
+                    closet.parentRoomLabel = newParent.label;
+                } else {
+                    closet.parentRoomId = null;
+                    closet.parentRoomLabel = null;
+                }
+
+                App.saveState();
+                App.render();
+                App.updateTree();
+                App.updateInspector();
+                App.updateQABadge();
+            });
+        }
+
         this.layers.rooms.add(closetGroup);
 
         // Draw closet walls and make them clickable for placing doors
@@ -2043,7 +2162,8 @@ const Render = {
     },
 
     getInteriorOffset(ws, doc) {
-        const room = doc.rooms.find(r => r.id === ws.roomId);
+        let room = doc.rooms.find(r => r.id === ws.roomId);
+        if (!room) room = doc.closets.find(c => c.id === ws.roomId);
         if (!room) return { x: 0, y: 0 };
         const mid = getSegmentMidpoint(ws);
         const g = room.geometry;
@@ -2077,6 +2197,174 @@ const Render = {
         layer.add(new Konva.Text({
             x: isVert ? midX - 28 : midX - 18, y: isVert ? midY - 5 : midY - 12,
             text: dim.label, fontSize: 9, fill: dimLineColor, listening: false
+        }));
+    },
+
+    // Render chain dimensions showing all room boundaries
+    renderChainDimensions(doc) {
+        const layer = this.layers.dims;
+        const dimColor = DIM_COLOR_EXTERIOR;
+        const chainOffset = 45;  // Distance from building edge
+        const totalOffset = 70;  // Distance for total dimension
+        const extLineLen = 6;    // Extension line length
+        const tickLen = 4;       // Tick mark length
+
+        // Collect all unique X and Y coordinates from room boundaries
+        const xCoords = new Set();
+        const yCoords = new Set();
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        doc.rooms.forEach(room => {
+            const g = room.geometry;
+            xCoords.add(g.x);
+            xCoords.add(g.x + g.width);
+            yCoords.add(g.y);
+            yCoords.add(g.y + g.height);
+            minX = Math.min(minX, g.x);
+            minY = Math.min(minY, g.y);
+            maxX = Math.max(maxX, g.x + g.width);
+            maxY = Math.max(maxY, g.y + g.height);
+        });
+
+        // Sort coordinates
+        const sortedX = Array.from(xCoords).sort((a, b) => a - b);
+        const sortedY = Array.from(yCoords).sort((a, b) => a - b);
+
+        // Format dimension text (feet and inches)
+        const formatDim = (pixels) => {
+            const totalInches = pixels / INCH;
+            const feet = Math.floor(totalInches / 12);
+            const inches = Math.round(totalInches % 12);
+            if (inches === 0) return `${feet}'-0"`;
+            return `${feet}'-${inches}"`;
+        };
+
+        // === HORIZONTAL CHAIN (above building) ===
+        const chainY = minY - chainOffset;
+
+        // Draw extension lines from each room corner down to chain
+        sortedX.forEach(x => {
+            layer.add(new Konva.Line({
+                points: [x, minY - 8, x, chainY + extLineLen],
+                stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
+            }));
+        });
+
+        // Draw horizontal chain line
+        layer.add(new Konva.Line({
+            points: [sortedX[0], chainY, sortedX[sortedX.length - 1], chainY],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
+        }));
+
+        // Draw tick marks and segment dimensions
+        for (let i = 0; i < sortedX.length; i++) {
+            const x = sortedX[i];
+            // Tick mark
+            layer.add(new Konva.Line({
+                points: [x, chainY - tickLen, x, chainY + tickLen],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+
+            // Segment dimension label (between this tick and next)
+            if (i < sortedX.length - 1) {
+                const nextX = sortedX[i + 1];
+                const segWidth = nextX - x;
+                const midX = (x + nextX) / 2;
+
+                // Only show dimension if segment is wide enough
+                if (segWidth >= FOOT) {
+                    const label = formatDim(segWidth);
+                    layer.add(new Konva.Text({
+                        x: midX - 15, y: chainY - 14,
+                        text: label, fontSize: 8, fill: dimColor, listening: false
+                    }));
+                }
+            }
+        }
+
+        // === VERTICAL CHAIN (left of building) ===
+        const chainX = minX - chainOffset;
+
+        // Draw extension lines from each room corner to chain
+        sortedY.forEach(y => {
+            layer.add(new Konva.Line({
+                points: [minX - 8, y, chainX + extLineLen, y],
+                stroke: dimColor, strokeWidth: 0.75, dash: [2, 2], listening: false
+            }));
+        });
+
+        // Draw vertical chain line
+        layer.add(new Konva.Line({
+            points: [chainX, sortedY[0], chainX, sortedY[sortedY.length - 1]],
+            stroke: dimColor, strokeWidth: 1.5, listening: false
+        }));
+
+        // Draw tick marks and segment dimensions
+        for (let i = 0; i < sortedY.length; i++) {
+            const y = sortedY[i];
+            // Tick mark
+            layer.add(new Konva.Line({
+                points: [chainX - tickLen, y, chainX + tickLen, y],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+
+            // Segment dimension label (between this tick and next)
+            if (i < sortedY.length - 1) {
+                const nextY = sortedY[i + 1];
+                const segHeight = nextY - y;
+                const midY = (y + nextY) / 2;
+
+                // Only show dimension if segment is tall enough
+                if (segHeight >= FOOT) {
+                    const label = formatDim(segHeight);
+                    layer.add(new Konva.Text({
+                        x: chainX - 32, y: midY - 4,
+                        text: label, fontSize: 8, fill: dimColor, listening: false
+                    }));
+                }
+            }
+        }
+
+        // === TOTAL DIMENSIONS (further out) ===
+        const totalW = maxX - minX;
+        const totalH = maxY - minY;
+
+        // Total width (above chain)
+        const totalChainY = minY - totalOffset;
+        layer.add(new Konva.Line({
+            points: [minX, totalChainY, maxX, totalChainY],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [minX, totalChainY - 5, minX, totalChainY + 5],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [maxX, totalChainY - 5, maxX, totalChainY + 5],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Text({
+            x: (minX + maxX) / 2 - 20, y: totalChainY - 14,
+            text: formatDim(totalW), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
+        }));
+
+        // Total height (left of chain)
+        const totalChainX = minX - totalOffset;
+        layer.add(new Konva.Line({
+            points: [totalChainX, minY, totalChainX, maxY],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [totalChainX - 5, minY, totalChainX + 5, minY],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [totalChainX - 5, maxY, totalChainX + 5, maxY],
+            stroke: dimColor, strokeWidth: 2, listening: false
+        }));
+        layer.add(new Konva.Text({
+            x: totalChainX - 38, y: (minY + maxY) / 2 - 5,
+            text: formatDim(totalH), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
     },
 
@@ -2580,6 +2868,21 @@ const App = {
     },
 
     newDoc() {
+        // Create an empty document - allows drawing rooms from scratch
+        this.doc = Doc.create();
+        this.undoStack = [];
+        this.redoStack = [];
+        this.saveState();
+        Render.deselect();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+        this.updateInspector();
+        this.updateUndoRedoButtons();
+    },
+
+    loadDemo() {
+        // Load the 2BR/1BA demo layout
         this.doc = generate2BR1BA();
         this.undoStack = [];
         this.redoStack = [];
@@ -2626,7 +2929,11 @@ const App = {
     },
 
     placeOnWall(ws, toolType) {
-        const room = this.doc.rooms.find(r => r.id === ws.roomId);
+        // Find parent room OR closet (closets are rooms too)
+        let room = this.doc.rooms.find(r => r.id === ws.roomId);
+        if (!room) {
+            room = this.doc.closets.find(c => c.id === ws.roomId);
+        }
         const segLen = getSegmentLength(ws);
         const defaultOffset = segLen * 0.3;
 
@@ -2821,6 +3128,11 @@ const App = {
                 // Remove from collection
                 collection.splice(index, 1);
 
+                // If deleting a closet, also delete its wall segments
+                if (objType === 'closet') {
+                    this.doc.wallSegments = this.doc.wallSegments.filter(ws => ws.roomId !== objId);
+                }
+
                 // Clear selection and save state
                 this.saveState();
                 Render.deselect();
@@ -2983,7 +3295,15 @@ const App = {
 
     toggle(what) {
         switch (what) {
-            case 'grid': this.showGrid = !this.showGrid; $('#btnGrid').classList.toggle('active', this.showGrid); Render.layers.grid.visible(this.showGrid); break;
+            case 'grid':
+                this.showGrid = !this.showGrid;
+                $('#btnGrid').classList.toggle('active', this.showGrid);
+                // Toggle CSS grid background on canvas-wrap
+                const canvasWrap = document.querySelector('.canvas-wrap');
+                if (canvasWrap) {
+                    canvasWrap.style.backgroundImage = this.showGrid ? '' : 'none';
+                }
+                break;
             case 'wallIds': this.showWallIds = !this.showWallIds; $('#btnWallIds').classList.toggle('active', this.showWallIds); this.render(); break;
             case 'dims': this.showDims = !this.showDims; $('#btnDims').classList.toggle('active', this.showDims); this.render(); break;
         }
@@ -3167,7 +3487,9 @@ const App = {
                 if (w < 5 || h < 5) return;
 
                 if (isCloset) {
-                    doc.closets.push({ id: Doc.uid(), label: Doc.label(doc, 'closet'), fbgName: o.name, geometry: { x, y, width: w, height: h } });
+                    const closet = { id: Doc.uid(), label: Doc.label(doc, 'closet'), fbgName: o.name, type: 'Closet', roomType: 'Closet', isExterior: false, geometry: { x, y, width: w, height: h } };
+                    createWallSegments(closet, doc);
+                    doc.closets.push(closet);
                 } else {
                     const room = { id: Doc.uid(), label: Doc.label(doc, 'room'), type: rt.name || abbr, fbgName: o.name, isExterior: true, geometry: { x, y, width: w, height: h } };
                     createWallSegments(room, doc);
@@ -3207,7 +3529,8 @@ const App = {
         y += 10;
         this.doc.wallSegments.forEach(ws => {
             if (ws.attachedObjects.length > 0) {
-                const room = this.doc.rooms.find(r => r.id === ws.roomId);
+                let room = this.doc.rooms.find(r => r.id === ws.roomId);
+                if (!room) room = this.doc.closets.find(c => c.id === ws.roomId);
                 const items = ws.attachedObjects.map(a => a.label).join(', ');
                 pdf.text(`${room?.label} ${ws.label}: ${items}`, 50, y);
                 y += 9;
