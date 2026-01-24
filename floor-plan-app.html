@@ -941,28 +941,21 @@ const Render = {
         this.layers.dims.destroyChildren();
         this.layers.labels.destroyChildren();
 
-        // Re-render room dimensions and labels
+        // Re-render room labels (dimensions now handled by renderInteriorDimensions)
         doc.rooms.forEach(room => {
             const g = room.geometry;
             const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
-            const widthFt = Math.round(g.width / FOOT);
-            const heightFt = Math.round(g.height / FOOT);
-            const dimText = `${widthFt}' x ${heightFt}'`;
 
             // Room label (inside)
             this.layers.labels.add(new Konva.Text({
-                x: g.x, y: g.y + g.height / 2 - 20, width: g.width,
+                x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
                 text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
             }));
             this.layers.labels.add(new Konva.Text({
-                x: g.x, y: g.y + g.height / 2 - 4, width: g.width,
+                x: g.x, y: g.y + g.height / 2 + 4, width: g.width,
                 text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
             }));
-            // Room size inside (L x W) - ORANGE
-            this.layers.labels.add(new Konva.Text({
-                x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
-                text: dimText, fontSize: 9, fill: DIM_COLOR_INTERIOR, align: 'center', listening: false
-            }));
+            // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
             // Note: Exterior dimensions are handled by renderChainDimensions()
         });
 
@@ -1002,6 +995,7 @@ const Render = {
         // Auto-generate chain dimensions if showDims is enabled
         if (App.showDims && doc.rooms.length > 0) {
             this.renderChainDimensions(doc);
+            this.renderInteriorDimensions(doc);
         }
 
         this.layers.dims.batchDraw();
@@ -1039,6 +1033,7 @@ const Render = {
         // Auto-generate chain dimensions based on current room layout
         if (showDims && doc.rooms.length > 0) {
             this.renderChainDimensions(doc);
+            this.renderInteriorDimensions(doc);
         }
 
         Object.values(this.layers).forEach(l => l.batchDraw());
@@ -1200,26 +1195,17 @@ const Render = {
 
         this.layers.rooms.add(roomGroup);
 
-        // Room dimensions - calculate first for use in labels
-        const widthFt = Math.round(g.width / FOOT);
-        const heightFt = Math.round(g.height / FOOT);
-        const dimText = `${widthFt}' x ${heightFt}'`;
-
-        // Room label (inside)
+        // Room label (inside) - dimensions now handled by renderInteriorDimensions()
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 20, width: g.width,
+            x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
             text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
         }));
         this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 - 4, width: g.width,
+            x: g.x, y: g.y + g.height / 2 + 4, width: g.width,
             text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
         }));
-        // Room size inside (L x W) - ORANGE for inside measurements
-        this.layers.labels.add(new Konva.Text({
-            x: g.x, y: g.y + g.height / 2 + 10, width: g.width,
-            text: dimText, fontSize: 9, fill: DIM_COLOR_INTERIOR, align: 'center', listening: false
-        }));
-        // Note: Exterior dimension lines are now handled by renderChainDimensions()
+        // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
+        // Note: Exterior dimension lines are handled by renderChainDimensions()
     },
 
     renderWallSegment(ws, doc, showWallIds) {
@@ -2515,6 +2501,114 @@ const Render = {
             text: formatDim(totalH), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
         }));
 
+    },
+
+    // Render interior room dimensions (width and height inside each room)
+    renderInteriorDimensions(doc) {
+        const layer = this.layers.dims;
+        const dimColor = DIM_COLOR_INTERIOR;
+        const dimOffset = 15;    // Distance from wall for dimension line
+        const tickLen = 3;       // Tick mark length
+
+        // Format dimension text (feet and inches)
+        const formatDim = (pixels) => {
+            const totalInches = pixels / INCH;
+            const feet = Math.floor(totalInches / 12);
+            const inches = Math.round(totalInches % 12);
+            if (inches === 0) return `${feet}'-0"`;
+            return `${feet}'-${inches}"`;
+        };
+
+        doc.rooms.forEach(room => {
+            const g = room.geometry;
+            const w = g.width;
+            const h = g.height;
+
+            // Skip very small rooms
+            if (w < FOOT * 3 || h < FOOT * 3) return;
+
+            // === WIDTH dimension (horizontal, near bottom) ===
+            const widthY = g.y + g.height - dimOffset;
+
+            // Dimension line
+            layer.add(new Konva.Line({
+                points: [g.x + dimOffset, widthY, g.x + g.width - dimOffset, widthY],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Left tick
+            layer.add(new Konva.Line({
+                points: [g.x + dimOffset, widthY - tickLen, g.x + dimOffset, widthY + tickLen],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Right tick
+            layer.add(new Konva.Line({
+                points: [g.x + g.width - dimOffset, widthY - tickLen, g.x + g.width - dimOffset, widthY + tickLen],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Width label
+            layer.add(new Konva.Text({
+                x: g.x + g.width / 2 - 18, y: widthY - 12,
+                text: formatDim(w), fontSize: 9, fill: dimColor, listening: false
+            }));
+
+            // === HEIGHT dimension (vertical, near right) ===
+            const heightX = g.x + g.width - dimOffset;
+
+            // Dimension line
+            layer.add(new Konva.Line({
+                points: [heightX, g.y + dimOffset, heightX, g.y + g.height - dimOffset],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Top tick
+            layer.add(new Konva.Line({
+                points: [heightX - tickLen, g.y + dimOffset, heightX + tickLen, g.y + dimOffset],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Bottom tick
+            layer.add(new Konva.Line({
+                points: [heightX - tickLen, g.y + g.height - dimOffset, heightX + tickLen, g.y + g.height - dimOffset],
+                stroke: dimColor, strokeWidth: 1, listening: false
+            }));
+            // Height label (rotated for vertical reading)
+            layer.add(new Konva.Text({
+                x: heightX - 8, y: g.y + g.height / 2 - 18,
+                text: formatDim(h), fontSize: 9, fill: dimColor, rotation: -90, listening: false
+            }));
+        });
+
+        // Also do closets
+        doc.closets.forEach(closet => {
+            const g = closet.geometry;
+            const w = g.width;
+            const h = g.height;
+
+            // Skip very small closets
+            if (w < FOOT * 2 || h < FOOT * 2) return;
+
+            // === WIDTH dimension (horizontal, near bottom) ===
+            const widthY = g.y + g.height - 10;
+
+            layer.add(new Konva.Line({
+                points: [g.x + 8, widthY, g.x + g.width - 8, widthY],
+                stroke: dimColor, strokeWidth: 0.75, listening: false, dash: [2, 2]
+            }));
+            layer.add(new Konva.Text({
+                x: g.x + g.width / 2 - 14, y: widthY - 10,
+                text: formatDim(w), fontSize: 7, fill: dimColor, listening: false
+            }));
+
+            // === HEIGHT dimension (vertical, near right) ===
+            const heightX = g.x + g.width - 10;
+
+            layer.add(new Konva.Line({
+                points: [heightX, g.y + 8, heightX, g.y + g.height - 8],
+                stroke: dimColor, strokeWidth: 0.75, listening: false, dash: [2, 2]
+            }));
+            layer.add(new Konva.Text({
+                x: heightX - 6, y: g.y + g.height / 2 - 14,
+                text: formatDim(h), fontSize: 7, fill: dimColor, rotation: -90, listening: false
+            }));
+        });
     },
 
     select(type, id) {
