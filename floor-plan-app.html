@@ -2779,6 +2779,7 @@ const App = {
         this.setupKeyboardShortcuts();
         this.setupRoomDrawing();
         this.setupWallDrawing();
+        this.setupMarqueeSelection();
         console.log('App ready - tap walls to select');
     },
 
@@ -3060,6 +3061,147 @@ const App = {
             Render.select('wall', ws.id);
             this.updateInspector();
         });
+    },
+
+    // Marquee selection - Shift+drag to select multiple objects
+    setupMarqueeSelection() {
+        const self = this;
+        let isSelecting = false;
+        let selectionRect = null;
+        let startPos = null;
+
+        const container = document.getElementById('stage');
+        if (!container) return;
+
+        // Convert screen coords to world coords
+        const screenToWorld = (clientX, clientY) => {
+            const stage = Render.stage;
+            const rect = container.getBoundingClientRect();
+            const scaleX = stage.scaleX();
+            const stageX = stage.x();
+            const stageY = stage.y();
+            return {
+                x: (clientX - rect.left - stageX) / scaleX,
+                y: (clientY - rect.top - stageY) / scaleX
+            };
+        };
+
+        container.addEventListener('mousedown', (e) => {
+            // Only activate with Shift key
+            if (!e.shiftKey) return;
+            if (this.currentTool === 'room' || this.currentTool === 'wall') return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            Render.stage.draggable(false);
+            const pos = screenToWorld(e.clientX, e.clientY);
+            isSelecting = true;
+            startPos = pos;
+
+            selectionRect = new Konva.Rect({
+                x: pos.x, y: pos.y,
+                width: 0, height: 0,
+                fill: 'rgba(59, 130, 246, 0.2)',
+                stroke: '#3b82f6',
+                strokeWidth: 2,
+                dash: [6, 4]
+            });
+            Render.layers.openings.add(selectionRect);
+            Render.layers.openings.batchDraw();
+        }, true);
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isSelecting || !selectionRect) return;
+            const pos = screenToWorld(e.clientX, e.clientY);
+
+            const x = Math.min(startPos.x, pos.x);
+            const y = Math.min(startPos.y, pos.y);
+            selectionRect.x(x);
+            selectionRect.y(y);
+            selectionRect.width(Math.abs(pos.x - startPos.x));
+            selectionRect.height(Math.abs(pos.y - startPos.y));
+            Render.layers.openings.batchDraw();
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isSelecting || !selectionRect) return;
+
+            const pos = screenToWorld(e.clientX, e.clientY);
+            const x1 = Math.min(startPos.x, pos.x);
+            const y1 = Math.min(startPos.y, pos.y);
+            const x2 = Math.max(startPos.x, pos.x);
+            const y2 = Math.max(startPos.y, pos.y);
+
+            selectionRect.destroy();
+            selectionRect = null;
+            isSelecting = false;
+            startPos = null;
+            Render.stage.draggable(true);
+            Render.layers.openings.batchDraw();
+
+            // Minimum drag size
+            if (x2 - x1 < 20 && y2 - y1 < 20) return;
+
+            // Find objects in selection
+            const selected = [];
+
+            this.doc.rooms.forEach(room => {
+                const g = room.geometry;
+                if (this.rectIntersects(x1, y1, x2, y2, g.x, g.y, g.x + g.width, g.y + g.height)) {
+                    selected.push({ type: 'room', id: room.id });
+                }
+            });
+
+            this.doc.closets.forEach(closet => {
+                const g = closet.geometry;
+                if (this.rectIntersects(x1, y1, x2, y2, g.x, g.y, g.x + g.width, g.y + g.height)) {
+                    selected.push({ type: 'closet', id: closet.id });
+                }
+            });
+
+            this.doc.doors.forEach(door => {
+                const ws = this.doc.wallSegments.find(s => s.id === door.parentWallSegmentId);
+                if (ws) {
+                    const p = Render.getPositionOnSegment(ws, door.distanceFromStart);
+                    if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
+                        selected.push({ type: 'door', id: door.id });
+                    }
+                }
+            });
+
+            this.doc.windows.forEach(win => {
+                const ws = this.doc.wallSegments.find(s => s.id === win.parentWallSegmentId);
+                if (ws) {
+                    const p = Render.getPositionOnSegment(ws, win.distanceFromStart);
+                    if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
+                        selected.push({ type: 'window', id: win.id });
+                    }
+                }
+            });
+
+            this.doc.mep.forEach(mep => {
+                const ws = this.doc.wallSegments.find(s => s.id === mep.parentWallSegmentId);
+                if (ws) {
+                    const p = Render.getPositionOnSegment(ws, mep.distanceFromStart);
+                    if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {
+                        selected.push({ type: 'mep', id: mep.id });
+                    }
+                }
+            });
+
+            if (selected.length > 0) {
+                Render.selection = { type: null, id: null };
+                Render.multiSelection = selected;
+                this.render();
+                console.log('Selected ' + selected.length + ' objects');
+            }
+        });
+    },
+
+    // Helper: check if two rectangles intersect
+    rectIntersects(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+        return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
     },
 
     setupKeyboardShortcuts() {
