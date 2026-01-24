@@ -1256,13 +1256,15 @@ const Render = {
             shadowOffset: { x: 4, y: 4 },
             shadowOpacity: 0.4
         };
+        // Closet is a room - render in rooms layer so shadow shows properly
+        const closetGroup = new Konva.Group();
+
         const rect = new Konva.Rect({
             x: g.x, y: g.y, width: g.width, height: g.height,
             fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1,
             ...closetShadowProps
         });
-        rect.on('tap click', () => App.onObjectTap('closet', closet.id));
-        this.layers.openings.add(rect);
+        closetGroup.add(rect);
 
         // Diagonal hatch lines (architectural convention for closets)
         const hatchGroup = new Konva.Group({ clip: { x: g.x, y: g.y, width: g.width, height: g.height } });
@@ -1274,7 +1276,10 @@ const Render = {
                 stroke: hatchColor, strokeWidth: 1, listening: false
             }));
         }
-        this.layers.openings.add(hatchGroup);
+        closetGroup.add(hatchGroup);
+
+        closetGroup.on('tap click', () => App.onObjectTap('closet', closet.id));
+        this.layers.rooms.add(closetGroup);
 
         // Draw closet walls and make them clickable for placing doors
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
