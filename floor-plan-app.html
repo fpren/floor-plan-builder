@@ -1128,35 +1128,35 @@ const Render = {
 
         // Simplified drag - just move the group, update geometry on dragend
         if (isSelected) {
-            let startX, startY, startClosetPositions = [], snapPoints = null;
+            let origGX, origGY, startClosetPositions = [], snapPoints = null;
 
             roomGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
                 self.stage.draggable(false);
-                startX = g.x;
-                startY = g.y;
+                origGX = g.x;  // Store original geometry for closet offset calculation
+                origGY = g.y;
                 startClosetPositions = roomClosets.map(c => ({ id: c.id, x: c.geometry.x, y: c.geometry.y }));
                 snapPoints = findRoomSnapPoints(doc, room.id);
             });
 
             roomGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
-                // Apply snapping to current position
-                const rawX = startX + this.x();
-                const rawY = startY + this.y();
+                // this.x() and this.y() are the absolute position of the group
+                const rawX = this.x();
+                const rawY = this.y();
                 const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
 
-                // Adjust visual position to show snap
-                this.x(snapped.x - startX);
-                this.y(snapped.y - startY);
+                // Set snapped position directly
+                this.x(snapped.x);
+                this.y(snapped.y);
             });
 
             roomGroup.on('dragend', function(e) {
                 self.stage.draggable(true);
 
-                // Calculate final position
-                const finalX = startX + this.x();
-                const finalY = startY + this.y();
+                // Final position is just the group's current position
+                const finalX = this.x();
+                const finalY = this.y();
 
                 // Update room geometry
                 g.x = finalX;
@@ -1172,8 +1172,8 @@ const Render = {
                 });
 
                 // Update closets
-                const dx = finalX - startX;
-                const dy = finalY - startY;
+                const dx = finalX - origGX;
+                const dy = finalY - origGY;
                 roomClosets.forEach(closet => {
                     const sp = startClosetPositions.find(p => p.id === closet.id);
                     if (sp) {
@@ -1351,30 +1351,31 @@ const Render = {
 
         // Add drag functionality for closets when selected
         if (isSelected) {
-            let startX, startY, snapPoints = null;
+            let snapPoints = null;
 
             closetGroup.on('dragstart', function(e) {
                 e.cancelBubble = true;
                 self.stage.draggable(false);
-                startX = g.x;
-                startY = g.y;
                 snapPoints = findRoomSnapPoints(doc, closet.id);
             });
 
             closetGroup.on('dragmove', function(e) {
                 e.cancelBubble = true;
-                const rawX = startX + this.x();
-                const rawY = startY + this.y();
+                // this.x() and this.y() are the absolute position of the group
+                const rawX = this.x();
+                const rawY = this.y();
                 const snapped = snapRoomPosition(rawX, rawY, g.width, g.height, snapPoints);
-                this.x(snapped.x - startX);
-                this.y(snapped.y - startY);
+                // Set snapped position directly
+                this.x(snapped.x);
+                this.y(snapped.y);
             });
 
             closetGroup.on('dragend', function(e) {
                 self.stage.draggable(true);
 
-                const finalX = startX + this.x();
-                const finalY = startY + this.y();
+                // Final position is just the group's current position
+                const finalX = this.x();
+                const finalY = this.y();
 
                 // Update closet geometry
                 g.x = finalX;
