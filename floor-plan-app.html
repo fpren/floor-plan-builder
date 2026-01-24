@@ -1149,13 +1149,13 @@ const Render = {
         // Visible wall line - dark grey, exterior walls thicker
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
         const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
-        const shadowOffset = 2;
+        const shadowOffset = 4;
 
-        // Shadow line behind wall (offset down-right)
+        // Shadow line behind wall (offset down-right) - more visible
         const shadowLine = new Konva.Line({
             points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
-            stroke: 'rgba(0,0,0,0.25)',
-            strokeWidth: wallWidth + 1,
+            stroke: 'rgba(0,0,0,0.5)',
+            strokeWidth: wallWidth + 2,
             lineCap: 'round',
             listening: false
         });
@@ -1327,14 +1327,14 @@ const Render = {
     // Render a closet wall with hit detection for placing doors
     renderClosetWall(ws, wallColor, wallWidth) {
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
-        const shadowOffset = 2;
+        const shadowOffset = 4;
         const finalWidth = isSelected ? 4 : wallWidth;
 
-        // Shadow line behind wall
+        // Shadow line behind wall - more visible
         this.layers.walls.add(new Konva.Line({
             points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
-            stroke: 'rgba(0,0,0,0.25)',
-            strokeWidth: finalWidth + 1,
+            stroke: 'rgba(0,0,0,0.5)',
+            strokeWidth: finalWidth + 2,
             lineCap: 'round',
             listening: false
         }));
