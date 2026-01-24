@@ -1417,25 +1417,27 @@ const Render = {
             draggable: isSelected  // Allow dragging when selected
         });
 
-        // Door opening (gap in wall) - match room fill color
+        // Door opening (gap in wall) - covers wall line and shadow
+        const wallClearHeight = 16;  // Enough to cover wall + shadow
         const doorRect = new Konva.Rect({
-            x: 0, y: -3,
-            width: door.width,
-            height: 6,
-            fill: '#fafbfc',  // Match room fill color
+            x: -2, y: -wallClearHeight / 2,
+            width: door.width + 4,
+            height: wallClearHeight,
+            fill: '#f0f7ff',  // Match blueprint background
             stroke: 'transparent'
         });
         doorGroup.add(doorRect);
 
         // Door jambs (thin lines at edges of opening)
         const jambColor = '#2d3748';
+        const jambHeight = 8;
         doorGroup.add(new Konva.Line({
-            points: [0, -3, 0, 3],
-            stroke: jambColor, strokeWidth: 1
+            points: [0, -jambHeight/2, 0, jambHeight/2],
+            stroke: jambColor, strokeWidth: 2
         }));
         doorGroup.add(new Konva.Line({
-            points: [door.width, -3, door.width, 3],
-            stroke: jambColor, strokeWidth: 1
+            points: [door.width, -jambHeight/2, door.width, jambHeight/2],
+            stroke: jambColor, strokeWidth: 2
         }));
 
         // Door geometry - hinge point and swing direction
@@ -1671,12 +1673,13 @@ const Render = {
             draggable: isSelected  // Allow dragging when selected
         });
 
-        // Window opening (gap in wall) - match room fill color
+        // Window opening (gap in wall) - covers wall line and shadow
         const winThickness = 8;  // Thicker window frame
+        const wallClearHeight = 16;  // Enough to cover wall + shadow
         const winRect = new Konva.Rect({
-            x: 0, y: -winThickness / 2,
-            width: win.width, height: winThickness,
-            fill: '#fafbfc',
+            x: -2, y: -wallClearHeight / 2,
+            width: win.width + 4, height: wallClearHeight,
+            fill: '#f0f7ff',  // Match blueprint background
             stroke: 'transparent'
         });
         winGroup.add(winRect);
@@ -1889,6 +1892,15 @@ const Render = {
         const isSelected = this.selection.type === 'cased' && this.selection.id === op.id;
 
         const opGroup = new Konva.Group({ x: pos.x, y: pos.y, rotation: angle * 180 / Math.PI });
+
+        // Clear wall behind opening
+        const wallClearHeight = 16;
+        opGroup.add(new Konva.Rect({
+            x: -2, y: -wallClearHeight / 2,
+            width: op.width + 4, height: wallClearHeight,
+            fill: '#f0f7ff',  // Match blueprint background
+            stroke: 'transparent'
+        }));
 
         // Dashed line "---------"
         opGroup.add(new Konva.Line({
