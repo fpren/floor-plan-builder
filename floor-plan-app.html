@@ -192,6 +192,38 @@
                     <div class="section-header" onclick="App.toggleObjectPanel()">Objects <span id="objectToggle">▶</span></div>
                     <div class="section-content collapsed" id="objectTree"></div>
                 </div>
+                <div class="section" id="roomTypeSection" style="display: none;">
+                    <div class="section-header">Room Type</div>
+                    <div class="section-content">
+                        <select id="roomTypeSelect" onchange="App.changeRoomType(this.value)" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px;">
+                            <option value="Room">Room</option>
+                            <option value="Bedroom 1">Bedroom 1</option>
+                            <option value="Bedroom 2">Bedroom 2</option>
+                            <option value="Bedroom 3">Bedroom 3</option>
+                            <option value="Bedroom 4">Bedroom 4</option>
+                            <option value="Bathroom">Bathroom</option>
+                            <option value="Bathroom 2">Bathroom 2</option>
+                            <option value="Kitchen">Kitchen</option>
+                            <option value="Living">Living</option>
+                            <option value="Living Room">Living Room</option>
+                            <option value="Dining Room">Dining Room</option>
+                            <option value="Hall">Hall</option>
+                            <option value="Hallway">Hallway</option>
+                            <option value="Foyer">Foyer</option>
+                            <option value="Office">Office</option>
+                            <option value="Den">Den</option>
+                            <option value="Laundry">Laundry</option>
+                            <option value="Garage">Garage</option>
+                            <option value="Basement">Basement</option>
+                            <option value="Attic">Attic</option>
+                            <option value="Storage">Storage</option>
+                            <option value="Utility">Utility</option>
+                            <option value="Porch">Porch</option>
+                            <option value="Sunroom">Sunroom</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="section">
                     <div class="section-header">Actions</div>
                     <div class="section-content">
@@ -942,14 +974,14 @@ const Render = {
             const g = room.geometry;
             const isSelected = this.selection.type === 'room' && this.selection.id === room.id;
 
-            // Room label (inside)
+            // Room label (inside) - show type as main label, ID underneath
             this.layers.labels.add(new Konva.Text({
                 x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
-                text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+                text: room.type, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
             }));
             this.layers.labels.add(new Konva.Text({
                 x: g.x, y: g.y + g.height / 2 + 4, width: g.width,
-                text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+                text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
             }));
             // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
             // Note: Exterior dimensions are handled by renderChainDimensions()
@@ -1191,14 +1223,14 @@ const Render = {
 
         this.layers.rooms.add(roomGroup);
 
-        // Room label (inside) - dimensions now handled by renderInteriorDimensions()
+        // Room label (inside) - show type as main label, ID underneath
         this.layers.labels.add(new Konva.Text({
             x: g.x, y: g.y + g.height / 2 - 12, width: g.width,
-            text: room.label, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+            text: room.type, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
         }));
         this.layers.labels.add(new Konva.Text({
             x: g.x, y: g.y + g.height / 2 + 4, width: g.width,
-            text: room.type, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+            text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
         }));
         // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
         // Note: Exterior dimension lines are handled by renderChainDimensions()
@@ -3548,6 +3580,23 @@ const App = {
             deleteBtn.disabled = !canDelete;
             deleteBtn.style.opacity = canDelete ? '1' : '0.4';
         }
+
+        // Show/hide room type section based on room selection
+        const roomTypeSection = $('#roomTypeSection');
+        const roomTypeSelect = $('#roomTypeSelect');
+        if (roomTypeSection && roomTypeSelect) {
+            if (sel.type === 'room' && sel.id) {
+                const room = this.doc.rooms.find(r => r.id === sel.id);
+                if (room) {
+                    roomTypeSection.style.display = 'block';
+                    roomTypeSelect.value = room.type;
+                } else {
+                    roomTypeSection.style.display = 'none';
+                }
+            } else {
+                roomTypeSection.style.display = 'none';
+            }
+        }
     },
 
     deleteSelected() {
@@ -3593,6 +3642,20 @@ const App = {
                 this.render();
             }
         }
+    },
+
+    // Change room type
+    changeRoomType(newType) {
+        const sel = Render.selection;
+        if (sel.type !== 'room' || !sel.id) return;
+
+        const room = this.doc.rooms.find(r => r.id === sel.id);
+        if (!room) return;
+
+        room.type = newType;
+        this.saveState();
+        this.render();
+        this.updateTree();
     },
 
     deleteObject(objId, objType) {
@@ -3749,7 +3812,7 @@ const App = {
                 roomEl.className = 'tree-item';
                 roomEl.dataset.type = 'room';
                 roomEl.dataset.id = room.id;
-                roomEl.innerHTML = `<div class="tree-dot" style="background:#f4d03f"></div><span>${room.label} - ${room.type}</span>`;
+                roomEl.innerHTML = `<div class="tree-dot" style="background:#f4d03f"></div><span>${room.type} (${room.label})</span>`;
                 roomEl.onclick = () => this.onObjectTap('room', room.id);
                 roomGrp.appendChild(roomEl);
 
