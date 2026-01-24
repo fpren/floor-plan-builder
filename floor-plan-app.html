@@ -244,6 +244,10 @@ const SNAP_DISTANCE = 24; // Mobile-friendly snap distance in pixels
 const HIT_WIDTH = 28; // Hit region width for wall segments
 const GRID_SNAP = FOOT; // Snap to 1-foot grid
 
+// Dimension line colors
+const DIM_COLOR_EXTERIOR = '#2563eb';  // Blue for exterior room dimensions
+const DIM_COLOR_INTERIOR = '#f97316';  // Orange for interior room dimensions
+
 // ========== SNAPPING FUNCTIONS ==========
 function snapToGrid(value) {
     return Math.round(value / GRID_SNAP) * GRID_SNAP;
@@ -1083,16 +1087,19 @@ const Render = {
         const heightFt = Math.round(g.height / FOOT);
         const dimText = `${widthFt}' x ${heightFt}'`;
 
+        // Dimension color: blue for exterior rooms, orange for interior rooms
+        const dimColor = room.isExterior ? DIM_COLOR_EXTERIOR : DIM_COLOR_INTERIOR;
+
         // Width dimension (below room)
         this.layers.dims.add(new Konva.Text({
             x: g.x, y: g.y + g.height + 8, width: g.width,
-            text: `${widthFt}'-0"`, fontSize: 9, fill: '#6b7280', align: 'center', listening: false
+            text: `${widthFt}'-0"`, fontSize: 9, fill: dimColor, align: 'center', listening: false
         }));
 
         // Height dimension (right of room, rotated)
         this.layers.dims.add(new Konva.Text({
             x: g.x + g.width + 12, y: g.y + g.height / 2 + 15,
-            text: `${heightFt}'-0"`, fontSize: 9, fill: '#6b7280', rotation: -90, listening: false
+            text: `${heightFt}'-0"`, fontSize: 9, fill: dimColor, rotation: -90, listening: false
         }));
     },
 
@@ -1919,18 +1926,20 @@ const Render = {
     renderDimension(dim) {
         const layer = this.layers.dims;
         const isVert = dim.vertical;
-        layer.add(new Konva.Line({ points: [dim.x1, dim.y1, dim.x2, dim.y2], stroke: '#555', strokeWidth: 1 }));
+        // Overall building dimensions use exterior (blue) color
+        const dimLineColor = DIM_COLOR_EXTERIOR;
+        layer.add(new Konva.Line({ points: [dim.x1, dim.y1, dim.x2, dim.y2], stroke: dimLineColor, strokeWidth: 1 }));
         if (isVert) {
-            layer.add(new Konva.Line({ points: [dim.x1 - 4, dim.y1, dim.x1 + 4, dim.y1], stroke: '#555', strokeWidth: 1 }));
-            layer.add(new Konva.Line({ points: [dim.x2 - 4, dim.y2, dim.x2 + 4, dim.y2], stroke: '#555', strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x1 - 4, dim.y1, dim.x1 + 4, dim.y1], stroke: dimLineColor, strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x2 - 4, dim.y2, dim.x2 + 4, dim.y2], stroke: dimLineColor, strokeWidth: 1 }));
         } else {
-            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 - 4, dim.x1, dim.y1 + 4], stroke: '#555', strokeWidth: 1 }));
-            layer.add(new Konva.Line({ points: [dim.x2, dim.y2 - 4, dim.x2, dim.y2 + 4], stroke: '#555', strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x1, dim.y1 - 4, dim.x1, dim.y1 + 4], stroke: dimLineColor, strokeWidth: 1 }));
+            layer.add(new Konva.Line({ points: [dim.x2, dim.y2 - 4, dim.x2, dim.y2 + 4], stroke: dimLineColor, strokeWidth: 1 }));
         }
         const midX = (dim.x1 + dim.x2) / 2, midY = (dim.y1 + dim.y2) / 2;
         layer.add(new Konva.Text({
             x: isVert ? midX - 28 : midX - 18, y: isVert ? midY - 5 : midY - 12,
-            text: dim.label, fontSize: 9, fill: '#777', listening: false
+            text: dim.label, fontSize: 9, fill: dimLineColor, listening: false
         }));
     },
 
