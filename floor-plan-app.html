@@ -943,13 +943,22 @@ const Render = {
         const roomFill = '#fafbfc';
         const roomBorder = isSelected ? '#3b82f6' : '#e5e7eb';
 
+        // Shadow properties for room
+        const shadowProps = {
+            shadowColor: 'black',
+            shadowBlur: 8,
+            shadowOffset: { x: 4, y: 4 },
+            shadowOpacity: 0.4
+        };
+
         if (roomClosets.length === 0) {
-            // Simple case: no closets, just draw rectangle
+            // Simple case: no closets, just draw rectangle with shadow
             roomGroup.add(new Konva.Rect({
                 x: g.x, y: g.y, width: g.width, height: g.height,
                 fill: roomFill,
                 stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1
+                strokeWidth: isSelected ? 2 : 1,
+                ...shadowProps
             }));
         } else {
             // Room has closets - draw room fill excluding closet areas
@@ -978,7 +987,8 @@ const Render = {
                 },
                 fill: roomFill,
                 stroke: roomBorder,
-                strokeWidth: isSelected ? 2 : 1
+                strokeWidth: isSelected ? 2 : 1,
+                ...shadowProps
             });
             roomGroup.add(roomShape);
         }
@@ -1214,10 +1224,14 @@ const Render = {
         const parentRoom = doc.rooms.find(r => r.id === closet.parentRoomId);
         const pg = parentRoom ? parentRoom.geometry : null;
 
-        // Closet fill with light grey
+        // Closet fill with light grey and shadow (closets are rooms too)
         const rect = new Konva.Rect({
             x: g.x, y: g.y, width: g.width, height: g.height,
-            fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1
+            fill: '#f3f4f6', stroke: isSelected ? '#3b82f6' : '#d1d5db', strokeWidth: isSelected ? 2 : 1,
+            shadowColor: 'black',
+            shadowBlur: 8,
+            shadowOffset: { x: 4, y: 4 },
+            shadowOpacity: 0.4
         });
         rect.on('tap click', () => App.onObjectTap('closet', closet.id));
         this.layers.openings.add(rect);
