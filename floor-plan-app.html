@@ -2212,8 +2212,17 @@ const App = {
         console.log('App ready - tap walls to select');
     },
 
+    // Convert screen position to world/canvas position (accounting for pan/zoom)
+    getWorldPosition(stage) {
+        const pointer = stage.getPointerPosition();
+        if (!pointer) return null;
+        const transform = stage.getAbsoluteTransform().copy().invert();
+        return transform.point(pointer);
+    },
+
     setupRoomDrawing() {
         const stage = Render.stage;
+        const self = this;
 
         stage.on('mousedown touchstart', (e) => {
             if (this.currentTool !== 'room') return;
@@ -2221,14 +2230,20 @@ const App = {
             // Disable stage panning while drawing
             stage.draggable(false);
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
+            // Snap to grid
+            const snappedX = snapToGrid(pos.x);
+            const snappedY = snapToGrid(pos.y);
+
             this.isDrawingRoom = true;
-            this.roomDrawStart = { x: pos.x, y: pos.y };
+            this.roomDrawStart = { x: snappedX, y: snappedY };
 
             // Create preview rectangle
             this.roomPreview = new Konva.Rect({
-                x: pos.x,
-                y: pos.y,
+                x: snappedX,
+                y: snappedY,
                 width: 0,
                 height: 0,
                 fill: 'rgba(59, 130, 246, 0.1)',
@@ -2242,14 +2257,20 @@ const App = {
         stage.on('mousemove touchmove', (e) => {
             if (!this.isDrawingRoom || !this.roomPreview) return;
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
             const start = this.roomDrawStart;
 
+            // Snap to grid
+            const snappedX = snapToGrid(pos.x);
+            const snappedY = snapToGrid(pos.y);
+
             // Calculate dimensions
-            const x = Math.min(start.x, pos.x);
-            const y = Math.min(start.y, pos.y);
-            const width = Math.abs(pos.x - start.x);
-            const height = Math.abs(pos.y - start.y);
+            const x = Math.min(start.x, snappedX);
+            const y = Math.min(start.y, snappedY);
+            const width = Math.abs(snappedX - start.x);
+            const height = Math.abs(snappedY - start.y);
 
             this.roomPreview.x(x);
             this.roomPreview.y(y);
@@ -2261,14 +2282,20 @@ const App = {
         stage.on('mouseup touchend', (e) => {
             if (!this.isDrawingRoom || !this.roomPreview) return;
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
             const start = this.roomDrawStart;
 
+            // Snap to grid
+            const snappedX = snapToGrid(pos.x);
+            const snappedY = snapToGrid(pos.y);
+
             // Calculate final dimensions
-            const x = Math.min(start.x, pos.x);
-            const y = Math.min(start.y, pos.y);
-            const width = Math.abs(pos.x - start.x);
-            const height = Math.abs(pos.y - start.y);
+            const x = Math.min(start.x, snappedX);
+            const y = Math.min(start.y, snappedY);
+            const width = Math.abs(snappedX - start.x);
+            const height = Math.abs(snappedY - start.y);
 
             // Remove preview
             this.roomPreview.destroy();
@@ -2339,13 +2366,16 @@ const App = {
 
     setupWallDrawing() {
         const stage = Render.stage;
+        const self = this;
 
         stage.on('mousedown touchstart', (e) => {
             if (this.currentTool !== 'wall') return;
 
             stage.draggable(false);
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
             // Snap start point to grid
             const snappedX = snapToGrid(pos.x);
             const snappedY = snapToGrid(pos.y);
@@ -2376,7 +2406,9 @@ const App = {
         stage.on('mousemove touchmove', (e) => {
             if (!this.isDrawingWall || !this.wallPreview) return;
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
             const start = this.wallDrawStart;
 
             // Snap end point to grid
@@ -2399,7 +2431,9 @@ const App = {
         stage.on('mouseup touchend', (e) => {
             if (!this.isDrawingWall || !this.wallPreview) return;
 
-            const pos = stage.getPointerPosition();
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
             const start = this.wallDrawStart;
 
             // Snap end point
