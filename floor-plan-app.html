@@ -82,7 +82,11 @@
             background-attachment: fixed;
         }
         #stage { width: 100%; height: 100%; }
-        .north-arrow { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .north-arrow { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.3s ease; }
+        .north-arrow svg { width: 28px; height: 28px; transition: transform 0.3s ease; }
+        .north-arrow .arrow-n { fill: var(--accent-red); }
+        .north-arrow .arrow-s { fill: #666; }
+        .north-arrow:hover { transform: scale(1.05); }
         .scale-label { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 6px; font-size: 10px; color: var(--text-dim); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .qa-badge { position: absolute; top: 12px; left: 12px; background: var(--accent-green); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
         .qa-badge.error { background: var(--accent-red); }
@@ -115,7 +119,8 @@
             .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr; }
             .sidebar-left.collapsed .tool-btn span { display: none; }
             .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
-            .north-arrow { width: 28px; height: 28px; font-size: 10px; top: 8px; right: 8px; }
+            .north-arrow { width: 36px; height: 36px; top: 8px; right: 8px; }
+            .north-arrow svg { width: 22px; height: 22px; }
             .scale-label { font-size: 9px; padding: 4px 8px; bottom: 8px; left: 8px; }
             .qa-badge { font-size: 9px; padding: 4px 10px; top: 8px; left: 8px; }
             .tool-hint { font-size: 10px; padding: 8px 14px; bottom: 40px; }
@@ -273,7 +278,13 @@
         </div>
         <div class="canvas-wrap">
             <div id="stage"></div>
-            <div class="north-arrow">N</div>
+            <div class="north-arrow" id="northArrow" onclick="App.rotateNorth()" title="Click to rotate north direction">
+                <svg viewBox="0 0 24 24" id="compassArrow">
+                    <polygon class="arrow-n" points="12,2 8,12 12,10 16,12"/>
+                    <polygon class="arrow-s" points="12,22 8,12 12,14 16,12"/>
+                    <text x="12" y="6" text-anchor="middle" font-size="4" font-weight="bold" fill="white">N</text>
+                </svg>
+            </div>
             <div class="scale-label">1/4" = 1'-0"</div>
             <div class="qa-badge" id="qaBadge">QA: --</div>
             <div class="tool-hint" id="toolHint">Tap a wall segment to place</div>
@@ -3958,6 +3969,15 @@ const App = {
     },
 
     toggleSidebar() { $('#sidebarLeft').classList.toggle('collapsed'); },
+
+    northRotation: 0,
+    rotateNorth() {
+        this.northRotation = (this.northRotation + 45) % 360;
+        const arrow = $('#compassArrow');
+        if (arrow) {
+            arrow.style.transform = `rotate(${this.northRotation}deg)`;
+        }
+    },
 
     toggleObjectPanel() {
         const tree = $('#objectTree');
