@@ -2064,10 +2064,12 @@ const Render = {
             const offset = this.getInteriorOffset(ws, doc);
             const centerX = pos.x + offset.x * 0.5;
             const centerY = pos.y + offset.y * 0.5;
+            const self = this;
             const radGroup = new Konva.Group({
                 x: centerX,
                 y: centerY,
-                rotation: mep.rotation || 0
+                rotation: mep.rotation || 0,
+                draggable: isSelected
             });
 
             // Draw radiator centered at origin (0,0) so rotation works correctly
@@ -2101,7 +2103,40 @@ const Render = {
                 stroke: color, strokeWidth: 2, lineCap: 'round'
             }));
 
-            radGroup.on('tap click', () => App.onObjectTap('mep', mep.id));
+            radGroup.on('tap click', (e) => {
+                e.cancelBubble = true;
+                App.onObjectTap('mep', mep.id);
+            });
+
+            // Prevent stage panning when interacting with radiator
+            radGroup.on('mousedown touchstart', (e) => {
+                e.cancelBubble = true;
+            });
+
+            // Drag handling for radiator
+            if (isSelected) {
+                radGroup.on('dragstart', function(e) {
+                    e.cancelBubble = true;
+                    self.stage.draggable(false);
+                });
+
+                radGroup.on('dragmove', function(e) {
+                    e.cancelBubble = true;
+                });
+
+                radGroup.on('dragend', function(e) {
+                    self.stage.draggable(true);
+                    // Update mep position based on new location
+                    const newX = this.x();
+                    const newY = this.y();
+                    // Calculate new distance along wall
+                    const newDist = self.getOffsetOnSegment(ws, newX, newY);
+                    mep.distanceFromStart = Math.max(0, Math.min(newDist, getSegmentLength(ws)));
+                    App.saveState();
+                    App.render();
+                });
+            }
+
             this.layers.mep.add(radGroup);
         } else if (mep.label.startsWith('PRSR')) {
             // Pipe Riser - concentric circles to show vertical pipe
