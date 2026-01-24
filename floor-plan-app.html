@@ -201,14 +201,14 @@
                             <option value="Bedroom 2">Bedroom 2</option>
                             <option value="Bedroom 3">Bedroom 3</option>
                             <option value="Bedroom 4">Bedroom 4</option>
-                            <option value="Bathroom">Bathroom</option>
+                            <option value="Bathroom 1">Bathroom 1</option>
                             <option value="Bathroom 2">Bathroom 2</option>
                             <option value="Kitchen">Kitchen</option>
-                            <option value="Living">Living</option>
                             <option value="Living Room">Living Room</option>
                             <option value="Dining Room">Dining Room</option>
-                            <option value="Hall">Hall</option>
-                            <option value="Hallway">Hallway</option>
+                            <option value="Hallway 1">Hallway 1</option>
+                            <option value="Hallway 2">Hallway 2</option>
+                            <option value="Hallway 3">Hallway 3</option>
                             <option value="Foyer">Foyer</option>
                             <option value="Office">Office</option>
                             <option value="Den">Den</option>
@@ -248,7 +248,7 @@
                                 <svg viewBox="0 0 24 24"><path d="M21 10H11a5 5 0 00-5 5v2M21 10l-5-5M21 10l-5 5" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                 <span>Redo</span>
                             </button>
-                            <button class="tool-btn" id="deleteBtn" onclick="App.deleteSelected()" title="Delete selected" style="background: var(--accent-red); border-color: var(--accent-red); opacity: 0.4;" disabled>
+                            <button class="tool-btn" id="deleteBtn" onclick="App.deleteSelected()" title="Delete selected" style="opacity: 0.4;" disabled>
                                 <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14M10 11v6M14 11v6" stroke="currentColor" fill="none" stroke-width="2"/></svg>
                                 <span>Delete</span>
                             </button>
@@ -558,9 +558,9 @@ function generate2BR1BA() {
     createWallSegments(bed1, doc);
     doc.rooms.push(bed1);
 
-    // Hall: Top-center (4' x 10')
+    // Hallway 1: Top-center (4' x 10')
     const hall = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Hall', isExterior: false,
+        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Hallway 1', isExterior: false,
         geometry: { x: col2, y: row1, width: 4 * FOOT, height: 10 * FOOT }
     };
     createWallSegments(hall, doc);
@@ -575,9 +575,9 @@ function generate2BR1BA() {
     doc.rooms.push(kitchen);
 
     // ========== ROW 2: Living | Bath | Bed2 ==========
-    // Living: Bottom-left (12' x 10')
+    // Living Room: Bottom-left (12' x 10')
     const living = {
-        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Living', isExterior: true,
+        id: Doc.uid(), label: Doc.label(doc, 'room'), type: 'Living Room', isExterior: true,
         geometry: { x: col1, y: row2, width: 12 * FOOT, height: 10 * FOOT }
     };
     createWallSegments(living, doc);
@@ -3565,7 +3565,7 @@ const App = {
         // Update delete button state based on selection
         const sel = Render.selection;
         const deleteBtn = $('#deleteBtn');
-        const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
+        const deletableTypes = ['room', 'door', 'window', 'cased', 'closet', 'mep'];
 
         // Also allow deleting standalone walls (walls without roomId)
         let canDelete = sel.type && sel.id && deletableTypes.includes(sel.type);
@@ -3579,6 +3579,8 @@ const App = {
         if (deleteBtn) {
             deleteBtn.disabled = !canDelete;
             deleteBtn.style.opacity = canDelete ? '1' : '0.4';
+            deleteBtn.style.background = canDelete ? 'var(--accent-red)' : '';
+            deleteBtn.style.color = canDelete ? 'white' : '';
         }
 
         // Show/hide room type section based on room selection
@@ -3678,7 +3680,44 @@ const App = {
             return;
         }
 
-        // Only allow deleting actual objects, not rooms
+        // Handle room deletion
+        if (objType === 'room') {
+            const roomIndex = this.doc.rooms.findIndex(r => r.id === objId);
+            if (roomIndex !== -1) {
+                // Get all wall segments for this room
+                const roomWallIds = this.doc.wallSegments
+                    .filter(ws => ws.roomId === objId)
+                    .map(ws => ws.id);
+
+                // Delete all attached objects (doors, windows, cased openings, MEP)
+                this.doc.doors = this.doc.doors.filter(d => !roomWallIds.includes(d.parentWallSegmentId));
+                this.doc.windows = this.doc.windows.filter(w => !roomWallIds.includes(w.parentWallSegmentId));
+                this.doc.casedOpenings = this.doc.casedOpenings.filter(c => !roomWallIds.includes(c.parentWallSegmentId));
+                this.doc.mep = this.doc.mep.filter(m => !roomWallIds.includes(m.parentWallSegmentId));
+
+                // Delete closets that belong to this room
+                this.doc.closets = this.doc.closets.filter(c => c.parentRoomId !== objId);
+
+                // Delete wall segments
+                this.doc.wallSegments = this.doc.wallSegments.filter(ws => ws.roomId !== objId);
+
+                // Delete the room
+                this.doc.rooms.splice(roomIndex, 1);
+
+                // Recalculate exterior walls
+                markExteriorWalls(this.doc);
+
+                this.saveState();
+                Render.deselect();
+                this.render();
+                this.updateTree();
+                this.updateInspector();
+                this.updateQABadge();
+            }
+            return;
+        }
+
+        // Only allow deleting actual objects
         const deletableTypes = ['door', 'window', 'cased', 'closet', 'mep'];
         if (!deletableTypes.includes(objType)) {
             return;  // Silently ignore non-deletable types
