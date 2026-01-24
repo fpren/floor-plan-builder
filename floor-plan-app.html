@@ -143,7 +143,6 @@
 <div class="app">
     <div class="topbar">
         <button class="btn" onclick="App.newDoc()">New</button>
-        <button class="btn" onclick="App.loadDemo()">Demo</button>
         <button class="btn" onclick="$('#fbgInput').click()">Load</button>
         <input type="file" id="fbgInput" accept=".fbg,.fgs,.json" onchange="App.loadFBG(event)">
         <button class="btn" onclick="App.exportPDF()">PDF</button>
@@ -151,10 +150,6 @@
         <button class="btn active" id="btnGrid" onclick="App.toggle('grid')">Grid</button>
         <button class="btn active" id="btnWallIds" onclick="App.toggle('wallIds')">W-ID</button>
         <button class="btn active" id="btnDims" onclick="App.toggle('dims')">Dims</button>
-        <div class="sep"></div>
-        <button class="btn" onclick="App.resetView()">Reset</button>
-        <button class="btn" onclick="Render.fitToContent()">Fit</button>
-        <button class="btn active" id="btnSelect" onclick="App.setTool('select')">Select</button>
         <div class="sep"></div>
         <button class="btn" onclick="App.showQA()">QA</button>
     </div>
