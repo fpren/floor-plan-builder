@@ -1597,16 +1597,6 @@ const Render = {
 
             const wallColor = isSelected ? '#3b82f6' : '#2d3748';
             const wallWidth = isSelected ? 3 : (isExterior ? 2 : 1);
-            const shadowOffset = 4;
-
-            // Shadow line
-            this.layers.walls.add(new Konva.Line({
-                points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
-                stroke: 'rgba(0,0,0,0.5)',
-                strokeWidth: wallWidth + 2,
-                lineCap: 'round',
-                listening: false
-            }));
 
             // Main wall line
             this.layers.walls.add(new Konva.Line({
@@ -2860,17 +2850,6 @@ const Render = {
         // Visible wall line - dark grey, exterior walls thicker
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
         const wallWidth = isSelected ? 3 : (isExterior ? 2 : 1);
-        const shadowOffset = 4;
-
-        // Shadow line behind wall (offset down-right) - more visible
-        const shadowLine = new Konva.Line({
-            points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
-            stroke: 'rgba(0,0,0,0.5)',
-            strokeWidth: wallWidth + 2,
-            lineCap: 'round',
-            listening: false
-        });
-        group.add(shadowLine);
 
         // Main wall line
         const visibleLine = new Konva.Line({
@@ -2926,7 +2905,8 @@ const Render = {
         const dx = mid.x - cx;
         const dy = mid.y - cy;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        return { x: -(dx / dist) * 14, y: -(dy / dist) * 10 };
+        // Push label outward (away from room center) to avoid overlapping
+        return { x: (dx / dist) * 16, y: (dy / dist) * 12 };
     },
 
     renderCloset(closet, doc) {
@@ -3366,17 +3346,7 @@ const Render = {
     // Render a closet wall with hit detection for placing doors
     renderClosetWall(ws, wallColor, wallWidth) {
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
-        const shadowOffset = 4;
         const finalWidth = isSelected ? 2 : wallWidth;
-
-        // Shadow line behind wall - more visible
-        this.layers.walls.add(new Konva.Line({
-            points: [ws.x1 + shadowOffset, ws.y1 + shadowOffset, ws.x2 + shadowOffset, ws.y2 + shadowOffset],
-            stroke: 'rgba(0,0,0,0.5)',
-            strokeWidth: finalWidth + 2,
-            lineCap: 'round',
-            listening: false
-        }));
 
         // Visible wall line
         this.layers.walls.add(new Konva.Line({
@@ -4950,17 +4920,22 @@ const Render = {
             const dy = ws.y2 - ws.y1;
             const isHorizontal = Math.abs(dx) > Math.abs(dy);
 
-            // Position label offset from wall (outside the room)
+            // Position label outside the wall (away from room center)
             let labelX, labelY, rotation = 0;
-            const offset = 12;
+            const offset = 14;
+
+            // Find room center to determine which side is "outside"
+            const room = doc.rooms.find(r => r.id === ws.roomId) || doc.closets.find(c => c.id === ws.roomId);
+            const roomCenterY = room ? room.geometry.y + room.geometry.height / 2 : midY;
+            const roomCenterX = room ? room.geometry.x + room.geometry.width / 2 : midX;
 
             if (isHorizontal) {
-                // Horizontal wall - place label above or below
+                // Horizontal wall - place label outside (away from room center)
                 labelX = midX - 18;
-                labelY = midY + (dy >= 0 ? -offset - 8 : offset);
+                labelY = midY + (midY > roomCenterY ? offset : -offset - 8);
             } else {
-                // Vertical wall - place label left or right, rotated
-                labelX = midX + (dx >= 0 ? -offset - 8 : offset);
+                // Vertical wall - place label outside (away from room center)
+                labelX = midX + (midX > roomCenterX ? offset : -offset - 8);
                 labelY = midY + 18;
                 rotation = -90;
             }
