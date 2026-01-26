@@ -80,16 +80,8 @@
             flex: 1;
             position: relative;
             overflow: hidden;
-            /* Static blueprint grid background */
+            /* Blueprint blue background - grid is rendered on Konva layer */
             background-color: #f0f7ff;
-            background-image:
-                linear-gradient(rgba(59, 130, 246, 0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59, 130, 246, 0.08) 1px, transparent 1px),
-                linear-gradient(rgba(59, 130, 246, 0.15) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59, 130, 246, 0.15) 1px, transparent 1px);
-            background-size: 12px 12px, 12px 12px, 48px 48px, 48px 48px;
-            background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
-            background-attachment: fixed;
         }
         #stage { width: 100%; height: 100%; }
         .north-arrow { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.3s ease; }
@@ -1435,6 +1427,7 @@ const Render = {
         const r = c.getBoundingClientRect();
         this.stage = new Konva.Stage({ container: containerId, width: r.width, height: r.height, draggable: true });
 
+        this.layers.grid = new Konva.Layer({ listening: false }); // Grid layer (bottom)
         this.layers.rooms = new Konva.Layer();
         this.layers.walls = new Konva.Layer();
         this.layers.openings = new Konva.Layer();
@@ -1443,7 +1436,7 @@ const Render = {
         this.layers.dims = new Konva.Layer();
         this.layers.hit = new Konva.Layer(); // Hit regions layer
 
-        this.stage.add(this.layers.rooms, this.layers.walls, this.layers.hit, this.layers.openings, this.layers.mep, this.layers.labels, this.layers.dims);
+        this.stage.add(this.layers.grid, this.layers.rooms, this.layers.walls, this.layers.hit, this.layers.openings, this.layers.mep, this.layers.labels, this.layers.dims);
 
         this.stage.on('wheel', e => {
             e.evt.preventDefault();
@@ -1453,7 +1446,7 @@ const Render = {
 
             // Gentler zoom factor (1.03 instead of 1.1) with min/max limits
             const zoomFactor = 1.03;
-            const minScale = 0.3;
+            const minScale = 0.15;  // Allow more zoom out for overview
             const maxScale = 3;
             let newScale = e.evt.deltaY > 0 ? oldScale / zoomFactor : oldScale * zoomFactor;
             newScale = Math.max(minScale, Math.min(maxScale, newScale));
@@ -1578,7 +1571,7 @@ const Render = {
         // Calculate scale to fit content with padding
         const scaleX = (stageWidth - padding * 2) / contentWidth;
         const scaleY = (stageHeight - padding * 2) / contentHeight;
-        const newScale = Math.min(scaleX, scaleY, 1.5); // Cap at 1.5x
+        const newScale = Math.min(scaleX, scaleY, 0.7); // Cap at 0.7x for better overview
 
         // Center the content
         const centerX = minX + contentWidth / 2;
@@ -1603,7 +1596,7 @@ const Render = {
             const isExterior = ws.type === 'exterior';
 
             const wallColor = isSelected ? '#3b82f6' : '#2d3748';
-            const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
+            const wallWidth = isSelected ? 3 : (isExterior ? 2 : 1);
             const shadowOffset = 4;
 
             // Shadow line
@@ -1731,12 +1724,76 @@ const Render = {
         this.layers.labels.batchDraw();
     },
 
+    // Render grid lines at 1-foot intervals (scales with canvas)
+    renderGrid() {
+        if (!App.showGrid) return;
+
+        this.layers.grid.destroyChildren();
+
+        // Grid covers a large area to allow panning
+        const gridExtent = 200 * FOOT; // 200 feet in each direction
+        const startX = -gridExtent;
+        const startY = -gridExtent;
+        const endX = gridExtent;
+        const endY = gridExtent;
+
+        const minorStep = FOOT;      // 1 foot minor grid
+        const majorStep = 5 * FOOT;  // 5 feet major grid
+
+        // Minor grid lines (light)
+        for (let x = startX; x <= endX; x += minorStep) {
+            const isMajor = Math.abs(x % majorStep) < 0.1;
+            if (!isMajor) {
+                this.layers.grid.add(new Konva.Line({
+                    points: [x, startY, x, endY],
+                    stroke: 'rgba(59, 130, 246, 0.08)',
+                    strokeWidth: 1,
+                    listening: false
+                }));
+            }
+        }
+        for (let y = startY; y <= endY; y += minorStep) {
+            const isMajor = Math.abs(y % majorStep) < 0.1;
+            if (!isMajor) {
+                this.layers.grid.add(new Konva.Line({
+                    points: [startX, y, endX, y],
+                    stroke: 'rgba(59, 130, 246, 0.08)',
+                    strokeWidth: 1,
+                    listening: false
+                }));
+            }
+        }
+
+        // Major grid lines (darker, every 5 feet)
+        for (let x = startX; x <= endX; x += majorStep) {
+            this.layers.grid.add(new Konva.Line({
+                points: [x, startY, x, endY],
+                stroke: 'rgba(59, 130, 246, 0.15)',
+                strokeWidth: 1,
+                listening: false
+            }));
+        }
+        for (let y = startY; y <= endY; y += majorStep) {
+            this.layers.grid.add(new Konva.Line({
+                points: [startX, y, endX, y],
+                stroke: 'rgba(59, 130, 246, 0.15)',
+                strokeWidth: 1,
+                listening: false
+            }));
+        }
+
+        this.layers.grid.batchDraw();
+    },
+
     render(doc, opts = {}) {
         if (!this.stage) return;
         const { showWallIds = true, showDims = true } = opts;
 
         ['rooms', 'walls', 'hit', 'openings', 'mep', 'labels', 'dims'].forEach(l => this.layers[l].destroyChildren());
         this.wallGroups = {};
+
+        // Render grid (scales with canvas)
+        this.renderGrid();
 
         // Room fills (non-listening)
         doc.rooms.forEach(r => this.renderRoomFill(r, doc));
@@ -1981,20 +2038,23 @@ const Render = {
         this.layers.rooms.add(roomGroup);
 
         // Room label (inside) - show type as main label, ID underneath
-        const centroid = isPolygon ? getPolygonCentroid(verts) : { x: g.x + g.width / 2, y: g.y + g.height / 2 };
-        this.layers.labels.add(new Konva.Text({
-            x: centroid.x - 50, y: centroid.y - 12, width: 100,
-            text: room.type, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
-        }));
-        this.layers.labels.add(new Konva.Text({
-            x: centroid.x - 50, y: centroid.y + 4, width: 100,
-            text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
-        }));
+        // Skip labels during live update to prevent duplicates
+        if (!this._isLiveUpdating) {
+            const centroid = isPolygon ? getPolygonCentroid(verts) : { x: g.x + g.width / 2, y: g.y + g.height / 2 };
+            this.layers.labels.add(new Konva.Text({
+                x: centroid.x - 50, y: centroid.y - 12, width: 100,
+                text: room.type, fontSize: 13, fontStyle: 'bold', fill: isSelected ? '#3b82f6' : '#1f2937', align: 'center', listening: false
+            }));
+            this.layers.labels.add(new Konva.Text({
+                x: centroid.x - 50, y: centroid.y + 4, width: 100,
+                text: room.label, fontSize: 10, fill: '#6b7280', align: 'center', listening: false
+            }));
+        }
         // Note: Interior dimension LINES are rendered by renderInteriorDimensions()
         // Note: Exterior dimension lines are handled by renderChainDimensions()
 
-        // Show handles when room is selected
-        if (isSelected) {
+        // Show handles when room is selected (skip during live update to preserve drag)
+        if (isSelected && !this._isLiveUpdating) {
             // Show corner and edge resize handles
             this.renderResizeHandles(room, doc);
 
@@ -2102,6 +2162,7 @@ const Render = {
 
             handle.on('dragend', function() {
                 self.stage.draggable(true);
+                self.clearResizePreview();
                 App.syncGeometryFromVertices(room);
                 regenerateWallSegments(room, doc);
                 markExteriorWalls(doc);
@@ -2231,6 +2292,7 @@ const Render = {
 
             edgeGroup.on('dragend', function() {
                 self.stage.draggable(true);
+                self.clearResizePreview();
                 App.syncGeometryFromVertices(room);
                 regenerateWallSegments(room, doc);
                 markExteriorWalls(doc);
@@ -2289,6 +2351,7 @@ const Render = {
 
             handle.on('dragend', function() {
                 self.stage.draggable(true);
+                self.clearResizePreview();
                 App.syncGeometryFromVertices(room);
                 regenerateWallSegments(room, doc);
                 markExteriorWalls(doc);
@@ -2559,6 +2622,7 @@ const Render = {
 
         handleGroup.on('dragend', function() {
             self.stage.draggable(true);
+            self.clearResizePreview();
             App.syncGeometryFromVertices(room);
             regenerateWallSegments(room, doc);
             markExteriorWalls(doc);
@@ -2616,6 +2680,7 @@ const Render = {
 
             handleGroup.on('dragend', function() {
                 self.stage.draggable(true);
+                self.clearResizePreview();
                 App.syncGeometryFromVertices(room);
                 regenerateWallSegments(room, doc);
                 markExteriorWalls(doc);
@@ -2627,37 +2692,43 @@ const Render = {
         });
     },
 
-    // Live update room/closet during vertex drag (without full re-render)
+    // Live update room during resize - smooth real-time update
     updateRoomLive(room, doc) {
-        // Update geometry from vertices
+        // Update geometry
         const g = getGeometryFromVertices(room.vertices);
         if (g) room.geometry = g;
 
-        // Check if this is a closet or room
-        const isCloset = doc.closets.some(c => c.id === room.id);
+        // Update wall coordinates (for dragend)
+        const edges = getWallEdgesFromVertices(room);
+        const roomWalls = doc.wallSegments.filter(ws => ws.roomId === room.id);
+        roomWalls.forEach((ws, i) => {
+            if (edges[i]) {
+                ws.x1 = edges[i].start.x;
+                ws.y1 = edges[i].start.y;
+                ws.x2 = edges[i].end.x;
+                ws.y2 = edges[i].end.y;
+            }
+        });
 
-        // Rebuild the room fill shape
+        // Set flag to skip label rendering (prevents duplicates)
+        this._isLiveUpdating = true;
+
+        // Clear and re-render only the rooms layer for smooth visual update
         this.layers.rooms.destroyChildren();
-        doc.rooms.forEach(r => {
-            if (r.id === room.id) {
-                // Render the edited room with current vertices
-                this.renderRoomFillPolygon(r, doc);
-            } else {
-                this.renderRoomFill(r, doc);
-            }
-        });
-        doc.closets.forEach(c => {
-            if (c.id === room.id) {
-                // Render the edited closet - it will show current vertices
-                this.renderCloset(c, doc);
-            } else {
-                this.renderCloset(c, doc);
-            }
-        });
+        doc.rooms.forEach(r => this.renderRoomFill(r, doc));
         this.layers.rooms.batchDraw();
 
-        // Update walls live
-        this.updateWallsFromVertices(room, doc);
+        this._isLiveUpdating = false;
+    },
+
+    // Clear resize state after drag ends (legacy, kept for compatibility)
+    clearResizePreview() {
+        // Cleanup any preview elements if they exist
+        if (this._resizePreview) {
+            this._resizePreview.destroy();
+            this._resizePreview = null;
+        }
+        this._isLiveUpdating = false;
     },
 
     // Render room as polygon (for vertex editing)
@@ -2731,19 +2802,22 @@ const Render = {
         doc.wallSegments.forEach(ws => {
             // For the editing room, use edge positions from vertices
             if (ws.roomId === room.id) {
-                const edgeIdx = parseInt(ws.label.substring(1)) - 1;
+                // Use edge index (stored in ws.index - 1, since index is 1-based)
+                const edgeIdx = (ws.index || 1) - 1;
                 if (edges[edgeIdx]) {
                     ws.x1 = edges[edgeIdx].start.x;
                     ws.y1 = edges[edgeIdx].start.y;
                     ws.x2 = edges[edgeIdx].end.x;
                     ws.y2 = edges[edgeIdx].end.y;
+                    ws.side = edges[edgeIdx].side;
+                    ws.label = edges[edgeIdx].label;
                 }
             }
 
             // Render wall
             const wallColor = '#2d3748';
             const isExterior = ws.type === 'exterior';
-            const wallWidth = isExterior ? 4 : 2;
+            const wallWidth = isExterior ? 2 : 1;
 
             this.layers.walls.add(new Konva.Line({
                 points: [ws.x1 + 4, ws.y1 + 4, ws.x2 + 4, ws.y2 + 4],
@@ -2763,6 +2837,13 @@ const Render = {
 
         this.layers.walls.batchDraw();
         this.layers.hit.batchDraw();
+
+        // Also re-render openings so they move with walls
+        this.layers.openings.destroyChildren();
+        doc.doors.forEach(d => this.renderDoor(d, doc));
+        doc.windows.forEach(w => this.renderWindow(w, doc));
+        doc.casedOpenings.forEach(o => this.renderCasedOpening(o, doc));
+        this.layers.openings.batchDraw();
     },
 
     renderWallSegment(ws, doc, showWallIds) {
@@ -2778,7 +2859,7 @@ const Render = {
 
         // Visible wall line - dark grey, exterior walls thicker
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
-        const wallWidth = isSelected ? 5 : (isExterior ? 4 : 2);
+        const wallWidth = isSelected ? 3 : (isExterior ? 2 : 1);
         const shadowOffset = 4;
 
         // Shadow line behind wall (offset down-right) - more visible
@@ -2981,7 +3062,7 @@ const Render = {
 
         // Draw closet walls and make them clickable for placing doors
         const wallColor = isSelected ? '#3b82f6' : '#2d3748';
-        const wallWidth = 2;
+        const wallWidth = 1;
 
         // Get closet's wall segments for hit detection
         const closetWalls = doc.wallSegments.filter(ws => ws.roomId === closet.id);
@@ -3270,25 +3351,23 @@ const Render = {
         const g = getGeometryFromVertices(closet.vertices);
         if (g) closet.geometry = g;
 
+        // Set flag to skip label rendering (prevents duplicates)
+        this._isLiveUpdating = true;
+
         // Rebuild closets layer
         this.layers.rooms.destroyChildren();
         doc.rooms.forEach(r => this.renderRoomFill(r, doc));
-        doc.closets.forEach(c => {
-            if (c.id === closet.id) {
-                // Render the edited closet with current vertices
-                this.renderCloset(c, doc);
-            } else {
-                this.renderCloset(c, doc);
-            }
-        });
+        doc.closets.forEach(c => this.renderCloset(c, doc));
         this.layers.rooms.batchDraw();
+
+        this._isLiveUpdating = false;
     },
 
     // Render a closet wall with hit detection for placing doors
     renderClosetWall(ws, wallColor, wallWidth) {
         const isSelected = this.selection.type === 'wall' && this.selection.id === ws.id;
         const shadowOffset = 4;
-        const finalWidth = isSelected ? 4 : wallWidth;
+        const finalWidth = isSelected ? 2 : wallWidth;
 
         // Shadow line behind wall - more visible
         this.layers.walls.add(new Konva.Line({
@@ -7061,10 +7140,12 @@ const App = {
                 this.showGrid = !this.showGrid;
                 const btnGrid = $('#btnGrid');
                 if (btnGrid) btnGrid.classList.toggle('active', this.showGrid);
-                // Toggle CSS grid background on canvas-wrap
-                const canvasWrap = document.querySelector('.canvas-wrap');
-                if (canvasWrap) {
-                    canvasWrap.style.backgroundImage = this.showGrid ? '' : 'none';
+                // Re-render grid layer
+                if (this.showGrid) {
+                    Render.renderGrid();
+                } else {
+                    Render.layers.grid.destroyChildren();
+                    Render.layers.grid.batchDraw();
                 }
                 break;
             case 'wallIds':
