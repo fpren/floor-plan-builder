@@ -31,21 +31,23 @@
         .main { display: flex; flex: 1; overflow: hidden; position: relative; height: 100%; }
 
         .sidebar-left { width: 180px; background: rgba(245, 247, 250, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-right: none; display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease; position: relative; z-index: 10; box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15); }
-        .sidebar-left.collapsed { width: 52px; }
-        .sidebar-left.collapsed .sidebar-scroll { padding: 4px; }
+        .sidebar-left.collapsed { width: 52px; overflow: hidden; }
+        .sidebar-left.collapsed .sidebar-scroll { padding: 4px; overflow-x: hidden; }
+        .sidebar-left.collapsed .section { overflow: hidden; }
         .sidebar-left.collapsed .section-header { display: none; }
-        .sidebar-left.collapsed .section-content { padding: 2px; }
-        .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr; gap: 4px; }
-        .sidebar-left.collapsed .tool-btn { min-height: 40px; padding: 6px; }
-        .sidebar-left.collapsed .tool-btn span { display: none; }
+        .sidebar-left.collapsed .section-content { padding: 2px; overflow: hidden; }
+        .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr !important; gap: 4px; }
+        .sidebar-left.collapsed .tool-btn { min-height: 40px; padding: 6px; width: 40px; max-width: 40px; }
+        .sidebar-left.collapsed .tool-btn span { display: none !important; }
         .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
-        .sidebar-left.collapsed #objectSection { display: none; }
+        .sidebar-left.collapsed #objectSection { display: none !important; }
         .sidebar-left.collapsed .sidebar-toggle { writing-mode: vertical-rl; text-orientation: mixed; padding: 12px 8px; }
-        .sidebar-left.collapsed .helper-text { display: none; }
-        .sidebar-left.collapsed .tool-select { display: none; }
-        .sidebar-left.collapsed #roomTypeSection { display: none; }
-        .sidebar-left.collapsed #wallSection { display: none; }
+        .sidebar-left.collapsed .helper-text { display: none !important; }
+        .sidebar-left.collapsed .tool-select { display: none !important; }
+        .sidebar-left.collapsed #roomTypeSection { display: none !important; }
+        .sidebar-left.collapsed #wallSection { display: none !important; }
         .sidebar-left.collapsed #sampleListContainer { display: none !important; }
+        .sidebar-left.collapsed .section-content > div:not(.tool-grid) { display: none !important; }
         .helper-text { padding: 4px 8px; font-size: 9px; color: var(--text-dim); margin-top: 4px; }
         .tool-select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-tool); color: var(--text); font-size: 11px; cursor: pointer; }
         .door-type-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.15s ease; min-height: 80px; }
@@ -93,6 +95,7 @@
         .badge-container { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; align-items: center; z-index: 50; }
         .qa-badge { background: var(--accent-green); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; white-space: nowrap; }
         .qa-badge.error { background: var(--accent-red); }
+        .qa-badge.warning { background: var(--accent-orange); }
         .floor-badge { background: var(--accent-blue); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; position: relative; }
         .floor-badge:hover { background: #2563eb; }
         .floor-badge svg { width: 10px; height: 10px; }
@@ -124,6 +127,7 @@
         .qa-item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; gap: 10px; }
         .qa-pass { color: var(--accent-green); }
         .qa-fail { color: var(--accent-red); }
+        .qa-warn { color: var(--accent-orange); }
 
         @media (max-width: 768px) {
             /* Mobile: sidebar starts expanded, toggle works via .collapsed class */
@@ -133,17 +137,21 @@
             .sidebar-left .tool-btn span { font-size: 7px; }
             .sidebar-left #objectSection { display: none; }
             /* Mobile collapsed state */
-            .sidebar-left.collapsed { width: 48px; }
-            .sidebar-left.collapsed .sidebar-scroll { padding: 4px; }
-            .sidebar-left.collapsed .section-header { display: none; }
-            .sidebar-left.collapsed .section-content { padding: 2px; }
-            .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr; }
-            .sidebar-left.collapsed .tool-btn span { display: none; }
-            .sidebar-left.collapsed .helper-text { display: none; }
-            .sidebar-left.collapsed .tool-select { display: none; }
+            .sidebar-left.collapsed { width: 48px; overflow: hidden; }
+            .sidebar-left.collapsed .sidebar-scroll { padding: 4px; overflow-x: hidden; }
+            .sidebar-left.collapsed .section { overflow: hidden; }
+            .sidebar-left.collapsed .section-header { display: none !important; }
+            .sidebar-left.collapsed .section-content { padding: 2px; overflow: hidden; }
+            .sidebar-left.collapsed .tool-grid { grid-template-columns: 1fr !important; }
+            .sidebar-left.collapsed .tool-btn { width: 36px; max-width: 36px; }
+            .sidebar-left.collapsed .tool-btn span { display: none !important; }
+            .sidebar-left.collapsed .helper-text { display: none !important; }
+            .sidebar-left.collapsed .tool-select { display: none !important; }
             .sidebar-left.collapsed #roomTypeSection { display: none !important; }
             .sidebar-left.collapsed #wallSection { display: none !important; }
+            .sidebar-left.collapsed #objectSection { display: none !important; }
             .sidebar-left.collapsed .tool-btn svg { margin-bottom: 0; }
+            .sidebar-left.collapsed .section-content > div:not(.tool-grid) { display: none !important; }
             .north-arrow { width: 36px; height: 36px; top: 8px; right: 8px; }
             .north-arrow svg { width: 22px; height: 22px; }
             .scale-label { font-size: 9px; padding: 4px 8px; bottom: 8px; left: 8px; }
@@ -208,6 +216,7 @@ window.EMBEDDED_PROJECT_DATA = {"version":"1.0","savedAt":"2026-01-24T09:26:23.4
                             <button class="tool-btn" onclick="App.setTool('window')" title="Tap a wall to place window"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"></rect><line x1="12" y1="7" x2="12" y2="17"></line></svg><span>Window</span></button>
                             <button class="tool-btn" onclick="App.setTool('cased')" title="Cased opening (no door)"><svg viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="3,2"></line></svg><span>Cased</span></button>
                             <button class="tool-btn" onclick="App.setTool('wallbreak')" title="Break wall (create gap)"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="9" y2="12" stroke-width="3"></line><line x1="15" y1="12" x2="21" y2="12" stroke-width="3"></line><path d="M10 8l2 4-2 4M14 8l-2 4 2 4" stroke-width="1.5"></path></svg><span>Break</span></button>
+                            <button class="tool-btn" onclick="App.setTool('partition')" title="Draw interior wall to divide room"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1"></rect><line x1="12" y1="3" x2="12" y2="21" stroke-dasharray="3,2"></line></svg><span>Divide</span></button>
                         </div>
                     </div>
                 </div>
@@ -247,7 +256,7 @@ window.EMBEDDED_PROJECT_DATA = {"version":"1.0","savedAt":"2026-01-24T09:26:23.4
                         </div>
                         <div class="tool-grid">
                             <button class="tool-btn" onclick="App.setTool('dustwipe')" style="font-weight: bold;" title="Tap floor, wall, window, or door to place dust wipe sample">
-                                <svg viewBox="0 0 24 24"><text x="12" y="17" text-anchor="middle" font-size="16" font-weight="bold" fill="currentColor" stroke="currentColor" stroke-width="0.5">X</text></svg>
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" fill="none"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
                                 <span>Sample</span>
                             </button>
                         </div>
@@ -1860,7 +1869,7 @@ const Render = {
 
         // Room fill - light blue tint when selected, white when not
         const roomFill = isSelected ? '#dbeafe' : '#fafbfc';
-        const roomBorder = isSelected ? '#2563eb' : '#e5e7eb';
+        const roomBorder = isSelected ? '#2563eb' : '#2d3748'; // Dark border to match wall color
 
         // Shadow properties - subtle glow when selected, very light shadow when not
         const shadowProps = isSelected ? {
@@ -1877,9 +1886,12 @@ const Render = {
 
         if (isPolygon) {
             // Render as polygon for non-rectangular rooms
-            const points = getVerticesAsPoints(verts);
+            // Position the group at the bounding box origin, use relative coords for polygon
+            roomGroup.x(g.x);
+            roomGroup.y(g.y);
+            const relativePoints = verts.flatMap(v => [v.x - g.x, v.y - g.y]);
             const polygon = new Konva.Line({
-                points: points,
+                points: relativePoints,
                 fill: roomFill,
                 stroke: roomBorder,
                 strokeWidth: isSelected ? 2 : 1,
@@ -2728,7 +2740,7 @@ const Render = {
         const isSelected = this.isSelected('room', room.id);
 
         const roomFill = isSelected ? '#dbeafe' : '#fafbfc';
-        const roomBorder = isSelected ? '#2563eb' : '#e5e7eb';
+        const roomBorder = isSelected ? '#2563eb' : '#2d3748'; // Dark border to match wall color
 
         const shadowProps = isSelected ? {
             shadowColor: '#3b82f6',
@@ -4800,6 +4812,13 @@ const Render = {
                 room.geometry = g;
             }
             if (!g) return;
+
+            // For L-shaped or complex rooms (more than 4 vertices), render wall-based dimensions
+            if (room.vertices && room.vertices.length > 4) {
+                this.renderComplexRoomDimensions(room, layer, dimColor, formatDim);
+                return;
+            }
+
             const w = g.width;
             const h = g.height;
 
@@ -4888,6 +4907,161 @@ const Render = {
                 text: formatDim(h), fontSize: 7, fill: dimColor, rotation: -90, listening: false
             }));
         });
+    },
+
+    // Render dimensions for L-shaped or complex rooms (more than 4 vertices)
+    renderComplexRoomDimensions(room, layer, dimColor, formatDim) {
+        const vertices = room.vertices;
+        if (!vertices || vertices.length < 5) return;
+
+        const dimOffset = 15;
+        const tickLen = 4;
+
+        // Find all horizontal and vertical wall segments
+        const horizontalSegments = [];
+        const verticalSegments = [];
+
+        for (let i = 0; i < vertices.length; i++) {
+            const v1 = vertices[i];
+            const v2 = vertices[(i + 1) % vertices.length];
+            const dx = v2.x - v1.x;
+            const dy = v2.y - v1.y;
+            const length = Math.hypot(dx, dy);
+
+            if (length < FOOT) continue; // Skip very short segments
+
+            if (Math.abs(dy) < 1) {
+                // Horizontal segment
+                horizontalSegments.push({
+                    y: v1.y,
+                    x1: Math.min(v1.x, v2.x),
+                    x2: Math.max(v1.x, v2.x),
+                    length: Math.abs(dx)
+                });
+            } else if (Math.abs(dx) < 1) {
+                // Vertical segment
+                verticalSegments.push({
+                    x: v1.x,
+                    y1: Math.min(v1.y, v2.y),
+                    y2: Math.max(v1.y, v2.y),
+                    length: Math.abs(dy)
+                });
+            }
+        }
+
+        // Get bounding box for reference
+        const minX = Math.min(...vertices.map(v => v.x));
+        const maxX = Math.max(...vertices.map(v => v.x));
+        const minY = Math.min(...vertices.map(v => v.y));
+        const maxY = Math.max(...vertices.map(v => v.y));
+
+        // Find the longest horizontal segment at or near the bottom for width display
+        const bottomHorizontals = horizontalSegments
+            .filter(s => Math.abs(s.y - maxY) < FOOT)
+            .sort((a, b) => b.length - a.length);
+
+        if (bottomHorizontals.length > 0) {
+            const seg = bottomHorizontals[0];
+            const dimY = seg.y - dimOffset;
+
+            // Dimension line
+            layer.add(new Konva.Line({
+                points: [seg.x1 + dimOffset, dimY, seg.x2 - dimOffset, dimY],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Left tick
+            layer.add(new Konva.Line({
+                points: [seg.x1 + dimOffset, dimY - tickLen, seg.x1 + dimOffset, dimY + tickLen],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Right tick
+            layer.add(new Konva.Line({
+                points: [seg.x2 - dimOffset, dimY - tickLen, seg.x2 - dimOffset, dimY + tickLen],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Width label
+            const labelX = (seg.x1 + seg.x2) / 2 - 20;
+            layer.add(new Konva.Text({
+                x: labelX, y: dimY - 14,
+                text: formatDim(seg.length), fontSize: 10, fontStyle: 'bold', fill: dimColor, listening: false
+            }));
+        }
+
+        // Find the longest vertical segment at or near the right side for height display
+        // But avoid segments that border cut-out areas
+        const rightVerticals = verticalSegments
+            .filter(s => Math.abs(s.x - maxX) < FOOT)
+            .sort((a, b) => b.length - a.length);
+
+        if (rightVerticals.length > 0) {
+            const seg = rightVerticals[0];
+            const dimX = seg.x - dimOffset;
+
+            // Dimension line
+            layer.add(new Konva.Line({
+                points: [dimX, seg.y1 + dimOffset, dimX, seg.y2 - dimOffset],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Top tick
+            layer.add(new Konva.Line({
+                points: [dimX - tickLen, seg.y1 + dimOffset, dimX + tickLen, seg.y1 + dimOffset],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Bottom tick
+            layer.add(new Konva.Line({
+                points: [dimX - tickLen, seg.y2 - dimOffset, dimX + tickLen, seg.y2 - dimOffset],
+                stroke: dimColor, strokeWidth: 1.5, listening: false
+            }));
+            // Height label
+            const labelY = (seg.y1 + seg.y2) / 2 - 20;
+            layer.add(new Konva.Text({
+                x: dimX - 10, y: labelY,
+                text: formatDim(seg.length), fontSize: 10, fontStyle: 'bold', fill: dimColor, rotation: -90, listening: false
+            }));
+        }
+
+        // For L-shaped rooms, also show the "notch" dimensions if they exist
+        // Find horizontal segments NOT at top or bottom (internal ledges)
+        const internalHorizontals = horizontalSegments
+            .filter(s => Math.abs(s.y - minY) > FOOT && Math.abs(s.y - maxY) > FOOT)
+            .sort((a, b) => b.length - a.length);
+
+        if (internalHorizontals.length > 0 && internalHorizontals[0].length >= FOOT * 2) {
+            const seg = internalHorizontals[0];
+            const dimY = seg.y + dimOffset;
+
+            // Dimension line (smaller, for the notch)
+            layer.add(new Konva.Line({
+                points: [seg.x1 + 5, dimY, seg.x2 - 5, dimY],
+                stroke: dimColor, strokeWidth: 1, dash: [3, 2], listening: false
+            }));
+            // Label
+            layer.add(new Konva.Text({
+                x: (seg.x1 + seg.x2) / 2 - 14, y: dimY - 10,
+                text: formatDim(seg.length), fontSize: 8, fill: dimColor, listening: false
+            }));
+        }
+
+        // Find vertical segments NOT at left or right (internal ledges)
+        const internalVerticals = verticalSegments
+            .filter(s => Math.abs(s.x - minX) > FOOT && Math.abs(s.x - maxX) > FOOT)
+            .sort((a, b) => b.length - a.length);
+
+        if (internalVerticals.length > 0 && internalVerticals[0].length >= FOOT * 2) {
+            const seg = internalVerticals[0];
+            const dimX = seg.x + dimOffset;
+
+            // Dimension line (smaller, for the notch)
+            layer.add(new Konva.Line({
+                points: [dimX, seg.y1 + 5, dimX, seg.y2 - 5],
+                stroke: dimColor, strokeWidth: 1, dash: [3, 2], listening: false
+            }));
+            // Label
+            layer.add(new Konva.Text({
+                x: dimX - 6, y: (seg.y1 + seg.y2) / 2 - 14,
+                text: formatDim(seg.length), fontSize: 8, fill: dimColor, rotation: -90, listening: false
+            }));
+        }
     },
 
     // Render dimension on each individual wall segment
@@ -5026,6 +5200,9 @@ const Render = {
 // ========== QA VALIDATION ==========
 function runQA(doc) {
     const results = [];
+    const dustWipes = doc.dustWipes || [];
+
+    // ========== FLOOR PLAN COMPLETENESS ==========
 
     // All rooms labeled
     results.push({ rule: 'All rooms labeled', pass: doc.rooms.every(r => r.label), detail: 'OK' });
@@ -5039,8 +5216,9 @@ function runQA(doc) {
     });
     results.push({ rule: 'Wall IDs (W1 exists)', pass: badWalls.length === 0, detail: badWalls.length > 0 ? `${badWalls.length} rooms` : 'OK' });
 
-    // Closets
-    results.push({ rule: 'Closets (CL-01, CL-02)', pass: doc.closets.length >= 2, detail: `${doc.closets.length} closets` });
+    // Closets - now a soft warning, not required
+    const hasClosets = doc.closets.length > 0;
+    results.push({ rule: 'Closets present', pass: hasClosets, detail: `${doc.closets.length} closet(s)`, warn: !hasClosets });
 
     // Doors attached to walls
     const unattachedDoors = doc.doors.filter(d => !d.parentWallSegmentId);
@@ -5061,13 +5239,109 @@ function runQA(doc) {
     const unattachedMEP = doc.mep.filter(m => !m.parentWallSegmentId && !m.freePlaced);
     results.push({ rule: 'MEP attached to walls', pass: unattachedMEP.length === 0, detail: unattachedMEP.length > 0 ? `${unattachedMEP.length} floating` : 'OK' });
 
-    // POE anchored
-    const poe = doc.mep.find(m => m.label.startsWith('POE'));
-    const entryDoor = doc.doors.find(d => d.type === 'entry');
-    results.push({ rule: 'POE anchored to entry', pass: poe && poe.anchorDoorId === entryDoor?.id, detail: poe ? 'OK' : 'Missing' });
+    // ========== ENTRY & POE VALIDATION ==========
 
-    // Dimensions
-    results.push({ rule: 'Dimensions present', pass: doc.dimensions.length > 0, detail: `${doc.dimensions.length}` });
+    // Entry door designated
+    const entryDoor = doc.doors.find(d => d.type === 'entry');
+    results.push({ rule: 'Entry door designated', pass: !!entryDoor, detail: entryDoor ? `${entryDoor.label}` : 'Mark a door as entry type' });
+
+    // POE marker present
+    const poe = doc.mep.find(m => m.label && m.label.startsWith('POE'));
+    results.push({ rule: 'POE marker present', pass: !!poe, detail: poe ? 'OK' : 'Add POE marker' });
+
+    // POE anchored to entry door
+    const poeAnchored = poe && entryDoor && poe.anchorDoorId === entryDoor.id;
+    results.push({ rule: 'POE anchored to entry', pass: poeAnchored || !poe, detail: !poe ? 'N/A' : (poeAnchored ? 'OK' : 'Anchor POE to entry door') });
+
+    // ========== ROOM TYPE COVERAGE (Lead Assessment) ==========
+
+    const roomTypes = doc.rooms.map(r => (r.type || '').toLowerCase());
+    const hasKitchen = roomTypes.some(t => t.includes('kitchen'));
+    const hasBathroom = roomTypes.some(t => t.includes('bath'));
+    const hasBedroom = roomTypes.some(t => t.includes('bed'));
+
+    results.push({ rule: 'Kitchen identified', pass: hasKitchen, detail: hasKitchen ? 'OK' : 'Label a room as Kitchen', warn: !hasKitchen });
+    results.push({ rule: 'Bathroom identified', pass: hasBathroom, detail: hasBathroom ? 'OK' : 'Label a room as Bathroom', warn: !hasBathroom });
+    results.push({ rule: 'Bedroom identified', pass: hasBedroom, detail: hasBedroom ? 'OK' : 'Label at least one Bedroom', warn: !hasBedroom });
+
+    // Rooms with type assigned
+    const roomsWithType = doc.rooms.filter(r => r.type && r.type !== 'Room');
+    const unlabeledRooms = doc.rooms.length - roomsWithType.length;
+    results.push({ rule: 'All rooms have type', pass: unlabeledRooms === 0, detail: unlabeledRooms === 0 ? 'OK' : `${unlabeledRooms} need type`, warn: unlabeledRooms > 0 });
+
+    // ========== DUST WIPE SAMPLING (EPA Compliance) ==========
+
+    // Floor sample per room
+    const roomsWithFloorSamples = new Set();
+    dustWipes.forEach(dw => {
+        if (dw.locationType === 'floor' || dw.locationType === 'entryway') {
+            if (dw.parentRoomId) roomsWithFloorSamples.add(dw.parentRoomId);
+        }
+    });
+    const roomsMissingFloor = doc.rooms.filter(r => !roomsWithFloorSamples.has(r.id)).length;
+    results.push({
+        rule: 'Floor sample per room (EPA)',
+        pass: roomsMissingFloor === 0 || doc.rooms.length === 0,
+        detail: roomsMissingFloor === 0 ? 'OK' : `${roomsMissingFloor} rooms need floor samples`
+    });
+
+    // Window trough samples (EPA requirement)
+    const windowsWithTrough = new Set();
+    dustWipes.forEach(dw => {
+        if (dw.locationType === 'trough' && dw.parentWindowId) {
+            windowsWithTrough.add(dw.parentWindowId);
+        }
+    });
+    const windowsMissingTrough = doc.windows.filter(w => !windowsWithTrough.has(w.id)).length;
+    results.push({
+        rule: 'Window trough samples (EPA)',
+        pass: windowsMissingTrough === 0 || doc.windows.length === 0,
+        detail: doc.windows.length === 0 ? 'No windows' : (windowsMissingTrough === 0 ? 'OK' : `${windowsMissingTrough} windows need trough samples`)
+    });
+
+    // Entry floor sample
+    const hasEntrySample = dustWipes.some(dw => dw.locationType === 'entryway');
+    results.push({
+        rule: 'Entry floor sample (EPA)',
+        pass: hasEntrySample || !entryDoor,
+        detail: !entryDoor ? 'No entry door' : (hasEntrySample ? 'OK' : 'Add entryway floor sample near POE')
+    });
+
+    // Total sample count
+    const minSamples = Math.max(4, doc.rooms.length + doc.windows.length);
+    const totalSamples = dustWipes.length;
+    results.push({
+        rule: 'Adequate sample count',
+        pass: totalSamples >= minSamples,
+        detail: `${totalSamples} samples (min ${minSamples})`,
+        warn: totalSamples < minSamples
+    });
+
+    // ========== SAMPLE NUMBERING ==========
+
+    // Extract sample numbers and check for duplicates
+    const sampleLabels = dustWipes.map(dw => dw.label);
+    const duplicateLabels = sampleLabels.filter((label, idx) => sampleLabels.indexOf(label) !== idx);
+    results.push({
+        rule: 'No duplicate sample numbers',
+        pass: duplicateLabels.length === 0,
+        detail: duplicateLabels.length === 0 ? 'OK' : `Duplicates: ${[...new Set(duplicateLabels)].join(', ')}`
+    });
+
+    // Sample sheet number set
+    const hasSheetNumber = doc.sampleSheetNumber && doc.sampleSheetNumber !== 'XXXXX';
+    results.push({
+        rule: 'Sample sheet number set',
+        pass: hasSheetNumber || dustWipes.length === 0,
+        detail: hasSheetNumber ? doc.sampleSheetNumber : 'Not set',
+        warn: !hasSheetNumber && dustWipes.length > 0
+    });
+
+    // ========== DIMENSIONS ==========
+
+    // Dimensions present
+    const hasDimensions = doc.dimensions && doc.dimensions.length > 0;
+    results.push({ rule: 'Dimensions present', pass: hasDimensions, detail: hasDimensions ? `${doc.dimensions.length}` : 'Add dimensions', warn: !hasDimensions });
 
     return results;
 }
@@ -5098,6 +5372,11 @@ const App = {
     casedPreview: null,
     pushableSegment: null, // Legacy - kept for compatibility
     newVertexInfo: null,   // Tracks newly added vertex {roomId, vertexIdx} for special rendering
+    // Partition tool state
+    isDrawingPartition: false,
+    partitionStart: null,      // {roomId, wallSegmentId, x, y, edge, t}
+    partitionPreview: null,    // Konva Line for preview
+    partitionSnapIndicator: null, // Konva Circle for snap feedback
     // Multi-floor support
     floors: {},           // Stores all floor documents: { floor1: doc, floor2: doc, ... }
     currentFloor: 'floor1',  // Currently active floor
@@ -5147,6 +5426,7 @@ const App = {
         this.setupKeyboardShortcuts();
         this.setupRoomDrawing();
         this.setupWallDrawing();
+        this.setupPartitionDrawing();
         this.setupMarqueeSelection();
         this.setupFloorDropdownClose();
         console.log('App ready - tap walls to select');
@@ -5280,27 +5560,16 @@ const App = {
             }
 
             if (parentRoom) {
-                // Create a closet inside the room (closet is a sub-room with parent link)
-                const closet = {
-                    id: Doc.uid(),
-                    label: Doc.label(this.doc, 'closet'),
-                    type: 'Closet',
-                    roomType: 'Closet',  // Distinguishes from regular Room
-                    parentRoomId: parentRoom.id,
-                    parentRoomLabel: parentRoom.label,
-                    isExterior: false,
-                    geometry: { x, y, width, height },
-                    vertices: [  // Polygon vertices (clockwise from top-left)
-                        { x: x, y: y },
-                        { x: x + width, y: y },
-                        { x: x + width, y: y + height },
-                        { x: x, y: y + height }
-                    ]
-                };
-                // Create wall segments for the closet (like a room)
-                createWallSegments(closet, this.doc);
-                this.doc.closets.push(closet);
-                Render.select('closet', closet.id);
+                // Create a closet by partitioning the parent room
+                // This modifies the parent room's geometry to exclude the closet area
+                const closetGeom = { x, y, width, height };
+                const result = this.createClosetWithPartition(parentRoom, closetGeom);
+
+                if (result.success) {
+                    Render.select('closet', result.closetId);
+                } else {
+                    console.warn('Failed to create closet:', result.error);
+                }
             } else {
                 // Create a new room
                 if (width < 4 * FOOT || height < 4 * FOOT) {
@@ -5840,6 +6109,7 @@ const App = {
         } else if (this.currentTool === 'dustwipe') {
             this.placeDustWipe(ws, clickPos);
         }
+        // Note: partition tool is handled via mousedown in setupPartitionDrawing
     },
 
     onObjectTap(type, id) {
@@ -6080,6 +6350,9 @@ const App = {
             hint.classList.add('show');
         } else if (tool === 'wallbreak') {
             hint.textContent = 'Tap a wall to create a break/gap';
+            hint.classList.add('show');
+        } else if (tool === 'partition') {
+            hint.textContent = 'Click a wall to start partition, drag to opposite wall';
             hint.classList.add('show');
         } else {
             hint.classList.remove('show');
@@ -6721,6 +6994,736 @@ const App = {
             : 'Drag the green handle LEFT or RIGHT to create L/T/H shape.';
         hint.classList.add('show');
         setTimeout(() => hint.classList.remove('show'), 4000);
+    },
+
+    // ========== PARTITION TOOL ==========
+    // Find wall segment at a given point
+    findWallAtPoint(pos) {
+        const THRESHOLD = 15;
+        let bestWall = null;
+        let bestDist = THRESHOLD;
+
+        for (const ws of this.doc.wallSegments) {
+            if (!ws.roomId) continue; // Skip standalone walls
+
+            const edge = { start: { x: ws.x1, y: ws.y1 }, end: { x: ws.x2, y: ws.y2 } };
+            const t = getTOnEdge(edge, pos.x, pos.y);
+
+            if (t < 0 || t > 1) continue;
+
+            const proj = getPositionOnEdge(edge, t);
+            const dist = Math.sqrt(Math.pow(pos.x - proj.x, 2) + Math.pow(pos.y - proj.y, 2));
+
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestWall = { ws, t, proj };
+            }
+        }
+
+        return bestWall;
+    },
+
+    // Start drawing a partition from a wall (called from mousedown)
+    startPartitionFromPoint(ws, clickPos) {
+        const room = this.doc.rooms.find(r => r.id === ws.roomId);
+        if (!room) {
+            console.warn('Partition: No room found for wall');
+            return;
+        }
+
+        // Find the edge for this wall segment
+        const edges = getWallEdgesFromVertices(room);
+        const edge = edges.find(e => {
+            const wsForEdge = this.doc.wallSegments.find(w =>
+                w.roomId === room.id &&
+                Math.abs(w.x1 - e.start.x) < 1 && Math.abs(w.y1 - e.start.y) < 1 &&
+                Math.abs(w.x2 - e.end.x) < 1 && Math.abs(w.y2 - e.end.y) < 1
+            );
+            return wsForEdge && wsForEdge.id === ws.id;
+        });
+
+        if (!edge) {
+            // Fallback: create edge from wall segment coords
+            const fallbackEdge = {
+                start: { x: ws.x1, y: ws.y1 },
+                end: { x: ws.x2, y: ws.y2 }
+            };
+            const t = getTOnEdge(fallbackEdge, clickPos.x, clickPos.y);
+            const startPoint = getPositionOnEdge(fallbackEdge, t);
+
+            this.partitionStart = {
+                roomId: room.id,
+                wallSegmentId: ws.id,
+                x: startPoint.x,
+                y: startPoint.y,
+                edge: fallbackEdge,
+                t: t
+            };
+        } else {
+            const t = getTOnEdge(edge, clickPos.x, clickPos.y);
+            const startPoint = getPositionOnEdge(edge, t);
+
+            this.partitionStart = {
+                roomId: room.id,
+                wallSegmentId: ws.id,
+                x: startPoint.x,
+                y: startPoint.y,
+                edge: edge,
+                t: t
+            };
+        }
+
+        this.isDrawingPartition = true;
+
+        // Disable stage dragging during partition drawing
+        Render.stage.draggable(false);
+
+        // Create preview line
+        this.partitionPreview = new Konva.Line({
+            points: [this.partitionStart.x, this.partitionStart.y, this.partitionStart.x, this.partitionStart.y],
+            stroke: '#22c55e',
+            strokeWidth: 3,
+            dash: [8, 4],
+            lineCap: 'round'
+        });
+        Render.layers.openings.add(this.partitionPreview);
+
+        // Create snap indicator
+        this.partitionSnapIndicator = new Konva.Circle({
+            x: this.partitionStart.x,
+            y: this.partitionStart.y,
+            radius: 8,
+            fill: '#22c55e',
+            stroke: 'white',
+            strokeWidth: 2
+        });
+        Render.layers.openings.add(this.partitionSnapIndicator);
+        Render.layers.openings.batchDraw();
+
+        // Update hint
+        const hint = $('#toolHint');
+        hint.textContent = 'Drag to opposite wall to divide room';
+        hint.classList.add('show');
+    },
+
+    // Setup partition drawing events
+    setupPartitionDrawing() {
+        const stage = Render.stage;
+        const self = this;
+
+        // Handle mousedown/touchstart for partition tool
+        stage.on('mousedown touchstart', (e) => {
+            if (this.currentTool !== 'partition') return;
+
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
+            // Find wall under cursor
+            const wallInfo = this.findWallAtPoint(pos);
+            if (!wallInfo) return;
+
+            // Start partition from this wall
+            e.cancelBubble = true;
+            this.startPartitionFromPoint(wallInfo.ws, pos);
+        });
+
+        stage.on('mousemove touchmove', (e) => {
+            if (!this.isDrawingPartition || !this.partitionPreview) return;
+
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
+            // Find snap target on opposite walls
+            const snapTarget = this.findPartitionSnapTarget(pos);
+
+            if (snapTarget) {
+                // Update preview to snap point
+                this.partitionPreview.points([
+                    this.partitionStart.x, this.partitionStart.y,
+                    snapTarget.x, snapTarget.y
+                ]);
+                this.partitionSnapIndicator.x(snapTarget.x);
+                this.partitionSnapIndicator.y(snapTarget.y);
+                this.partitionSnapIndicator.fill('#22c55e');
+                this.partitionSnapIndicator.visible(true);
+            } else {
+                // Update preview to mouse position
+                this.partitionPreview.points([
+                    this.partitionStart.x, this.partitionStart.y,
+                    pos.x, pos.y
+                ]);
+                this.partitionSnapIndicator.x(pos.x);
+                this.partitionSnapIndicator.y(pos.y);
+                this.partitionSnapIndicator.fill('#ef4444');
+                this.partitionSnapIndicator.visible(true);
+            }
+
+            Render.layers.openings.batchDraw();
+        });
+
+        stage.on('mouseup touchend', (e) => {
+            if (!this.isDrawingPartition) return;
+
+            const pos = self.getWorldPosition(stage);
+            if (!pos) return;
+
+            // Find snap target
+            const snapTarget = this.findPartitionSnapTarget(pos);
+
+            // Clean up preview
+            if (this.partitionPreview) {
+                this.partitionPreview.destroy();
+                this.partitionPreview = null;
+            }
+            if (this.partitionSnapIndicator) {
+                this.partitionSnapIndicator.destroy();
+                this.partitionSnapIndicator = null;
+            }
+
+            this.isDrawingPartition = false;
+
+            // Restore stage dragging
+            this.restoreStageDraggable();
+
+            if (snapTarget && snapTarget.wallSegmentId !== this.partitionStart.wallSegmentId) {
+                // Execute partition
+                this.executePartition(this.partitionStart, snapTarget);
+            } else {
+                // Invalid partition
+                const hint = $('#toolHint');
+                hint.textContent = 'Partition must end on a different wall of the same room';
+                hint.classList.add('show');
+                setTimeout(() => hint.classList.remove('show'), 2000);
+            }
+
+            this.partitionStart = null;
+            Render.layers.openings.batchDraw();
+        });
+    },
+
+    // Find snap target for partition end point
+    findPartitionSnapTarget(pos) {
+        if (!this.partitionStart) return null;
+
+        const room = this.doc.rooms.find(r => r.id === this.partitionStart.roomId);
+        if (!room) return null;
+
+        const SNAP_THRESHOLD = 20;
+        let bestSnap = null;
+        let bestDist = SNAP_THRESHOLD;
+
+        // Check all walls of the same room (except the starting wall)
+        const roomWalls = this.doc.wallSegments.filter(ws =>
+            ws.roomId === this.partitionStart.roomId &&
+            ws.id !== this.partitionStart.wallSegmentId
+        );
+
+        for (const ws of roomWalls) {
+            const edge = { start: { x: ws.x1, y: ws.y1 }, end: { x: ws.x2, y: ws.y2 } };
+
+            // Project point onto edge
+            const edgeLen = getEdgeLength(edge);
+            if (edgeLen < 1) continue;
+
+            const t = getTOnEdge(edge, pos.x, pos.y);
+
+            // Only snap if within the edge (not at endpoints to avoid corner issues)
+            if (t < 0.05 || t > 0.95) continue;
+
+            const projPoint = getPositionOnEdge(edge, t);
+            const dist = Math.sqrt(Math.pow(pos.x - projPoint.x, 2) + Math.pow(pos.y - projPoint.y, 2));
+
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestSnap = {
+                    wallSegmentId: ws.id,
+                    roomId: ws.roomId,
+                    x: projPoint.x,
+                    y: projPoint.y,
+                    edge: edge,
+                    t: t
+                };
+            }
+        }
+
+        return bestSnap;
+    },
+
+    // Execute the partition - split room into two
+    executePartition(startPoint, endPoint) {
+        const room = this.doc.rooms.find(r => r.id === startPoint.roomId);
+        if (!room || !room.vertices) {
+            console.error('Partition: Room not found or has no vertices');
+            return;
+        }
+
+        const verts = room.vertices;
+        const n = verts.length;
+
+        // Find which edge indices the partition intersects
+        let startEdgeIdx = -1;
+        let endEdgeIdx = -1;
+
+        for (let i = 0; i < n; i++) {
+            const v1 = verts[i];
+            const v2 = verts[(i + 1) % n];
+
+            // Check if start point is on this edge
+            if (this.isPointOnEdge(startPoint, v1, v2)) {
+                startEdgeIdx = i;
+            }
+            // Check if end point is on this edge
+            if (this.isPointOnEdge(endPoint, v1, v2)) {
+                endEdgeIdx = i;
+            }
+        }
+
+        if (startEdgeIdx === -1 || endEdgeIdx === -1 || startEdgeIdx === endEdgeIdx) {
+            console.error('Partition: Could not find valid edge indices', startEdgeIdx, endEdgeIdx);
+            return;
+        }
+
+        // Create two new rooms from the split
+        const newVerts1 = [];
+        const newVerts2 = [];
+
+        // Snap partition points to grid
+        const partStart = { x: snapToGrid(startPoint.x), y: snapToGrid(startPoint.y) };
+        const partEnd = { x: snapToGrid(endPoint.x), y: snapToGrid(endPoint.y) };
+
+        // Ensure consistent ordering (startEdgeIdx < endEdgeIdx)
+        if (startEdgeIdx > endEdgeIdx) {
+            [startEdgeIdx, endEdgeIdx] = [endEdgeIdx, startEdgeIdx];
+            [partStart.x, partStart.y, partEnd.x, partEnd.y] = [partEnd.x, partEnd.y, partStart.x, partStart.y];
+        }
+
+        // Build first polygon: from start of startEdge, through partition, to end
+        // Vertices from 0 to startEdgeIdx, then partition start, partition end, then from endEdgeIdx+1 to end
+        for (let i = 0; i <= startEdgeIdx; i++) {
+            newVerts1.push({ ...verts[i] });
+        }
+        newVerts1.push({ ...partStart });
+        newVerts1.push({ ...partEnd });
+        for (let i = endEdgeIdx + 1; i < n; i++) {
+            newVerts1.push({ ...verts[i] });
+        }
+
+        // Build second polygon: from partition end back through to partition start
+        newVerts2.push({ ...partEnd });
+        newVerts2.push({ ...partStart });
+        for (let i = startEdgeIdx + 1; i <= endEdgeIdx; i++) {
+            newVerts2.push({ ...verts[i] });
+        }
+
+        // Validate polygons have at least 3 vertices
+        if (newVerts1.length < 3 || newVerts2.length < 3) {
+            console.error('Partition: Invalid polygon sizes', newVerts1.length, newVerts2.length);
+            return;
+        }
+
+        // Create geometry from vertices
+        const geom1 = getGeometryFromVertices(newVerts1);
+        const geom2 = getGeometryFromVertices(newVerts2);
+
+        // Minimum area check
+        const MIN_AREA = 2 * FOOT * 2 * FOOT;
+        if (geom1.width * geom1.height < MIN_AREA || geom2.width * geom2.height < MIN_AREA) {
+            const hint = $('#toolHint');
+            hint.textContent = 'Partition would create room too small (min 2\'x2\')';
+            hint.classList.add('show');
+            setTimeout(() => hint.classList.remove('show'), 2000);
+            return;
+        }
+
+        // Remove old room's wall segments
+        this.doc.wallSegments = this.doc.wallSegments.filter(ws => ws.roomId !== room.id);
+
+        // Create first new room (keeps original label with 'a' suffix)
+        const room1 = {
+            id: Doc.uid(),
+            label: room.label + 'a',
+            type: room.type || 'room',
+            vertices: newVerts1,
+            geometry: geom1,
+            isExterior: room.isExterior
+        };
+
+        // Create second new room (original label with 'b' suffix)
+        const room2 = {
+            id: Doc.uid(),
+            label: room.label + 'b',
+            type: room.type || 'room',
+            vertices: newVerts2,
+            geometry: geom2,
+            isExterior: false // Interior partition creates interior room
+        };
+
+        // Remove old room and add new rooms
+        const roomIdx = this.doc.rooms.findIndex(r => r.id === room.id);
+        this.doc.rooms.splice(roomIdx, 1, room1, room2);
+
+        // Create wall segments for new rooms
+        createWallSegments(room1, this.doc);
+        createWallSegments(room2, this.doc);
+
+        // Reassign attached objects to new rooms
+        this.reassignObjectsAfterPartition(room.id, room1, room2);
+
+        // Mark exterior walls
+        markExteriorWalls(this.doc);
+
+        this.saveState();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+
+        const hint = $('#toolHint');
+        hint.textContent = `Room divided into ${room1.label} and ${room2.label}`;
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 3000);
+
+        // Return to select tool
+        this.setTool('select');
+    },
+
+    // Check if a point is on an edge (within tolerance)
+    isPointOnEdge(point, v1, v2, tolerance = 5) {
+        const edge = { start: v1, end: v2 };
+        const t = getTOnEdge(edge, point.x, point.y);
+        if (t < 0 || t > 1) return false;
+
+        const proj = getPositionOnEdge(edge, t);
+        const dist = Math.sqrt(Math.pow(point.x - proj.x, 2) + Math.pow(point.y - proj.y, 2));
+        return dist < tolerance;
+    },
+
+    // Reassign doors, windows, etc. to new rooms after partition
+    reassignObjectsAfterPartition(oldRoomId, room1, room2) {
+        // Helper to find which room a point belongs to
+        const findContainingRoom = (x, y) => {
+            // Check room1
+            if (this.isPointInPolygon({ x, y }, room1.vertices)) {
+                return room1;
+            }
+            // Check room2
+            if (this.isPointInPolygon({ x, y }, room2.vertices)) {
+                return room2;
+            }
+            // Fallback: check which room center is closer
+            const c1 = this.getPolygonCentroid(room1.vertices);
+            const c2 = this.getPolygonCentroid(room2.vertices);
+            const d1 = Math.pow(x - c1.x, 2) + Math.pow(y - c1.y, 2);
+            const d2 = Math.pow(x - c2.x, 2) + Math.pow(y - c2.y, 2);
+            return d1 < d2 ? room1 : room2;
+        };
+
+        // Helper to find wall segment in new room that contains a point
+        const findWallForPoint = (x, y, newRoom) => {
+            const roomWalls = this.doc.wallSegments.filter(ws => ws.roomId === newRoom.id);
+            let bestWall = null;
+            let bestDist = Infinity;
+
+            for (const ws of roomWalls) {
+                const edge = { start: { x: ws.x1, y: ws.y1 }, end: { x: ws.x2, y: ws.y2 } };
+                const t = getTOnEdge(edge, x, y);
+                const proj = getPositionOnEdge(edge, Math.max(0, Math.min(1, t)));
+                const dist = Math.sqrt(Math.pow(x - proj.x, 2) + Math.pow(y - proj.y, 2));
+
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestWall = ws;
+                }
+            }
+            return bestWall;
+        };
+
+        // Reassign doors
+        this.doc.doors.forEach(door => {
+            if (door.parentRoomId === oldRoomId) {
+                const newRoom = findContainingRoom(door.x || 0, door.y || 0);
+                const newWall = findWallForPoint(door.x || 0, door.y || 0, newRoom);
+                if (newWall) {
+                    door.parentRoomId = newRoom.id;
+                    door.parentWallSegmentId = newWall.id;
+                }
+            }
+        });
+
+        // Reassign windows
+        this.doc.windows.forEach(win => {
+            if (win.parentRoomId === oldRoomId) {
+                const newRoom = findContainingRoom(win.x || 0, win.y || 0);
+                const newWall = findWallForPoint(win.x || 0, win.y || 0, newRoom);
+                if (newWall) {
+                    win.parentRoomId = newRoom.id;
+                    win.parentWallSegmentId = newWall.id;
+                }
+            }
+        });
+
+        // Reassign cased openings
+        this.doc.casedOpenings.forEach(cased => {
+            if (cased.parentRoomId === oldRoomId) {
+                const newRoom = findContainingRoom(cased.x || 0, cased.y || 0);
+                const newWall = findWallForPoint(cased.x || 0, cased.y || 0, newRoom);
+                if (newWall) {
+                    cased.parentRoomId = newRoom.id;
+                    cased.parentWallSegmentId = newWall.id;
+                }
+            }
+        });
+
+        // Reassign MEP (uses x, y coordinates)
+        this.doc.mep.forEach(mep => {
+            if (mep.parentRoomId === oldRoomId) {
+                const newRoom = findContainingRoom(mep.x, mep.y);
+                mep.parentRoomId = newRoom.id;
+                // Update wall if attached
+                if (mep.parentWallSegmentId) {
+                    const newWall = findWallForPoint(mep.x, mep.y, newRoom);
+                    if (newWall) {
+                        mep.parentWallSegmentId = newWall.id;
+                    }
+                }
+            }
+        });
+
+        // Reassign dust wipes
+        this.doc.dustWipes.forEach(dw => {
+            if (dw.parentRoomId === oldRoomId) {
+                const newRoom = findContainingRoom(dw.x, dw.y);
+                dw.parentRoomId = newRoom.id;
+            }
+        });
+    },
+
+    // Point in polygon test (ray casting)
+    isPointInPolygon(point, vertices) {
+        let inside = false;
+        const n = vertices.length;
+
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+            const xi = vertices[i].x, yi = vertices[i].y;
+            const xj = vertices[j].x, yj = vertices[j].y;
+
+            if (((yi > point.y) !== (yj > point.y)) &&
+                (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)) {
+                inside = !inside;
+            }
+        }
+
+        return inside;
+    },
+
+    // Get polygon centroid
+    getPolygonCentroid(vertices) {
+        let cx = 0, cy = 0;
+        const n = vertices.length;
+        for (let i = 0; i < n; i++) {
+            cx += vertices[i].x;
+            cy += vertices[i].y;
+        }
+        return { x: cx / n, y: cy / n };
+    },
+
+    // Create a closet by partitioning the parent room
+    // This modifies the parent room to exclude the closet area
+    createClosetWithPartition(parentRoom, closetGeom) {
+        const { x, y, width, height } = closetGeom;
+        const pg = parentRoom.geometry;
+
+        // Snap closet to grid
+        const cx = snapToGrid(x);
+        const cy = snapToGrid(y);
+        const cw = snapToGrid(width);
+        const ch = snapToGrid(height);
+
+        // Determine which edge(s) the closet touches
+        const TOLERANCE = 5;
+        const touchesTop = Math.abs(cy - pg.y) < TOLERANCE;
+        const touchesBottom = Math.abs((cy + ch) - (pg.y + pg.height)) < TOLERANCE;
+        const touchesLeft = Math.abs(cx - pg.x) < TOLERANCE;
+        const touchesRight = Math.abs((cx + cw) - (pg.x + pg.width)) < TOLERANCE;
+
+        // Count how many edges it touches
+        const touchCount = [touchesTop, touchesBottom, touchesLeft, touchesRight].filter(Boolean).length;
+
+        // For now, handle the case where closet touches exactly one or two edges (corner)
+        if (touchCount === 0) {
+            // Closet is floating in the middle - not supported for partitioning
+            // Fall back to old behavior (overlay)
+            return this.createClosetOverlay(parentRoom, closetGeom);
+        }
+
+        // Remove old wall segments for parent room
+        this.doc.wallSegments = this.doc.wallSegments.filter(ws => ws.roomId !== parentRoom.id);
+
+        // Create new vertices for parent room (L-shape or similar)
+        let newParentVerts = [];
+
+        if (touchesTop && touchesLeft) {
+            // Closet in top-left corner - parent becomes L-shape
+            newParentVerts = [
+                { x: cx + cw, y: pg.y },           // Start at closet's right edge, top
+                { x: pg.x + pg.width, y: pg.y },   // Top-right of room
+                { x: pg.x + pg.width, y: pg.y + pg.height }, // Bottom-right
+                { x: pg.x, y: pg.y + pg.height },  // Bottom-left
+                { x: pg.x, y: cy + ch },           // Up to closet's bottom
+                { x: cx + cw, y: cy + ch }         // Closet's bottom-right corner
+            ];
+        } else if (touchesTop && touchesRight) {
+            // Closet in top-right corner
+            newParentVerts = [
+                { x: pg.x, y: pg.y },              // Top-left
+                { x: cx, y: pg.y },                // To closet's left edge
+                { x: cx, y: cy + ch },             // Down to closet's bottom
+                { x: pg.x + pg.width, y: cy + ch }, // Closet's bottom-right
+                { x: pg.x + pg.width, y: pg.y + pg.height }, // Bottom-right
+                { x: pg.x, y: pg.y + pg.height }   // Bottom-left
+            ];
+        } else if (touchesBottom && touchesLeft) {
+            // Closet in bottom-left corner
+            newParentVerts = [
+                { x: pg.x, y: pg.y },              // Top-left
+                { x: pg.x + pg.width, y: pg.y },   // Top-right
+                { x: pg.x + pg.width, y: pg.y + pg.height }, // Bottom-right
+                { x: cx + cw, y: pg.y + pg.height }, // To closet's right edge
+                { x: cx + cw, y: cy },             // Up to closet's top
+                { x: pg.x, y: cy }                 // Closet's top-left
+            ];
+        } else if (touchesBottom && touchesRight) {
+            // Closet in bottom-right corner
+            newParentVerts = [
+                { x: pg.x, y: pg.y },              // Top-left
+                { x: pg.x + pg.width, y: pg.y },   // Top-right
+                { x: pg.x + pg.width, y: cy },     // Down to closet's top
+                { x: cx, y: cy },                  // Closet's top-left
+                { x: cx, y: pg.y + pg.height },    // Down to bottom
+                { x: pg.x, y: pg.y + pg.height }   // Bottom-left
+            ];
+        } else if (touchesTop && !touchesLeft && !touchesRight) {
+            // Closet on top edge (not corner) - creates U-shape notch
+            newParentVerts = [
+                { x: pg.x, y: pg.y },
+                { x: cx, y: pg.y },
+                { x: cx, y: cy + ch },
+                { x: cx + cw, y: cy + ch },
+                { x: cx + cw, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y + pg.height },
+                { x: pg.x, y: pg.y + pg.height }
+            ];
+        } else if (touchesBottom && !touchesLeft && !touchesRight) {
+            // Closet on bottom edge
+            newParentVerts = [
+                { x: pg.x, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y + pg.height },
+                { x: cx + cw, y: pg.y + pg.height },
+                { x: cx + cw, y: cy },
+                { x: cx, y: cy },
+                { x: cx, y: pg.y + pg.height },
+                { x: pg.x, y: pg.y + pg.height }
+            ];
+        } else if (touchesLeft && !touchesTop && !touchesBottom) {
+            // Closet on left edge
+            newParentVerts = [
+                { x: pg.x, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y + pg.height },
+                { x: pg.x, y: pg.y + pg.height },
+                { x: pg.x, y: cy + ch },
+                { x: cx + cw, y: cy + ch },
+                { x: cx + cw, y: cy },
+                { x: pg.x, y: cy }
+            ];
+        } else if (touchesRight && !touchesTop && !touchesBottom) {
+            // Closet on right edge
+            newParentVerts = [
+                { x: pg.x, y: pg.y },
+                { x: pg.x + pg.width, y: pg.y },
+                { x: pg.x + pg.width, y: cy },
+                { x: cx, y: cy },
+                { x: cx, y: cy + ch },
+                { x: pg.x + pg.width, y: cy + ch },
+                { x: pg.x + pg.width, y: pg.y + pg.height },
+                { x: pg.x, y: pg.y + pg.height }
+            ];
+        } else {
+            // Complex case - fall back to overlay
+            return this.createClosetOverlay(parentRoom, closetGeom);
+        }
+
+        // Update parent room vertices and geometry
+        parentRoom.vertices = newParentVerts;
+        parentRoom.geometry = getGeometryFromVertices(newParentVerts);
+
+        // Create wall segments for updated parent room
+        createWallSegments(parentRoom, this.doc);
+
+        // Create the closet as a separate room (not in closets array, but in rooms)
+        const closetRoom = {
+            id: Doc.uid(),
+            label: Doc.label(this.doc, 'closet'),
+            type: 'Closet',
+            roomType: 'Closet',
+            parentRoomId: parentRoom.id,
+            parentRoomLabel: parentRoom.label,
+            isExterior: false,
+            geometry: { x: cx, y: cy, width: cw, height: ch },
+            vertices: [
+                { x: cx, y: cy },
+                { x: cx + cw, y: cy },
+                { x: cx + cw, y: cy + ch },
+                { x: cx, y: cy + ch }
+            ]
+        };
+
+        // Add closet to rooms array (not closets) so it gets proper dimensions
+        this.doc.rooms.push(closetRoom);
+        createWallSegments(closetRoom, this.doc);
+
+        // Mark exterior walls
+        markExteriorWalls(this.doc);
+
+        this.saveState();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+
+        return { success: true, closetId: closetRoom.id };
+    },
+
+    // Fallback: create closet as overlay (old behavior)
+    createClosetOverlay(parentRoom, closetGeom) {
+        const { x, y, width, height } = closetGeom;
+
+        const closet = {
+            id: Doc.uid(),
+            label: Doc.label(this.doc, 'closet'),
+            type: 'Closet',
+            roomType: 'Closet',
+            parentRoomId: parentRoom.id,
+            parentRoomLabel: parentRoom.label,
+            isExterior: false,
+            geometry: { x, y, width, height },
+            vertices: [
+                { x: x, y: y },
+                { x: x + width, y: y },
+                { x: x + width, y: y + height },
+                { x: x, y: y + height }
+            ]
+        };
+
+        createWallSegments(closet, this.doc);
+        this.doc.closets.push(closet);
+
+        this.saveState();
+        this.render();
+        this.updateTree();
+        this.updateQABadge();
+
+        return { success: true, closetId: closet.id };
     },
 
     // Delete a vertex (double-tap on vertex, if more than 4 remain)
@@ -7441,21 +8444,41 @@ const App = {
 
     updateQABadge() {
         const results = runQA(this.doc);
-        const fails = results.filter(r => !r.pass).length;
+        const errors = results.filter(r => !r.pass && !r.warn).length;
+        const warnings = results.filter(r => !r.pass && r.warn).length;
         const badge = $('#qaBadge');
-        badge.textContent = fails === 0 ? 'QA: PASS' : `QA: ${fails} errors`;
-        badge.className = 'qa-badge' + (fails > 0 ? ' error' : '');
+        if (errors > 0) {
+            badge.textContent = 'QA: ' + errors + ' error' + (errors > 1 ? 's' : '');
+            badge.className = 'qa-badge error';
+        } else if (warnings > 0) {
+            badge.textContent = 'QA: ' + warnings + ' warning' + (warnings > 1 ? 's' : '');
+            badge.className = 'qa-badge warning';
+        } else {
+            badge.textContent = 'QA: PASS';
+            badge.className = 'qa-badge';
+        }
     },
 
     showQA() {
         const results = runQA(this.doc);
-        $('#qaContent').innerHTML = results.map(r => `
-            <div class="qa-item">
-                <span class="${r.pass ? 'qa-pass' : 'qa-fail'}">${r.pass ? '✓' : '✗'}</span>
-                <span>${r.rule}</span>
-                <span style="color:#888;margin-left:auto">${r.detail}</span>
-            </div>
-        `).join('');
+        const container = $('#qaContent');
+        container.textContent = '';
+        results.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'qa-item';
+            const icon = document.createElement('span');
+            icon.className = r.pass ? 'qa-pass' : (r.warn ? 'qa-warn' : 'qa-fail');
+            icon.textContent = r.pass ? '\u2713' : (r.warn ? '!' : '\u2717');
+            const rule = document.createElement('span');
+            rule.textContent = r.rule;
+            const detail = document.createElement('span');
+            detail.style.cssText = 'color:#888;margin-left:auto';
+            detail.textContent = r.detail;
+            item.appendChild(icon);
+            item.appendChild(rule);
+            item.appendChild(detail);
+            container.appendChild(item);
+        });
         $('#qaModal').classList.add('show');
     },
 
